@@ -23,6 +23,7 @@ var (
 	historyTo		= kingpin.Flag("history-to", "Higher value of history date.").Default("").String()
 	amountFrom		= kingpin.Flag("amount-from", "Lower value of history amount.").Default("").String()
 	amountTo		= kingpin.Flag("amount-to", "Higher value of history amount.").Default("").String()
+	cryptoKey		= kingpin.Flag("crypto-key", "Channel crypto key.").Default("").String()
 )
 
 func main() {
@@ -58,13 +59,12 @@ func main() {
 	handler.HistoryTo = *historyTo
 	handler.AmountFrom = *amountFrom
 	handler.AmountTo = *amountTo
+	handler.CryptoKey = *cryptoKey
 
 	if *command == "start" {
 		isNodeRunning, err := nodesHandler.CheckNodeRunning()
 		if err != nil {
 			logger.Error("Can't check if node is running. Details: " + err.Error())
-			fmt.Println("Can't check if node is running. Details: " + err.Error())
-			os.Exit(1)
 		}
 		if isNodeRunning {
 			logger.Error("Node already running")
@@ -115,6 +115,15 @@ func main() {
 		}
 		nodesHandler.ClearEventsMonitoringPID()
 		os.Exit(0)
+
+	} else if *command == "channels" {
+		err = nodesHandler.StartNodeForCommunication()
+		if err != nil {
+			logger.Error("Node is not running. Details: " + err.Error())
+			fmt.Println("Node is not running. Details: " + err.Error())
+			os.Exit(1)
+		}
+		nodesHandler.Channels()
 
 	} else if *command == "trust-lines" {
 		err = nodesHandler.StartNodeForCommunication()

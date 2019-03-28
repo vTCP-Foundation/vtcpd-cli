@@ -40,6 +40,7 @@ var (
 	HistoryTo		= ""
 	AmountFrom		= ""
 	AmountTo		= ""
+	CryptoKey		= ""
 )
 
 type NodesHandler struct {

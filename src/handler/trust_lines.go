@@ -54,33 +54,18 @@ func (handler *NodesHandler) TrustLines() {
 }
 
 func (handler *NodesHandler)initTrustLine() {
-	if len(Addresses) == 0 {
-		logger.Error("Bad request: there are no contractor addresses parameters in open request")
-		fmt.Println("Bad request: there are no contractor addresses parameters")
+	if !ValidateInt(ContractorID) {
+		logger.Error("Bad request: invalid contractorID parameter in open request")
+		fmt.Println("Bad request: invalid contractorID parameter")
 		return
 	}
-
 	if !ValidateInt(Equivalent) {
 		logger.Error("Bad request: invalid equivalent parameter in open request")
 		fmt.Println("Bad request: invalid equivalent parameter")
 		return
 	}
 
-	var addresses []string
-	for idx:= 0; idx < len(Addresses); idx++ {
-		addressType, address := ValidateAddress(Addresses[idx])
-		if addressType == "" {
-			logger.Error("Bad request: invalid address parameter in open request")
-			fmt.Println("Bad request: invalid address parameter")
-			return
-		}
-		addresses = append(addresses, addressType, address)
-	}
-
-	addresses = append([]string{strconv.Itoa(len(Addresses))}, addresses...)
-	addresses = append([]string{"INIT:contractors/trust-line"}, addresses...)
-	addresses = append(addresses, []string{Equivalent}...)
-	command := NewCommand(addresses...)
+	command := NewCommand("INIT:contractors/trust-line", ContractorID, Equivalent)
 
 	go handler.actionTrustLineGetResult(command)
 }
