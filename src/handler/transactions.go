@@ -1,16 +1,19 @@
 package handler
 
 import (
-	"logger"
-	"strconv"
 	"fmt"
+	"github.com/gorilla/mux"
+	"logger"
+	"net/http"
+	"strconv"
+	"strings"
 )
 
 var (
 	PAYMENT_OPERATION_TIMEOUT uint16 = 60
-	MAX_FLOW_FIRST_TIMEOUT uint16 = 30
-	MAX_FLOW_FULLY_TIMEOUT uint16 = 60
-	COMMAND_UUID_TIMEOUT uint16 = 20
+	MAX_FLOW_FIRST_TIMEOUT    uint16 = 30
+	MAX_FLOW_FULLY_TIMEOUT    uint16 = 60
+	COMMAND_UUID_TIMEOUT      uint16 = 20
 )
 
 func (handler *NodesHandler) MaxFlow() {
@@ -28,7 +31,7 @@ func (handler *NodesHandler) MaxFlow() {
 	}
 }
 
-func (handler *NodesHandler)maxFlowFully() {
+func (handler *NodesHandler) maxFlowFully() {
 	if len(Addresses) == 0 {
 		logger.Error("Bad request: there are no contractor addresses parameters in max-flow request")
 		fmt.Println("Bad request: there are no contractor addresses parameters")
@@ -42,7 +45,7 @@ func (handler *NodesHandler)maxFlowFully() {
 	}
 
 	var addresses []string
-	for idx:= 0; idx < len(Addresses); idx++ {
+	for idx := 0; idx < len(Addresses); idx++ {
 		addressType, address := ValidateAddress(Addresses[idx])
 		if addressType == "" {
 			logger.Error("Bad request: invalid address parameter in max-flow request")
@@ -60,11 +63,11 @@ func (handler *NodesHandler)maxFlowFully() {
 	go handler.maxFlowGetResult(command)
 }
 
-func (handler *NodesHandler)maxFlowGetResult(command *Command) {
+func (handler *NodesHandler) maxFlowGetResult(command *Command) {
 	type Record struct {
-		ContractorAddressType 	string `json:"address_type"`
-		ContractorAddress 		string `json:"contractor_address"`
-		MaxAmount      			string `json:"max_amount"`
+		ContractorAddressType string `json:"address_type"`
+		ContractorAddress     string `json:"contractor_address"`
+		MaxAmount             string `json:"max_amount"`
 	}
 
 	type Response struct {
@@ -128,16 +131,121 @@ func (handler *NodesHandler)maxFlowGetResult(command *Command) {
 	response := Response{Count: contractorsCount}
 	for i := 0; i < contractorsCount; i++ {
 		response.Records = append(response.Records, Record{
-			ContractorAddressType:	result.Tokens[i*3+1],
-			ContractorAddress: 		result.Tokens[i*3+2],
-			MaxAmount:      		result.Tokens[i*3+3],
+			ContractorAddressType: result.Tokens[i*3+1],
+			ContractorAddress:     result.Tokens[i*3+2],
+			MaxAmount:             result.Tokens[i*3+3],
 		})
 	}
 	resultJSON := buildJSONResponse(OK, response)
 	fmt.Println(string(resultJSON))
 }
 
-func (handler *NodesHandler)maxFlowPartly() {
+func (handler *NodesHandler) BatchMaxFullyTransaction(w http.ResponseWriter, r *http.Request) {
+	url := logRequest(r)
+
+	equivalent, isParamPresent := mux.Vars(r)["equivalent"]
+	if !isParamPresent {
+		logger.Error("Bad request: missing equivalent parameter: " + url)
+		w.WriteHeader(BAD_REQUEST)
+		return
+	}
+
+	contractorAddresses := []string{}
+	for key, values := range r.URL.Query() {
+		if key != "contractor_address" {
+			continue
+		}
+		for _, value := range values {
+			typeAndAddress := strings.Split(value, "-")
+			contractorAddresses = append(contractorAddresses, typeAndAddress[0])
+			contractorAddresses = append(contractorAddresses, typeAndAddress[1])
+		}
+		break
+	}
+	if len(contractorAddresses) == 0 {
+		logger.Error("Bad request: there are no contractor_addresses parameters: " + url)
+		w.WriteHeader(BAD_REQUEST)
+		return
+	}
+
+	// Command generation
+	contractorAddresses = append([]string{strconv.Itoa(len(contractorAddresses) / 2)}, contractorAddresses...)
+	contractorAddresses = append([]string{"GET:contractors/transactions/max/fully"}, contractorAddresses...)
+	contractorAddresses = append(contractorAddresses, []string{equivalent}...)
+	command := NewCommand(contractorAddresses...)
+
+	type Record struct {
+		ContractorAddressType string `json:"address_type"`
+		ContractorAddress     string `json:"contractor_address"`
+		MaxAmount             string `json:"max_amount"`
+	}
+
+	type Response struct {
+		Count   int      `json:"count"`
+		Records []Record `json:"records"`
+	}
+
+	err := handler.node.SendCommand(command)
+	if err != nil {
+		logger.Error("Can't send command: " + string(command.ToBytes()) + " to node. Details: " + err.Error())
+		writeHTTPResponse(w, COMMAND_TRANSFERRING_ERROR, Response{})
+		return
+	}
+
+	// Command processing.
+	// This command may execute relatively slow.
+	// Timeout is set to little bit greater value to be able to handle this.
+	result, err := handler.node.GetResult(command, MAX_FLOW_FULLY_TIMEOUT)
+	if err != nil {
+		logger.Error("Node is inaccessible during processing command: " +
+			string(command.ToBytes()) + ". Details: " + err.Error())
+		writeHTTPResponse(w, NODE_IS_INACCESSIBLE, Response{})
+		return
+	}
+
+	if result.Code != OK && result.Code != ENGINE_NO_EQUIVALENT {
+		logger.Error("Node return wrong command result: " + strconv.Itoa(result.Code) +
+			" on command: " + string(command.ToBytes()))
+		writeHTTPResponse(w, result.Code, Response{})
+		return
+	}
+	if result.Code == ENGINE_NO_EQUIVALENT {
+		logger.Info("Node hasn't equivalent for command: " + string(command.ToBytes()))
+		writeHTTPResponse(w, result.Code, Response{})
+		return
+	}
+
+	if len(result.Tokens) == 0 {
+		logger.Error("Node return invalid result tokens size on command: " + string(command.ToBytes()))
+		writeHTTPResponse(w, ENGINE_UNEXPECTED_ERROR, Response{})
+		return
+	}
+
+	contractorsCount, err := strconv.Atoi(result.Tokens[0])
+	if err != nil {
+		logger.Error("Node return invalid token on command: " + string(command.ToBytes()) +
+			". Details: " + err.Error())
+		writeHTTPResponse(w, ENGINE_UNEXPECTED_ERROR, Response{})
+		return
+	}
+
+	if contractorsCount == 0 {
+		writeHTTPResponse(w, OK, Response{Count: 0})
+		return
+	}
+
+	response := Response{Count: contractorsCount}
+	for i := 0; i < contractorsCount; i++ {
+		response.Records = append(response.Records, Record{
+			ContractorAddressType: result.Tokens[i*3+1],
+			ContractorAddress:     result.Tokens[i*3+2],
+			MaxAmount:             result.Tokens[i*3+3],
+		})
+	}
+	writeHTTPResponse(w, OK, response)
+}
+
+func (handler *NodesHandler) maxFlowPartly() {
 	if len(Addresses) == 0 {
 		logger.Error("Bad request: there are no contractor addresses parameters in max-flow partly request")
 		fmt.Println("Bad request: there are no contractor addresses parameters")
@@ -151,7 +259,7 @@ func (handler *NodesHandler)maxFlowPartly() {
 	}
 
 	var addresses []string
-	for idx:= 0; idx < len(Addresses); idx++ {
+	for idx := 0; idx < len(Addresses); idx++ {
 		addressType, address := ValidateAddress(Addresses[idx])
 		if addressType == "" {
 			logger.Error("Bad request: invalid address parameter in max-flow partly request")
@@ -169,16 +277,16 @@ func (handler *NodesHandler)maxFlowPartly() {
 	go handler.maxFlowPartlyGetResult(command)
 }
 
-func (handler *NodesHandler)maxFlowPartlyGetResult(command *Command) {
+func (handler *NodesHandler) maxFlowPartlyGetResult(command *Command) {
 
 	type Record struct {
-		ContractorAddressType 	string `json:"address_type"`
-		ContractorAddress 		string `json:"contractor_address"`
-		MaxAmount      			string `json:"max_amount"`
+		ContractorAddressType string `json:"address_type"`
+		ContractorAddress     string `json:"contractor_address"`
+		MaxAmount             string `json:"max_amount"`
 	}
 
 	type Response struct {
-		State 	int		 `json:"state"`
+		State   int      `json:"state"`
 		Count   int      `json:"count"`
 		Records []Record `json:"records"`
 	}
@@ -249,9 +357,9 @@ func (handler *NodesHandler)maxFlowPartlyGetResult(command *Command) {
 		Count: contractorsCount}
 	for i := 0; i < contractorsCount; i++ {
 		response.Records = append(response.Records, Record{
-			ContractorAddressType:	result.Tokens[i*3+2],
-			ContractorAddress: 		result.Tokens[i*3+3],
-			MaxAmount:      		result.Tokens[i*3+4],
+			ContractorAddressType: result.Tokens[i*3+2],
+			ContractorAddress:     result.Tokens[i*3+3],
+			MaxAmount:             result.Tokens[i*3+4],
 		})
 	}
 	resultJSON := buildJSONResponse(OK, response)
@@ -263,16 +371,16 @@ func (handler *NodesHandler)maxFlowPartlyGetResult(command *Command) {
 	}
 }
 
-func (handler *NodesHandler)maxFlowPartlyStepTwoGetResult(command *Command) {
+func (handler *NodesHandler) maxFlowPartlyStepTwoGetResult(command *Command) {
 
 	type Record struct {
-		ContractorAddressType 	string `json:"address_type"`
-		ContractorAddress 		string `json:"contractor_address"`
-		MaxAmount      			string `json:"max_amount"`
+		ContractorAddressType string `json:"address_type"`
+		ContractorAddress     string `json:"contractor_address"`
+		MaxAmount             string `json:"max_amount"`
 	}
 
 	type Response struct {
-		State 	int		 `json:"state"`
+		State   int      `json:"state"`
 		Count   int      `json:"count"`
 		Records []Record `json:"records"`
 	}
@@ -332,9 +440,9 @@ func (handler *NodesHandler)maxFlowPartlyStepTwoGetResult(command *Command) {
 		Count: contractorsCount}
 	for i := 0; i < contractorsCount; i++ {
 		response.Records = append(response.Records, Record{
-			ContractorAddressType:	result.Tokens[i*3+2],
-			ContractorAddress: 		result.Tokens[i*3+3],
-			MaxAmount:     			result.Tokens[i*3+4],
+			ContractorAddressType: result.Tokens[i*3+2],
+			ContractorAddress:     result.Tokens[i*3+3],
+			MaxAmount:             result.Tokens[i*3+4],
 		})
 	}
 	resultJSON := buildJSONResponse(OK, response)
@@ -346,7 +454,7 @@ func (handler *NodesHandler)maxFlowPartlyStepTwoGetResult(command *Command) {
 	}
 }
 
-func (handler *NodesHandler)Payment() {
+func (handler *NodesHandler) Payment() {
 	if len(Addresses) == 0 {
 		logger.Error("Bad request: there are no contractor addresses parameters in payment request")
 		fmt.Println("Bad request: there are no contractor addresses parameters")
@@ -366,7 +474,7 @@ func (handler *NodesHandler)Payment() {
 	}
 
 	var addresses []string
-	for idx:= 0; idx < len(Addresses); idx++ {
+	for idx := 0; idx < len(Addresses); idx++ {
 		addressType, address := ValidateAddress(Addresses[idx])
 		if addressType == "" {
 			logger.Error("Bad request: invalid address parameter in payment request")
@@ -384,7 +492,7 @@ func (handler *NodesHandler)Payment() {
 	go handler.paymentResult(command)
 }
 
-func (handler *NodesHandler)paymentResult(command *Command) {
+func (handler *NodesHandler) paymentResult(command *Command) {
 	type Response struct {
 		TransactionUUID string `json:"transaction_uuid"`
 	}
@@ -429,4 +537,87 @@ func (handler *NodesHandler)paymentResult(command *Command) {
 
 	resultJSON := buildJSONResponse(OK, Response{TransactionUUID: result.Tokens[0]})
 	fmt.Println(string(resultJSON))
+}
+
+func (handler *NodesHandler) CreateTransaction(w http.ResponseWriter, r *http.Request) {
+	url := logRequest(r)
+
+	equivalent, isParamPresent := mux.Vars(r)["equivalent"]
+	if !isParamPresent {
+		logger.Error("Bad request: missing equivalent parameter: " + url)
+		w.WriteHeader(BAD_REQUEST)
+		return
+	}
+
+	contractorAddresses := []string{}
+	for key, values := range r.URL.Query() {
+		if key != "contractor_address" {
+			continue
+		}
+
+		for _, value := range values {
+			typeAndAddress := strings.Split(value, "-")
+			contractorAddresses = append(contractorAddresses, typeAndAddress[0])
+			contractorAddresses = append(contractorAddresses, typeAndAddress[1])
+		}
+		break
+	}
+	if len(contractorAddresses) == 0 {
+		logger.Error("Bad request: there are no contractor_addresses parameters: " + url)
+		w.WriteHeader(BAD_REQUEST)
+		return
+	}
+
+	amount := r.FormValue("amount")
+	if !ValidateTrustLineAmount(amount) {
+		logger.Error("Bad request: invalid amount parameter: " + url)
+		w.WriteHeader(BAD_REQUEST)
+		return
+	}
+
+	// Command processing.
+	// This command may execute relatively slow.
+	contractorAddresses = append([]string{strconv.Itoa(len(contractorAddresses) / 2)}, contractorAddresses...)
+	contractorAddresses = append([]string{"CREATE:contractors/transactions"}, contractorAddresses...)
+	contractorAddresses = append(contractorAddresses, []string{amount, equivalent}...)
+	command := NewCommand(contractorAddresses...)
+
+	type Response struct {
+		TransactionUUID string `json:"transaction_uuid"`
+	}
+
+	err := handler.node.SendCommand(command)
+	if err != nil {
+		logger.Error("Can't send command: " + string(command.ToBytes()) + " to node. Details: " + err.Error())
+		writeHTTPResponse(w, COMMAND_TRANSFERRING_ERROR, Response{})
+		return
+	}
+
+	result, err := handler.node.GetResult(command, PAYMENT_OPERATION_TIMEOUT)
+	if err != nil {
+		logger.Error("Node is inaccessible during processing command: " +
+			string(command.ToBytes()) + ". Details: " + err.Error())
+		writeHTTPResponse(w, NODE_IS_INACCESSIBLE, Response{})
+		return
+	}
+
+	if result.Code != CREATED && result.Code != ENGINE_NO_EQUIVALENT {
+		logger.Error("Node return wrong command result: " + strconv.Itoa(result.Code) +
+			" on command: " + string(command.ToBytes()))
+		writeHTTPResponse(w, result.Code, Response{})
+		return
+	}
+	if result.Code == ENGINE_NO_EQUIVALENT {
+		logger.Info("Node hasn't equivalent for command: " + string(command.ToBytes()))
+		writeHTTPResponse(w, result.Code, Response{})
+		return
+	}
+
+	if len(result.Tokens) == 0 {
+		logger.Error("Node return invalid result tokens size on command: " + string(command.ToBytes()))
+		writeHTTPResponse(w, ENGINE_UNEXPECTED_ERROR, Response{})
+		return
+	}
+
+	writeHTTPResponse(w, OK, Response{TransactionUUID: result.Tokens[0]})
 }

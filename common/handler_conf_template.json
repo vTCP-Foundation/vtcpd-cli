@@ -1,7 +1,9 @@
 {
   "handler": {
     "node_path": "<node dir path>",
-    "executable_path": "<full path to the GEO Network Client binary>/client"
+    "executable_path": "<full path to the GEO Network Client binary>/client",
+    "http_host": "127.0.0.1",
+    "http_port": 1500
   },
   "collecting_data_service": {
     "events_monitor_path": "<full path to the events-monitor binary>/events-monitor",

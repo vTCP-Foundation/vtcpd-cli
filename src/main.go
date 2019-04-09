@@ -2,28 +2,30 @@ package main
 
 import (
 	"conf"
-	"logger"
-	"os"
-	"handler"
-	"time"
-	"gopkg.in/alecthomas/kingpin.v2"
 	"fmt"
+	"gopkg.in/alecthomas/kingpin.v2"
+	"handler"
+	"logger"
+	"net/http"
+	"os"
+	"server"
+	"time"
 )
 
 var (
-	command 		= kingpin.Arg("command", "Command name.").Required().String()
-	commandType 	= kingpin.Arg("type", "Command type.").Default("").String()
-	addresses 		= kingpin.Flag("address", "Contractor address").Default("").Strings()
-	contractorID	= kingpin.Flag("contractorID", "Contractor ID").Default("").String()
-	amount			= kingpin.Flag("amount", "Amount").Default("").String()
-	offset      	= kingpin.Flag("offset", "Offset of list of requested data.").Default("").String()
-	count       	= kingpin.Flag("count", "Count requested data.").Default("").String()
-	equivalent  	= kingpin.Flag("eq", "Equivalent.").Default("").String()
-	historyFrom		= kingpin.Flag("history-from", "Lower value of history date.").Default("").String()
-	historyTo		= kingpin.Flag("history-to", "Higher value of history date.").Default("").String()
-	amountFrom		= kingpin.Flag("amount-from", "Lower value of history amount.").Default("").String()
-	amountTo		= kingpin.Flag("amount-to", "Higher value of history amount.").Default("").String()
-	cryptoKey		= kingpin.Flag("crypto-key", "Channel crypto key.").Default("").String()
+	command      = kingpin.Arg("command", "Command name.").Required().String()
+	commandType  = kingpin.Arg("type", "Command type.").Default("").String()
+	addresses    = kingpin.Flag("address", "Contractor address").Default("").Strings()
+	contractorID = kingpin.Flag("contractorID", "Contractor ID").Default("").String()
+	amount       = kingpin.Flag("amount", "Amount").Default("").String()
+	offset       = kingpin.Flag("offset", "Offset of list of requested data.").Default("").String()
+	count        = kingpin.Flag("count", "Count requested data.").Default("").String()
+	equivalent   = kingpin.Flag("eq", "Equivalent.").Default("").String()
+	historyFrom  = kingpin.Flag("history-from", "Lower value of history date.").Default("").String()
+	historyTo    = kingpin.Flag("history-to", "Higher value of history date.").Default("").String()
+	amountFrom   = kingpin.Flag("amount-from", "Lower value of history amount.").Default("").String()
+	amountTo     = kingpin.Flag("amount-to", "Higher value of history amount.").Default("").String()
+	cryptoKey    = kingpin.Flag("crypto-key", "Channel crypto key.").Default("").String()
 )
 
 func main() {
@@ -116,6 +118,20 @@ func main() {
 		nodesHandler.ClearEventsMonitoringPID()
 		os.Exit(0)
 
+	} else if *command == "http" {
+		err = nodesHandler.StartNodeForCommunication()
+		if err != nil {
+			logger.Error("Node is not running. Details: " + err.Error())
+			fmt.Println("Node is not running. Details: " + err.Error())
+			os.Exit(1)
+		}
+		server.InitNodesHandlerServer(nodesHandler)
+		err = http.ListenAndServe(conf.Params.Handler.HTTPInterface(), nil)
+		if err != nil {
+			logger.Error("Can't start listener. Error details: " + err.Error())
+			os.Exit(-1)
+		}
+
 	} else if *command == "channels" {
 		err = nodesHandler.StartNodeForCommunication()
 		if err != nil {
@@ -168,13 +184,19 @@ func main() {
 	}
 
 	logger.Info("Handler started")
-	for {
-		time.Sleep(time.Millisecond * 10)
-		if nodesHandler.IfNodeWaitForResult() {
-			continue
+
+	if *command != "http" {
+		for {
+			time.Sleep(time.Millisecond * 10)
+			if nodesHandler.IfNodeWaitForResult() {
+				continue
+			}
+			logger.Info("There are no node results")
+			err = nodesHandler.StopNodeCommunication()
+			if err != nil {
+				logger.Error("Can't stop handler")
+			}
+			break
 		}
-		logger.Info("There are no node results")
-		nodesHandler.StopNodeCommunication()
-		break;
 	}
 }

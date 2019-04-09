@@ -1,14 +1,16 @@
 package handler
 
 import (
+	"bufio"
 	"conf"
+	"encoding/json"
 	"errors"
+	"io/ioutil"
+	"logger"
+	"net/http"
 	"os"
 	"os/exec"
 	"path"
-	"logger"
-	"encoding/json"
-	"bufio"
 	"strconv"
 	"syscall"
 )
@@ -16,41 +18,41 @@ import (
 var (
 	// Response status codes
 	// for the commands
-	OK                      = 200
-	CREATED                 = 201
-	ACCEPTED                = 202
-	BAD_REQUEST             = 400
-	NODE_NOT_FOUND          = 405
-	SERVER_ERROR            = 500
-	NODE_IS_INACCESSIBLE    = 503
-	ENGINE_UNEXPECTED_ERROR = 504
+	OK                         = 200
+	CREATED                    = 201
+	ACCEPTED                   = 202
+	BAD_REQUEST                = 400
+	NODE_NOT_FOUND             = 405
+	SERVER_ERROR               = 500
+	NODE_IS_INACCESSIBLE       = 503
+	ENGINE_UNEXPECTED_ERROR    = 504
 	COMMAND_TRANSFERRING_ERROR = 505
-	ENGINE_NO_EQUIVALENT	= 604
+	ENGINE_NO_EQUIVALENT       = 604
 )
 
 var (
-	CommandType		= ""
-	Addresses		[]string
-	ContractorID	= ""
-	Amount			= ""
-	Offset			= ""
-	Count			= ""
-	Equivalent		= ""
-	HistoryFrom 	= ""
-	HistoryTo		= ""
-	AmountFrom		= ""
-	AmountTo		= ""
-	CryptoKey		= ""
+	CommandType  = ""
+	Addresses    []string
+	ContractorID = ""
+	Amount       = ""
+	Offset       = ""
+	Count        = ""
+	Equivalent   = ""
+	HistoryFrom  = ""
+	HistoryTo    = ""
+	AmountFrom   = ""
+	AmountTo     = ""
+	CryptoKey    = ""
 )
 
 type NodesHandler struct {
 	// Stores node instances
-	node				*Node
+	node *Node
 }
 
 func InitNodesHandler() (*NodesHandler, error) {
 	nodesHandler := &NodesHandler{
-		node : NewNode(),
+		node: NewNode(),
 	}
 	return nodesHandler, nil
 }
@@ -161,7 +163,7 @@ func (handler *NodesHandler) StopNode() error {
 
 	process, err := os.FindProcess(int(nodePID))
 	if err != nil {
-		return wrap("There is no node process with PID " + strconv.Itoa(int(nodePID)), err)
+		return wrap("There is no node process with PID "+strconv.Itoa(int(nodePID)), err)
 	}
 
 	err = process.Kill()
@@ -182,7 +184,7 @@ func (handler *NodesHandler) StartEventsMonitoring() error {
 		return wrap("Can't start events monitor process", err)
 	}
 
-	pidFile, err := os.OpenFile("events-monitor.pid", os.O_CREATE | os.O_WRONLY | os.O_TRUNC, 0777)
+	pidFile, err := os.OpenFile("events-monitor.pid", os.O_CREATE|os.O_WRONLY|os.O_TRUNC, 0777)
 	if err != nil {
 		process.Process.Kill()
 		return wrap("Can't open PID file for writing.", err)
@@ -212,7 +214,7 @@ func (handler *NodesHandler) StopEventsMonitoring() error {
 
 	process, err := os.FindProcess(int(eventsMonitorPID))
 	if err != nil {
-		return wrap("There is no process with PID " + strconv.Itoa(int(eventsMonitorPID)), err)
+		return wrap("There is no process with PID "+strconv.Itoa(int(eventsMonitorPID)), err)
 	}
 
 	err = process.Kill()
@@ -223,7 +225,7 @@ func (handler *NodesHandler) StopEventsMonitoring() error {
 }
 
 func (handler *NodesHandler) ClearEventsMonitoringPID() {
-	pidFile, _ := os.OpenFile("events-monitor.pid", os.O_CREATE | os.O_WRONLY | os.O_TRUNC, 0777)
+	pidFile, _ := os.OpenFile("events-monitor.pid", os.O_CREATE|os.O_WRONLY|os.O_TRUNC, 0777)
 	pidFile.Close()
 }
 
@@ -281,6 +283,51 @@ func buildJSONResponse(status int, data interface{}) []byte {
 		return nil
 	}
 	return js
+}
+
+func writeHTTPResponse(w http.ResponseWriter, statusCode int, data interface{}) {
+	w.WriteHeader(statusCode)
+	writeJSONResponse(data, w)
+}
+
+func writeJSONResponse(data interface{}, w http.ResponseWriter) {
+	type Response struct {
+		Data interface{} `json:"data"`
+	}
+
+	response := Response{Data: data}
+	js, err := json.Marshal(response)
+	if err != nil {
+		logger.Error("Can't marshall data. Details are: " + err.Error())
+		writeServerError("JSON forming error", w)
+		return
+	}
+
+	w.Header().Set("Content-Type", "application/json")
+	w.Write(js)
+}
+
+func writeServerError(message string, w http.ResponseWriter) {
+	w.WriteHeader(SERVER_ERROR)
+	w.Header().Set("Content-Type", "application/json")
+
+	content := make(map[string]string)
+	content["error"] = message
+
+	js, _ := json.Marshal(content)
+	w.Write(js)
+}
+
+func logRequest(r *http.Request) string {
+	url := ""
+	if r.Method == "GET" {
+		url = r.Method + ": " + r.URL.String()
+	} else {
+		bodyBytes, _ := ioutil.ReadAll(r.Body)
+		url = r.Method + ": " + r.URL.String() + "{ " + string(bodyBytes) + "}"
+	}
+	logger.Info(url)
+	return url
 }
 
 // Shortcut method for the errors wrapping.

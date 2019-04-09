@@ -8,25 +8,31 @@ import (
 )
 
 type HandlerSettings struct {
-	NodeDirPath              		string	`json:"node_path"`
-	ClientExecutableFullPath 		string	`json:"executable_path"`
+	NodeDirPath              string `json:"node_path"`
+	ClientExecutableFullPath string `json:"executable_path"`
+	HTTPInterfaceHost        string `json:"http_host"`
+	HTTPInterfacePort        uint16 `json:"http_port"`
 }
 
 type ServiceSettings struct {
-	EventsMonitorExecutableFullPath	string	`json:"events_monitor_path"`
-	SendEvents						bool	`json:"allow_send_events"`
-	SendLogs						bool	`json:"allow_send_logs"`
-	Host 							string	`json:"host"`
-	Port 							uint16	`json:"port"`
+	EventsMonitorExecutableFullPath string `json:"events_monitor_path"`
+	SendEvents                      bool   `json:"allow_send_events"`
+	SendLogs                        bool   `json:"allow_send_logs"`
+	Host                            string `json:"host"`
+	Port                            uint16 `json:"port"`
 }
 
 type Settings struct {
-	Handler 		HandlerSettings `json:"handler"`
-	Service			ServiceSettings	`json:"collecting_data_service"`
+	Handler HandlerSettings `json:"handler"`
+	Service ServiceSettings `json:"collecting_data_service"`
 }
 
 func (s ServiceSettings) ServiceInterface() string {
 	return "http://" + s.Host + ":" + strconv.Itoa(int(s.Port))
+}
+
+func (s HandlerSettings) HTTPInterface() string {
+	return s.HTTPInterfaceHost + ":" + strconv.Itoa(int(s.HTTPInterfacePort))
 }
 
 var (

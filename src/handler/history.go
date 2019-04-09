@@ -1,9 +1,12 @@
 package handler
 
 import (
-	"logger"
-	"strconv"
 	"fmt"
+	"github.com/gorilla/mux"
+	"logger"
+	"net/http"
+	"strconv"
+	"strings"
 )
 
 var (
@@ -31,7 +34,7 @@ func (handler *NodesHandler) History() {
 	}
 }
 
-func (handler *NodesHandler)trustLinesHistory() {
+func (handler *NodesHandler) trustLinesHistory() {
 
 	if !ValidateInt(Offset) {
 		logger.Error("Bad request: invalid offset parameter in history trust-lines request")
@@ -69,11 +72,11 @@ func (handler *NodesHandler)trustLinesHistory() {
 
 func (handler *NodesHandler) trustLinesHistoryResult(command *Command) {
 	type Record struct {
-		TransactionUUID				string	`json:"transaction_uuid"`
-		UnixTimestampMicroseconds	string	`json:"unix_timestamp_microseconds"`
-		Contractor					string	`json:"contractor"`
-		OperationDirection			string	`json:"operation_direction"`
-		Amount						string	`json:"amount"`
+		TransactionUUID           string `json:"transaction_uuid"`
+		UnixTimestampMicroseconds string `json:"unix_timestamp_microseconds"`
+		Contractor                string `json:"contractor"`
+		OperationDirection        string `json:"operation_direction"`
+		Amount                    string `json:"amount"`
 	}
 
 	type Response struct {
@@ -138,18 +141,128 @@ func (handler *NodesHandler) trustLinesHistoryResult(command *Command) {
 	response := Response{Count: recordsCount}
 	for i := 0; i < recordsCount; i++ {
 		response.Records = append(response.Records, Record{
-			TransactionUUID:			result.Tokens[i*5+1],
-			UnixTimestampMicroseconds:	result.Tokens[i*5+2],
-			Contractor:					result.Tokens[i*5+3],
-			OperationDirection:			result.Tokens[i*5+4],
-			Amount:						result.Tokens[i*5+5],
+			TransactionUUID:           result.Tokens[i*5+1],
+			UnixTimestampMicroseconds: result.Tokens[i*5+2],
+			Contractor:                result.Tokens[i*5+3],
+			OperationDirection:        result.Tokens[i*5+4],
+			Amount:                    result.Tokens[i*5+5],
 		})
 	}
 	resultJSON := buildJSONResponse(OK, response)
 	fmt.Println(string(resultJSON))
 }
 
-func (handler *NodesHandler)paymentsHistory() {
+func (handler *NodesHandler) TrustLinesHistory(w http.ResponseWriter, r *http.Request) {
+	url := logRequest(r)
+
+	offset, isParamPresent := mux.Vars(r)["offset"]
+	if !isParamPresent || !ValidateInt(offset) {
+		logger.Error("Bad request: invalid offset parameter: " + url)
+		w.WriteHeader(BAD_REQUEST)
+		return
+	}
+
+	count, isParamPresent := mux.Vars(r)["count"]
+	if !isParamPresent || !ValidateInt(count) {
+		logger.Error("Bad request: invalid count parameter: " + url)
+		w.WriteHeader(BAD_REQUEST)
+		return
+	}
+
+	dateFromUnixTimestamp := r.URL.Query().Get("date_from")
+	if dateFromUnixTimestamp == "" {
+		dateFromUnixTimestamp = "null"
+	}
+
+	dateToUnixTimestamp := r.URL.Query().Get("date_to")
+	if dateToUnixTimestamp == "" {
+		dateToUnixTimestamp = "null"
+	}
+
+	equivalent, isParamPresent := mux.Vars(r)["equivalent"]
+	if !isParamPresent {
+		logger.Error("Bad request: missing equivalent parameter: " + url)
+		w.WriteHeader(BAD_REQUEST)
+		return
+	}
+
+	command := NewCommand(
+		"GET:history/trust-lines", offset, count, dateFromUnixTimestamp, dateToUnixTimestamp, equivalent)
+
+	type Record struct {
+		TransactionUUID           string `json:"transaction_uuid"`
+		UnixTimestampMicroseconds string `json:"unix_timestamp_microseconds"`
+		Contractor                string `json:"contractor"`
+		OperationDirection        string `json:"operation_direction"`
+		Amount                    string `json:"amount"`
+	}
+
+	type Response struct {
+		Count   int      `json:"count"`
+		Records []Record `json:"records"`
+	}
+
+	err := handler.node.SendCommand(command)
+	if err != nil {
+		logger.Error("Can't send command: " + string(command.ToBytes()) + " to node. Details: " + err.Error())
+		writeHTTPResponse(w, COMMAND_TRANSFERRING_ERROR, Response{})
+		return
+	}
+
+	result, err := handler.node.GetResult(command, HISTORY_RESULT_TIMEOUT)
+	if err != nil {
+		logger.Error("Node is inaccessible during processing command " +
+			string(command.ToBytes()) + ". Details: " + err.Error())
+		writeHTTPResponse(w, NODE_IS_INACCESSIBLE, Response{})
+		return
+	}
+
+	if result.Code != OK && result.Code != ENGINE_NO_EQUIVALENT {
+		logger.Error("Node return wrong command result: " + strconv.Itoa(result.Code) +
+			" on command: " + string(command.ToBytes()))
+		writeHTTPResponse(w, result.Code, Response{})
+		return
+	}
+	if result.Code == ENGINE_NO_EQUIVALENT {
+		logger.Info("Node hasn't equivalent for command: " + string(command.ToBytes()))
+		writeHTTPResponse(w, result.Code, Response{})
+		return
+	}
+
+	if len(result.Tokens) == 0 {
+		logger.Error("Node return invalid result tokens size on command: " +
+			string(command.ToBytes()))
+		writeHTTPResponse(w, ENGINE_UNEXPECTED_ERROR, Response{})
+		return
+	}
+
+	recordsCount, err := strconv.Atoi(result.Tokens[0])
+	if err != nil {
+		logger.Error("Node return invalid token on command: " + string(command.ToBytes()) +
+			". Details: " + err.Error())
+		writeHTTPResponse(w, ENGINE_UNEXPECTED_ERROR, Response{})
+		return
+	}
+
+	if recordsCount == 0 {
+		writeHTTPResponse(w, OK, Response{Count: recordsCount})
+		return
+	}
+
+	response := Response{Count: recordsCount}
+	for i := 0; i < recordsCount; i++ {
+		response.Records = append(response.Records, Record{
+			TransactionUUID:           result.Tokens[i*5+1],
+			UnixTimestampMicroseconds: result.Tokens[i*5+2],
+			Contractor:                result.Tokens[i*5+3],
+			OperationDirection:        result.Tokens[i*5+4],
+			Amount:                    result.Tokens[i*5+5],
+		})
+	}
+	writeHTTPResponse(w, OK, response)
+}
+
+func (handler *NodesHandler) paymentsHistory() {
 
 	if !ValidateInt(Offset) {
 		logger.Error("Bad request: invalid offset parameter in history payments request")
@@ -210,12 +323,12 @@ func (handler *NodesHandler)paymentsHistory() {
 
 func (handler *NodesHandler) paymentsHistoryResult(command *Command) {
 	type Record struct {
-		TransactionUUID				string 	`json:"transaction_uuid"`
-		UnixTimestampMicroseconds	string 	`json:"unix_timestamp_microseconds"`
-		Contractor					string 	`json:"contractor"`
-		OperationDirection			string 	`json:"operation_direction"`
-		Amount						string 	`json:"amount"`
-		BalanceAfterOperation		string 	`json:"balance_after_operation"`
+		TransactionUUID           string `json:"transaction_uuid"`
+		UnixTimestampMicroseconds string `json:"unix_timestamp_microseconds"`
+		Contractor                string `json:"contractor"`
+		OperationDirection        string `json:"operation_direction"`
+		Amount                    string `json:"amount"`
+		BalanceAfterOperation     string `json:"balance_after_operation"`
 	}
 
 	type Response struct {
@@ -278,19 +391,148 @@ func (handler *NodesHandler) paymentsHistoryResult(command *Command) {
 	response := Response{Count: recordsCount}
 	for i := 0; i < recordsCount; i++ {
 		response.Records = append(response.Records, Record{
-			TransactionUUID:			result.Tokens[i*6+1],
-			UnixTimestampMicroseconds:	result.Tokens[i*6+2],
-			Contractor:					result.Tokens[i*6+3],
-			OperationDirection:			result.Tokens[i*6+4],
-			Amount:						result.Tokens[i*6+5],
-			BalanceAfterOperation:		result.Tokens[i*6+6],
+			TransactionUUID:           result.Tokens[i*6+1],
+			UnixTimestampMicroseconds: result.Tokens[i*6+2],
+			Contractor:                result.Tokens[i*6+3],
+			OperationDirection:        result.Tokens[i*6+4],
+			Amount:                    result.Tokens[i*6+5],
+			BalanceAfterOperation:     result.Tokens[i*6+6],
 		})
 	}
 	resultJSON := buildJSONResponse(OK, response)
 	fmt.Println(string(resultJSON))
 }
 
-func (handler *NodesHandler)contractorOperationsHistory() {
+func (handler *NodesHandler) PaymentsHistory(w http.ResponseWriter, r *http.Request) {
+	url := logRequest(r)
+
+	offset, isParamPresent := mux.Vars(r)["offset"]
+	if !isParamPresent || !ValidateInt(offset) {
+		logger.Error("Bad request: invalid offset parameter: " + url)
+		w.WriteHeader(BAD_REQUEST)
+		return
+	}
+
+	count, isParamPresent := mux.Vars(r)["count"]
+	if !isParamPresent || !ValidateInt(count) {
+		logger.Error("Bad request: invalid count parameter: " + url)
+		w.WriteHeader(BAD_REQUEST)
+		return
+	}
+
+	dateFromUnixTimestamp := r.URL.Query().Get("date_from")
+	if dateFromUnixTimestamp == "" {
+		dateFromUnixTimestamp = "null"
+	}
+
+	dateToUnixTimestamp := r.URL.Query().Get("date_to")
+	if dateToUnixTimestamp == "" {
+		dateToUnixTimestamp = "null"
+	}
+
+	// Amount from
+	amountFromUnixTimestamp := r.URL.Query().Get("amount_from")
+	if amountFromUnixTimestamp == "" {
+		amountFromUnixTimestamp = "null"
+	}
+
+	// Amount to
+	amountToUnixTimestamp := r.URL.Query().Get("amount_to")
+	if amountToUnixTimestamp == "" {
+		amountToUnixTimestamp = "null"
+	}
+
+	// commandUUID
+	commandUUID := r.URL.Query().Get("command_uuid")
+	if commandUUID == "" {
+		commandUUID = "null"
+	}
+
+	equivalent, isParamPresent := mux.Vars(r)["equivalent"]
+	if !isParamPresent {
+		logger.Error("Bad request: missing equivalent parameter: " + url)
+		w.WriteHeader(BAD_REQUEST)
+		return
+	}
+
+	command := NewCommand(
+		"GET:history/payments", offset, count, dateFromUnixTimestamp, dateToUnixTimestamp,
+		amountFromUnixTimestamp, amountToUnixTimestamp, commandUUID, equivalent)
+
+	type Record struct {
+		TransactionUUID           string `json:"transaction_uuid"`
+		UnixTimestampMicroseconds string `json:"unix_timestamp_microseconds"`
+		Contractor                string `json:"contractor"`
+		OperationDirection        string `json:"operation_direction"`
+		Amount                    string `json:"amount"`
+		BalanceAfterOperation     string `json:"balance_after_operation"`
+	}
+
+	type Response struct {
+		Count   int      `json:"count"`
+		Records []Record `json:"records"`
+	}
+
+	err := handler.node.SendCommand(command)
+	if err != nil {
+		logger.Error("Can't send command: " + string(command.ToBytes()) + " to node. Details: " + err.Error())
+		writeHTTPResponse(w, COMMAND_TRANSFERRING_ERROR, Response{})
+		return
+	}
+
+	result, err := handler.node.GetResult(command, HISTORY_RESULT_TIMEOUT)
+	if err != nil {
+		logger.Error("Node is inaccessible during processing command: " + string(command.ToBytes()) +
+			" . Details: " + err.Error())
+		writeHTTPResponse(w, NODE_IS_INACCESSIBLE, Response{})
+		return
+	}
+
+	if result.Code != OK && result.Code != ENGINE_NO_EQUIVALENT {
+		logger.Error("Node return wrong command result: " +
+			strconv.Itoa(result.Code) + " on command " + string(command.ToBytes()))
+		writeHTTPResponse(w, result.Code, Response{})
+		return
+	}
+	if result.Code == ENGINE_NO_EQUIVALENT {
+		logger.Info("Node hasn't equivalent for command: " + string(command.ToBytes()))
+		writeHTTPResponse(w, result.Code, Response{})
+		return
+	}
+
+	if len(result.Tokens) == 0 {
+		logger.Error("Node return invalid result tokens size on command: " + string(command.ToBytes()))
+		writeHTTPResponse(w, ENGINE_UNEXPECTED_ERROR, Response{})
+		return
+	}
+
+	recordsCount, err := strconv.Atoi(result.Tokens[0])
+	if err != nil {
+		logger.Error("Node return invalid token on command: " + string(command.ToBytes()) + ". Details: " + err.Error())
+		writeHTTPResponse(w, ENGINE_UNEXPECTED_ERROR, Response{})
+		return
+	}
+
+	if recordsCount == 0 {
+		writeHTTPResponse(w, OK, Response{Count: recordsCount})
+		return
+	}
+
+	response := Response{Count: recordsCount}
+	for i := 0; i < recordsCount; i++ {
+		response.Records = append(response.Records, Record{
+			TransactionUUID:           result.Tokens[i*6+1],
+			UnixTimestampMicroseconds: result.Tokens[i*6+2],
+			Contractor:                result.Tokens[i*6+3],
+			OperationDirection:        result.Tokens[i*6+4],
+			Amount:                    result.Tokens[i*6+5],
+			BalanceAfterOperation:     result.Tokens[i*6+6],
+		})
+	}
+	writeHTTPResponse(w, OK, response)
+}
+
+func (handler *NodesHandler) contractorOperationsHistory() {
 	if !ValidateInt(Offset) {
 		logger.Error("Bad request: invalid offset parameter in history with-contractor request")
 		fmt.Println("Bad request: invalid offset parameter")
@@ -316,7 +558,7 @@ func (handler *NodesHandler)contractorOperationsHistory() {
 	}
 
 	var addresses []string
-	for idx:= 0; idx < len(Addresses); idx++ {
+	for idx := 0; idx < len(Addresses); idx++ {
 		addressType, address := ValidateAddress(Addresses[idx])
 		if addressType == "" {
 			logger.Error("Bad request: invalid address parameter in history with-contractor request")
@@ -432,7 +674,144 @@ func (handler *NodesHandler) contractorOperationsHistoryResult(command *Command)
 	fmt.Println(string(resultJSON))
 }
 
-func (handler *NodesHandler)additionalHistory() {
+func (handler *NodesHandler) HistoryWithContractor(w http.ResponseWriter, r *http.Request) {
+	url := logRequest(r)
+
+	offset, isParamPresent := mux.Vars(r)["offset"]
+	if !isParamPresent || !ValidateInt(offset) {
+		logger.Error("Bad request: invalid offset parameter: " + url)
+		w.WriteHeader(BAD_REQUEST)
+		return
+	}
+
+	count, isParamPresent := mux.Vars(r)["count"]
+	if !isParamPresent || !ValidateInt(count) {
+		logger.Error("Bad request: invalid count parameter: " + url)
+		w.WriteHeader(BAD_REQUEST)
+		return
+	}
+
+	contractorAddresses := []string{}
+	for key, values := range r.URL.Query() {
+		if key != "contractor_address" {
+			continue
+		}
+		for _, value := range values {
+			typeAndAddress := strings.Split(value, "-")
+			contractorAddresses = append(contractorAddresses, typeAndAddress[0])
+			contractorAddresses = append(contractorAddresses, typeAndAddress[1])
+		}
+		break
+	}
+	if len(contractorAddresses) == 0 {
+		logger.Error("Bad request: there are no contractor_addresses parameters: " + url)
+		w.WriteHeader(BAD_REQUEST)
+		return
+	}
+
+	equivalent, isParamPresent := mux.Vars(r)["equivalent"]
+	if !isParamPresent {
+		logger.Error("Bad request: missing equivalent parameter: " + url)
+		w.WriteHeader(BAD_REQUEST)
+		return
+	}
+
+	// Command generation
+	contractorAddresses = append([]string{offset, count, strconv.Itoa(len(contractorAddresses) / 2)}, contractorAddresses...)
+	contractorAddresses = append([]string{"GET:history/contractor"}, contractorAddresses...)
+	contractorAddresses = append(contractorAddresses, []string{equivalent}...)
+	command := NewCommand(contractorAddresses...)
+
+	type Record struct {
+		RecordType                string `json:"record_type"`
+		TransactionUUID           string `json:"transaction_uuid"`
+		UnixTimestampMicroseconds string `json:"unix_timestamp_microseconds"`
+		OperationDirection        string `json:"operation_direction"`
+		Amount                    string `json:"amount"`
+		BalanceAfterOperation     string `json:"balance_after_operation"`
+	}
+
+	type Response struct {
+		Count   int      `json:"count"`
+		Records []Record `json:"records"`
+	}
+
+	err := handler.node.SendCommand(command)
+	if err != nil {
+		logger.Error("Can't send command: " + string(command.ToBytes()) + " to node. Details: " + err.Error())
+		writeHTTPResponse(w, COMMAND_TRANSFERRING_ERROR, Response{})
+		return
+	}
+
+	result, err := handler.node.GetResult(command, HISTORY_RESULT_TIMEOUT)
+	if err != nil {
+		// Remote node is inaccessible
+		logger.Error("Node is inaccessible during processing command: " +
+			string(command.ToBytes()) + ". Details: " + err.Error())
+		writeHTTPResponse(w, NODE_IS_INACCESSIBLE, Response{})
+		return
+	}
+
+	if result.Code != OK && result.Code != ENGINE_NO_EQUIVALENT {
+		logger.Error("Node return wrong command result: " + strconv.Itoa(result.Code) +
+			" on command: " + string(command.ToBytes()))
+		writeHTTPResponse(w, result.Code, Response{})
+		return
+	}
+	if result.Code == ENGINE_NO_EQUIVALENT {
+		logger.Info("Node hasn't equivalent for command: " + string(command.ToBytes()))
+		writeHTTPResponse(w, result.Code, Response{})
+		return
+	}
+
+	if len(result.Tokens) == 0 {
+		logger.Error("Node return invalid result tokens size on command: " + string(command.ToBytes()))
+		writeHTTPResponse(w, ENGINE_UNEXPECTED_ERROR, Response{})
+		return
+	}
+
+	recordsCount, err := strconv.Atoi(result.Tokens[0])
+	if err != nil {
+		logger.Error("Node return invalid token on command" + string(command.ToBytes()) +
+			". Details: " + err.Error())
+		writeHTTPResponse(w, ENGINE_UNEXPECTED_ERROR, Response{})
+		return
+	}
+
+	if recordsCount == 0 {
+		writeHTTPResponse(w, OK, Response{Count: recordsCount})
+		return
+	}
+
+	response := Response{Count: recordsCount}
+	tokenIdx := 1
+	for i := 0; i < recordsCount; i++ {
+		if result.Tokens[tokenIdx] == "payment" {
+			response.Records = append(response.Records, Record{
+				RecordType:                result.Tokens[tokenIdx],
+				TransactionUUID:           result.Tokens[tokenIdx+1],
+				UnixTimestampMicroseconds: result.Tokens[tokenIdx+2],
+				OperationDirection:        result.Tokens[tokenIdx+3],
+				Amount:                    result.Tokens[tokenIdx+4],
+				BalanceAfterOperation:     result.Tokens[tokenIdx+5],
+			})
+			tokenIdx += 6
+		} else if result.Tokens[tokenIdx] == "trustline" {
+			response.Records = append(response.Records, Record{
+				RecordType:                result.Tokens[tokenIdx],
+				TransactionUUID:           result.Tokens[tokenIdx+1],
+				UnixTimestampMicroseconds: result.Tokens[tokenIdx+2],
+				OperationDirection:        result.Tokens[tokenIdx+3],
+				Amount:                    result.Tokens[tokenIdx+4],
+				BalanceAfterOperation:     "0",
+			})
+			tokenIdx += 5
+		}
+	}
+	writeHTTPResponse(w, OK, response)
+}
+
+func (handler *NodesHandler) additionalHistory() {
 
 	if !ValidateInt(Offset) {
 		logger.Error("Bad request: invalid offset parameter in history additional request")
@@ -572,4 +951,127 @@ func (handler *NodesHandler) additionalHistoryResult(command *Command) {
 	}
 	resultJSON := buildJSONResponse(OK, response)
 	fmt.Println(string(resultJSON))
+}
+
+func (handler *NodesHandler) PaymentsAdditionalHistory(w http.ResponseWriter, r *http.Request) {
+	url := logRequest(r)
+
+	offset, isParamPresent := mux.Vars(r)["offset"]
+	if !isParamPresent || !ValidateInt(offset) {
+		logger.Error("Bad request: invalid offset parameter: " + url)
+		w.WriteHeader(BAD_REQUEST)
+		return
+	}
+
+	count, isParamPresent := mux.Vars(r)["count"]
+	if !isParamPresent || !ValidateInt(count) {
+		logger.Error("Bad request: invalid count parameter: " + url)
+		w.WriteHeader(BAD_REQUEST)
+		return
+	}
+
+	dateFromUnixTimestamp := r.URL.Query().Get("date_from")
+	if dateFromUnixTimestamp == "" {
+		dateFromUnixTimestamp = "null"
+	}
+
+	dateToUnixTimestamp := r.URL.Query().Get("date_to")
+	if dateToUnixTimestamp == "" {
+		dateToUnixTimestamp = "null"
+	}
+
+	// Amount from
+	amountFromUnixTimestamp := r.URL.Query().Get("amount_from")
+	if amountFromUnixTimestamp == "" {
+		amountFromUnixTimestamp = "null"
+	}
+
+	// Amount to
+	amountToUnixTimestamp := r.URL.Query().Get("amount_to")
+	if amountToUnixTimestamp == "" {
+		amountToUnixTimestamp = "null"
+	}
+
+	equivalent, isParamPresent := mux.Vars(r)["equivalent"]
+	if !isParamPresent {
+		logger.Error("Bad request: missing equivalent parameter: " + url)
+		w.WriteHeader(BAD_REQUEST)
+		return
+	}
+
+	command := NewCommand(
+		"GET:history/payments/additional", offset, count, dateFromUnixTimestamp, dateToUnixTimestamp,
+		amountFromUnixTimestamp, amountToUnixTimestamp, equivalent)
+
+	type Record struct {
+		TransactionUUID           string `json:"transaction_uuid"`
+		UnixTimestampMicroseconds string `json:"unix_timestamp_microseconds"`
+		OperationDirection        string `json:"operation_direction"`
+		Amount                    string `json:"amount"`
+	}
+
+	type Response struct {
+		Count   int      `json:"count"`
+		Records []Record `json:"records"`
+	}
+
+	err := handler.node.SendCommand(command)
+	if err != nil {
+		logger.Error("Can't send command: " + string(command.ToBytes()) + " to node. Details: " + err.Error())
+		writeHTTPResponse(w, COMMAND_TRANSFERRING_ERROR, Response{})
+		return
+	}
+
+	result, err := handler.node.GetResult(command, HISTORY_RESULT_TIMEOUT)
+	if err != nil {
+		// Remote node is inaccessible
+		logger.Error("Node is inaccessible during processing command: " + string(command.ToBytes()) +
+			". Details: " + err.Error())
+		writeHTTPResponse(w, NODE_IS_INACCESSIBLE, Response{})
+		return
+	}
+
+	if result.Code != OK && result.Code != ENGINE_NO_EQUIVALENT {
+		logger.Error("Node return wrong command result: " + strconv.Itoa(result.Code) +
+			" on command: " + string(command.ToBytes()))
+		writeHTTPResponse(w, result.Code, Response{})
+		return
+	}
+	if result.Code == ENGINE_NO_EQUIVALENT {
+		logger.Info("Node hasn't equivalent for command: " + string(command.ToBytes()))
+		writeHTTPResponse(w, result.Code, Response{})
+		return
+	}
+
+	if len(result.Tokens) == 0 {
+		logger.Error("Node return invalid result tokens size on command: " + string(command.ToBytes()))
+		writeHTTPResponse(w, ENGINE_UNEXPECTED_ERROR, Response{})
+		return
+	}
+
+	recordsCount, err := strconv.Atoi(result.Tokens[0])
+	if err != nil {
+		logger.Error("Node return invalid token on command " + string(command.ToBytes()) +
+			". Details: " + err.Error())
+		writeHTTPResponse(w, ENGINE_UNEXPECTED_ERROR, Response{})
+		return
+	}
+
+	if recordsCount == 0 {
+		writeHTTPResponse(w, OK, Response{Count: recordsCount})
+		return
+	}
+
+	response := Response{Count: recordsCount}
+	tokenIdx := 1
+	for i := 0; i < recordsCount; i++ {
+		response.Records = append(response.Records, Record{
+			TransactionUUID:           result.Tokens[tokenIdx],
+			UnixTimestampMicroseconds: result.Tokens[tokenIdx+1],
+			OperationDirection:        result.Tokens[tokenIdx+2],
+			Amount:                    result.Tokens[tokenIdx+3],
+		})
+		tokenIdx += 4
+	}
+	writeHTTPResponse(w, OK, response)
 }
