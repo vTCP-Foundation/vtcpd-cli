@@ -487,6 +487,9 @@ func (handler *NodesHandler) Payment() {
 	addresses = append([]string{strconv.Itoa(len(Addresses))}, addresses...)
 	addresses = append([]string{"CREATE:contractors/transactions"}, addresses...)
 	addresses = append(addresses, []string{Amount, Equivalent}...)
+	if Payload != "" {
+		addresses = append(addresses, []string{Payload}...)
+	}
 	command := NewCommand(addresses...)
 
 	go handler.paymentResult(command)
@@ -575,11 +578,16 @@ func (handler *NodesHandler) CreateTransaction(w http.ResponseWriter, r *http.Re
 		return
 	}
 
+	payload := r.FormValue("payload")
+
 	// Command processing.
 	// This command may execute relatively slow.
 	contractorAddresses = append([]string{strconv.Itoa(len(contractorAddresses) / 2)}, contractorAddresses...)
 	contractorAddresses = append([]string{"CREATE:contractors/transactions"}, contractorAddresses...)
 	contractorAddresses = append(contractorAddresses, []string{amount, equivalent}...)
+	if payload != "" {
+		contractorAddresses = append(contractorAddresses, []string{payload}...)
+	}
 	command := NewCommand(contractorAddresses...)
 
 	type Response struct {

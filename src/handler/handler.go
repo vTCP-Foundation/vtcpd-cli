@@ -43,6 +43,7 @@ var (
 	AmountFrom   = ""
 	AmountTo     = ""
 	CryptoKey    = ""
+	Payload      = ""
 )
 
 type NodesHandler struct {

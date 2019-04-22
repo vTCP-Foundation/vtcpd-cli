@@ -17,6 +17,9 @@ func (handler *NodesHandler) Channels() {
 	if CommandType == "init" {
 		handler.initChannel()
 
+	} else if CommandType == "get" {
+		handler.listChannels()
+
 	} else {
 		logger.Error("Invalid channel command " + CommandType)
 		fmt.Println("Invalid channel command")
@@ -46,6 +49,12 @@ func (handler *NodesHandler) initChannel() {
 	addresses = append([]string{"INIT:contractors/channel"}, addresses...)
 	if CryptoKey != "" {
 		addresses = append(addresses, []string{CryptoKey}...)
+		if !ValidateInt(ContractorID) {
+			logger.Error("Bad request: invalid contractorID parameter in channel init request")
+			fmt.Println("Bad request: invalid contractorID parameter")
+			return
+		}
+		addresses = append(addresses, []string{ContractorID}...)
 	}
 	command := NewCommand(addresses...)
 
@@ -125,7 +134,13 @@ func (handler *NodesHandler) InitChannel(w http.ResponseWriter, r *http.Request)
 	contractorAddresses = append([]string{strconv.Itoa(len(contractorAddresses) / 2)}, contractorAddresses...)
 	contractorAddresses = append([]string{"INIT:contractors/channel"}, contractorAddresses...)
 	if cryptoKey != "" {
-		contractorAddresses = append(contractorAddresses, []string{cryptoKey}...)
+		contractorChannelID := r.FormValue("contractor_id")
+		if !ValidateInt(contractorChannelID) {
+			logger.Error("Bad request: there are no contractor_id parameters: " + url)
+			w.WriteHeader(BAD_REQUEST)
+			return
+		}
+		contractorAddresses = append(contractorAddresses, []string{cryptoKey, contractorChannelID}...)
 	}
 	command := NewCommand(contractorAddresses...)
 
@@ -165,6 +180,82 @@ func (handler *NodesHandler) InitChannel(w http.ResponseWriter, r *http.Request)
 	writeHTTPResponse(w, OK, Response{
 		ChannelID: result.Tokens[0],
 		CryptoKey: result.Tokens[1]})
+}
+
+func (handler *NodesHandler) listChannels() {
+
+	command := NewCommand("GET:contractors-all")
+
+	go handler.listChannelsGetResult(command)
+}
+
+func (handler *NodesHandler) listChannelsGetResult(command *Command) {
+	type Channel struct {
+		ID        string `json:"channel_id"`
+		Addresses string `json:"channel_addresses"`
+	}
+
+	type Response struct {
+		Count    int       `json:"count"`
+		Channels []Channel `json:"channels"`
+	}
+
+	err := handler.node.SendCommand(command)
+	if err != nil {
+		logger.Error("Can't send command: " + string(command.ToBytes()) + " to node. Details: " + err.Error())
+		resultJSON := buildJSONResponse(COMMAND_TRANSFERRING_ERROR, Response{})
+		fmt.Println(string(resultJSON))
+		return
+	}
+
+	result, err := handler.node.GetResult(command, CHANNEL_RESULT_TIMEOUT)
+	if err != nil {
+		logger.Error("Node is inaccessible during processing command: " +
+			string(command.ToBytes()) + ". Details: " + err.Error())
+		resultJSON := buildJSONResponse(NODE_IS_INACCESSIBLE, Response{})
+		fmt.Println(string(resultJSON))
+		return
+	}
+
+	if result.Code != OK {
+		logger.Error("Node return wrong command result: " + strconv.Itoa(result.Code) +
+			" on command: " + string(command.ToBytes()))
+		resultJSON := buildJSONResponse(result.Code, Response{})
+		fmt.Println(string(resultJSON))
+		return
+	}
+
+	if len(result.Tokens) == 0 {
+		logger.Error("Node return invalid result tokens size on command: " + string(command.ToBytes()))
+		resultJSON := buildJSONResponse(ENGINE_UNEXPECTED_ERROR, Response{})
+		fmt.Println(string(resultJSON))
+		return
+	}
+
+	// Channels received well
+	channelsCount, err := strconv.Atoi(result.Tokens[0])
+	if err != nil {
+		logger.Error("Node return invalid token on command: " +
+			string(command.ToBytes()) + ". Details: " + err.Error())
+		resultJSON := buildJSONResponse(ENGINE_UNEXPECTED_ERROR, Response{})
+		fmt.Println(string(resultJSON))
+		return
+	}
+
+	if channelsCount == 0 {
+		resultJSON := buildJSONResponse(OK, Response{Count: channelsCount})
+		fmt.Println(string(resultJSON))
+		return
+	}
+
+	response := Response{Count: channelsCount}
+	for i := 0; i < channelsCount; i++ {
+		response.Channels = append(response.Channels, Channel{
+			ID:        result.Tokens[i*2+1],
+			Addresses: result.Tokens[i*2+2]})
+	}
+	resultJSON := buildJSONResponse(OK, response)
+	fmt.Println(string(resultJSON))
 }
 
 func (handler *NodesHandler) ListChannels(w http.ResponseWriter, r *http.Request) {

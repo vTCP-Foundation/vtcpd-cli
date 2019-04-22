@@ -26,6 +26,7 @@ var (
 	amountFrom   = kingpin.Flag("amount-from", "Lower value of history amount.").Default("").String()
 	amountTo     = kingpin.Flag("amount-to", "Higher value of history amount.").Default("").String()
 	cryptoKey    = kingpin.Flag("crypto-key", "Channel crypto key.").Default("").String()
+	payload      = kingpin.Flag("payload", "Payload for payment transaction.").Default("").String()
 )
 
 func main() {
@@ -62,6 +63,7 @@ func main() {
 	handler.AmountFrom = *amountFrom
 	handler.AmountTo = *amountTo
 	handler.CryptoKey = *cryptoKey
+	handler.Payload = *payload
 
 	if *command == "start" {
 		isNodeRunning, err := nodesHandler.CheckNodeRunning()

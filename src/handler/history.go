@@ -329,6 +329,7 @@ func (handler *NodesHandler) paymentsHistoryResult(command *Command) {
 		OperationDirection        string `json:"operation_direction"`
 		Amount                    string `json:"amount"`
 		BalanceAfterOperation     string `json:"balance_after_operation"`
+		Payload                   string `json:"payload"`
 	}
 
 	type Response struct {
@@ -391,12 +392,13 @@ func (handler *NodesHandler) paymentsHistoryResult(command *Command) {
 	response := Response{Count: recordsCount}
 	for i := 0; i < recordsCount; i++ {
 		response.Records = append(response.Records, Record{
-			TransactionUUID:           result.Tokens[i*6+1],
-			UnixTimestampMicroseconds: result.Tokens[i*6+2],
-			Contractor:                result.Tokens[i*6+3],
-			OperationDirection:        result.Tokens[i*6+4],
-			Amount:                    result.Tokens[i*6+5],
-			BalanceAfterOperation:     result.Tokens[i*6+6],
+			TransactionUUID:           result.Tokens[i*7+1],
+			UnixTimestampMicroseconds: result.Tokens[i*7+2],
+			Contractor:                result.Tokens[i*7+3],
+			OperationDirection:        result.Tokens[i*7+4],
+			Amount:                    result.Tokens[i*7+5],
+			BalanceAfterOperation:     result.Tokens[i*7+6],
+			Payload:                   result.Tokens[i*7+7],
 		})
 	}
 	resultJSON := buildJSONResponse(OK, response)
@@ -466,6 +468,7 @@ func (handler *NodesHandler) PaymentsHistory(w http.ResponseWriter, r *http.Requ
 		OperationDirection        string `json:"operation_direction"`
 		Amount                    string `json:"amount"`
 		BalanceAfterOperation     string `json:"balance_after_operation"`
+		Payload                   string `json:"payload"`
 	}
 
 	type Response struct {
@@ -521,12 +524,13 @@ func (handler *NodesHandler) PaymentsHistory(w http.ResponseWriter, r *http.Requ
 	response := Response{Count: recordsCount}
 	for i := 0; i < recordsCount; i++ {
 		response.Records = append(response.Records, Record{
-			TransactionUUID:           result.Tokens[i*6+1],
-			UnixTimestampMicroseconds: result.Tokens[i*6+2],
-			Contractor:                result.Tokens[i*6+3],
-			OperationDirection:        result.Tokens[i*6+4],
-			Amount:                    result.Tokens[i*6+5],
-			BalanceAfterOperation:     result.Tokens[i*6+6],
+			TransactionUUID:           result.Tokens[i*7+1],
+			UnixTimestampMicroseconds: result.Tokens[i*7+2],
+			Contractor:                result.Tokens[i*7+3],
+			OperationDirection:        result.Tokens[i*7+4],
+			Amount:                    result.Tokens[i*7+5],
+			BalanceAfterOperation:     result.Tokens[i*7+6],
+			Payload:                   result.Tokens[i*7+7],
 		})
 	}
 	writeHTTPResponse(w, OK, response)
@@ -584,6 +588,7 @@ func (handler *NodesHandler) contractorOperationsHistoryResult(command *Command)
 		OperationDirection        string `json:"operation_direction"`
 		Amount                    string `json:"amount"`
 		BalanceAfterOperation     string `json:"balance_after_operation"`
+		Payload                   string `json:"payload"`
 	}
 
 	type Response struct {
@@ -656,8 +661,9 @@ func (handler *NodesHandler) contractorOperationsHistoryResult(command *Command)
 				OperationDirection:        result.Tokens[tokenIdx+3],
 				Amount:                    result.Tokens[tokenIdx+4],
 				BalanceAfterOperation:     result.Tokens[tokenIdx+5],
+				Payload:                   result.Tokens[tokenIdx+6],
 			})
-			tokenIdx += 6
+			tokenIdx += 7
 		} else if result.Tokens[tokenIdx] == "trustline" {
 			response.Records = append(response.Records, Record{
 				RecordType:                result.Tokens[tokenIdx],
@@ -666,6 +672,7 @@ func (handler *NodesHandler) contractorOperationsHistoryResult(command *Command)
 				OperationDirection:        result.Tokens[tokenIdx+3],
 				Amount:                    result.Tokens[tokenIdx+4],
 				BalanceAfterOperation:     "0",
+				Payload:                   "",
 			})
 			tokenIdx += 5
 		}
@@ -729,6 +736,7 @@ func (handler *NodesHandler) HistoryWithContractor(w http.ResponseWriter, r *htt
 		OperationDirection        string `json:"operation_direction"`
 		Amount                    string `json:"amount"`
 		BalanceAfterOperation     string `json:"balance_after_operation"`
+		Payload                   string `json:"payload"`
 	}
 
 	type Response struct {
@@ -794,8 +802,9 @@ func (handler *NodesHandler) HistoryWithContractor(w http.ResponseWriter, r *htt
 				OperationDirection:        result.Tokens[tokenIdx+3],
 				Amount:                    result.Tokens[tokenIdx+4],
 				BalanceAfterOperation:     result.Tokens[tokenIdx+5],
+				Payload:                   result.Tokens[tokenIdx+6],
 			})
-			tokenIdx += 6
+			tokenIdx += 7
 		} else if result.Tokens[tokenIdx] == "trustline" {
 			response.Records = append(response.Records, Record{
 				RecordType:                result.Tokens[tokenIdx],
@@ -804,6 +813,7 @@ func (handler *NodesHandler) HistoryWithContractor(w http.ResponseWriter, r *htt
 				OperationDirection:        result.Tokens[tokenIdx+3],
 				Amount:                    result.Tokens[tokenIdx+4],
 				BalanceAfterOperation:     "0",
+				Payload:                   "",
 			})
 			tokenIdx += 5
 		}
