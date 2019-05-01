@@ -18,6 +18,7 @@ func InitNodesHandlerServer(handler *handler.NodesHandler) {
 	// Channels
 	router.HandleFunc("/api/v1/node/contractors/init-channel/", handler.InitChannel).Methods("POST")
 	router.HandleFunc("/api/v1/node/contractors/channels/", handler.ListChannels).Methods("GET")
+	router.HandleFunc("/api/v1/node/channels/{contractor_id}/", handler.ChannelInfo).Methods("GET")
 
 	// Contractors
 	router.HandleFunc("/api/v1/node/contractors/{equivalent}/", handler.ListContractors).Methods("GET")
