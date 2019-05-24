@@ -24,6 +24,15 @@ func (handler *NodesHandler) Channels() {
 	} else if CommandType == "one" {
 		handler.channelInfo()
 
+	} else if CommandType == "set-addresses" {
+		handler.setChannelAddresses()
+
+	} else if CommandType == "set-crypto-key" {
+		handler.setChannelCryptoKey()
+
+	} else if CommandType == "regenerate-crypto-key" {
+		handler.regenerateChannelCryptoKey()
+
 	} else {
 		logger.Error("Invalid channel command " + CommandType)
 		fmt.Println("Invalid channel command")
@@ -332,7 +341,7 @@ func (handler *NodesHandler) channelInfo() {
 
 	if !ValidateInt(ContractorID) {
 		logger.Error("Bad request: invalid contractor_id parameter in channels one request")
-		fmt.Println("Bad request: invalid equivalent parameter")
+		fmt.Println("Bad request: invalid contractor_id parameter")
 		return
 	}
 
@@ -343,10 +352,11 @@ func (handler *NodesHandler) channelInfo() {
 
 func (handler *NodesHandler) channelInfoGetResult(command *Command) {
 	type Response struct {
-		ID          string   `json:"channel_id"`
-		Addresses   []string `json:"channel_addresses"`
-		IsConfirmed string   `json:"channel_confirmed"`
-		CryptoKey   string   `json:"channel_crypto_key"`
+		ID                  string   `json:"channel_id"`
+		Addresses           []string `json:"channel_addresses"`
+		IsConfirmed         string   `json:"channel_confirmed"`
+		CryptoKey           string   `json:"channel_crypto_key"`
+		ContractorCryptoKey string   `json:"channel_contractor_crypto_key"`
 	}
 
 	err := handler.node.SendCommand(command)
@@ -402,10 +412,11 @@ func (handler *NodesHandler) channelInfoGetResult(command *Command) {
 	}
 
 	response := Response{
-		ID:          result.Tokens[0],
-		Addresses:   addresses,
-		IsConfirmed: result.Tokens[2+addressesCount],
-		CryptoKey:   result.Tokens[2+addressesCount+1]}
+		ID:                  result.Tokens[0],
+		Addresses:           addresses,
+		IsConfirmed:         result.Tokens[2+addressesCount],
+		CryptoKey:           result.Tokens[2+addressesCount+1],
+		ContractorCryptoKey: result.Tokens[2+addressesCount+2]}
 	resultJSON := buildJSONResponse(OK, response)
 	fmt.Println(string(resultJSON))
 }
@@ -422,17 +433,18 @@ func (handler *NodesHandler) ChannelInfo(w http.ResponseWriter, r *http.Request)
 
 	if !ValidateInt(contractorID) {
 		logger.Error("Bad request: invalid contractor_id parameter")
-		fmt.Println("Bad request: invalid contractor_id parameter")
+		w.WriteHeader(BAD_REQUEST)
 		return
 	}
 
 	command := NewCommand("GET:channels/one", contractorID)
 
 	type Response struct {
-		ID          string   `json:"channel_id"`
-		Addresses   []string `json:"channel_addresses"`
-		IsConfirmed string   `json:"channel_confirmed"`
-		CryptoKey   string   `json:"channel_crypto_key"`
+		ID                  string   `json:"channel_id"`
+		Addresses           []string `json:"channel_addresses"`
+		IsConfirmed         string   `json:"channel_confirmed"`
+		CryptoKey           string   `json:"channel_crypto_key"`
+		ContractorCryptoKey string   `json:"channel_contractor_crypto_key"`
 	}
 
 	err := handler.node.SendCommand(command)
@@ -482,9 +494,336 @@ func (handler *NodesHandler) ChannelInfo(w http.ResponseWriter, r *http.Request)
 	}
 
 	response := Response{
-		ID:          result.Tokens[0],
-		Addresses:   addresses,
-		IsConfirmed: result.Tokens[2+addressesCount],
-		CryptoKey:   result.Tokens[2+addressesCount+1]}
+		ID:                  result.Tokens[0],
+		Addresses:           addresses,
+		IsConfirmed:         result.Tokens[2+addressesCount],
+		CryptoKey:           result.Tokens[2+addressesCount+1],
+		ContractorCryptoKey: result.Tokens[2+addressesCount+2]}
 	writeHTTPResponse(w, OK, response)
+}
+
+func (handler *NodesHandler) setChannelAddresses() {
+
+	if !ValidateInt(ContractorID) {
+		logger.Error("Bad request: invalid contractor_id parameter in channels set-addresses request")
+		fmt.Println("Bad request: invalid contractor_id parameter")
+		return
+	}
+
+	if len(Addresses) == 0 {
+		logger.Error("Bad request: there are no contractor addresses parameters in channel set-addresses request")
+		fmt.Println("Bad request: there are no contractor addresses parameters")
+		return
+	}
+
+	var addresses []string
+	for idx := 0; idx < len(Addresses); idx++ {
+		addressType, address := ValidateAddress(Addresses[idx])
+		if addressType == "" {
+			logger.Error("Bad request: invalid address parameter in channel set-addresses request")
+			fmt.Println("Bad request: invalid address parameter")
+			return
+		}
+		addresses = append(addresses, addressType, address)
+	}
+
+	addresses = append([]string{"SET:channel/address", ContractorID, strconv.Itoa(len(Addresses))}, addresses...)
+	command := NewCommand(addresses...)
+
+	go handler.setChannelAddressesGetResult(command)
+}
+
+func (handler *NodesHandler) setChannelAddressesGetResult(command *Command) {
+	type Response struct{}
+
+	err := handler.node.SendCommand(command)
+	if err != nil {
+		logger.Error("Can't send command: " + string(command.ToBytes()) + " to node. Details: " + err.Error())
+		resultJSON := buildJSONResponse(COMMAND_TRANSFERRING_ERROR, Response{})
+		fmt.Println(string(resultJSON))
+		return
+	}
+
+	result, err := handler.node.GetResult(command, CHANNEL_RESULT_TIMEOUT)
+	if err != nil {
+		logger.Error("Node is inaccessible during processing command: " +
+			string(command.ToBytes()) + ". Details: " + err.Error())
+		resultJSON := buildJSONResponse(NODE_IS_INACCESSIBLE, Response{})
+		fmt.Println(string(resultJSON))
+		return
+	}
+
+	if result.Code != OK {
+		logger.Error("Node return wrong command result: " + strconv.Itoa(result.Code) +
+			" on command: " + string(command.ToBytes()))
+	}
+
+	resultJSON := buildJSONResponse(result.Code, Response{})
+	fmt.Println(string(resultJSON))
+}
+
+func (handler *NodesHandler) SetChannelAddresses(w http.ResponseWriter, r *http.Request) {
+	url := logRequest(r)
+
+	contractorID, isParamPresent := mux.Vars(r)["contractor_id"]
+	if !isParamPresent {
+		logger.Error("Bad request: missing contractor_id parameter: " + url)
+		w.WriteHeader(BAD_REQUEST)
+		return
+	}
+
+	if !ValidateInt(contractorID) {
+		logger.Error("Bad request: invalid contractor_id parameter")
+		w.WriteHeader(BAD_REQUEST)
+		return
+	}
+
+	addresses := []string{}
+	for key, values := range r.URL.Query() {
+		if key != "contractor_address" {
+			continue
+		}
+
+		for _, value := range values {
+			typeAndAddress := strings.Split(value, "-")
+			addresses = append(addresses, typeAndAddress[0])
+			addresses = append(addresses, typeAndAddress[1])
+		}
+
+		break
+	}
+	if len(addresses) == 0 {
+		logger.Error("Bad request: there are no contractor_addresses parameters: " + url)
+		w.WriteHeader(BAD_REQUEST)
+		return
+	}
+
+	// Command generation
+	addresses = append([]string{"SET:channel/address", contractorID, strconv.Itoa(len(addresses) / 2)}, addresses...)
+	command := NewCommand(addresses...)
+
+	type Response struct{}
+
+	err := handler.node.SendCommand(command)
+	if err != nil {
+		logger.Error("Can't send command: " + string(command.ToBytes()) + " to node. Details: " + err.Error())
+		writeHTTPResponse(w, COMMAND_TRANSFERRING_ERROR, Response{})
+		return
+	}
+
+	result, err := handler.node.GetResult(command, TRUST_LINE_RESULT_TIMEOUT)
+	if err != nil {
+		logger.Error("Node is inaccessible during processing command: " +
+			string(command.ToBytes()) + ". Details: " + err.Error())
+		writeHTTPResponse(w, NODE_IS_INACCESSIBLE, Response{})
+		return
+	}
+
+	if result.Code != OK {
+		logger.Error("Node return wrong command result: " + strconv.Itoa(result.Code) +
+			" on command: " + string(command.ToBytes()))
+	}
+
+	writeHTTPResponse(w, result.Code, Response{})
+}
+
+func (handler *NodesHandler) setChannelCryptoKey() {
+
+	if !ValidateInt(ContractorID) {
+		logger.Error("Bad request: invalid contractor_id parameter in channels set-crypto-key request")
+		fmt.Println("Bad request: invalid contractor_id parameter")
+		return
+	}
+
+	command := NewCommand("SET:channel/crypto-key", ContractorID, CryptoKey)
+
+	go handler.setChannelCryptoKeyGetResult(command)
+}
+
+func (handler *NodesHandler) setChannelCryptoKeyGetResult(command *Command) {
+	type Response struct{}
+
+	err := handler.node.SendCommand(command)
+	if err != nil {
+		logger.Error("Can't send command: " + string(command.ToBytes()) + " to node. Details: " + err.Error())
+		resultJSON := buildJSONResponse(COMMAND_TRANSFERRING_ERROR, Response{})
+		fmt.Println(string(resultJSON))
+		return
+	}
+
+	result, err := handler.node.GetResult(command, CHANNEL_RESULT_TIMEOUT)
+	if err != nil {
+		logger.Error("Node is inaccessible during processing command: " +
+			string(command.ToBytes()) + ". Details: " + err.Error())
+		resultJSON := buildJSONResponse(NODE_IS_INACCESSIBLE, Response{})
+		fmt.Println(string(resultJSON))
+		return
+	}
+
+	if result.Code != OK {
+		logger.Error("Node return wrong command result: " + strconv.Itoa(result.Code) +
+			" on command: " + string(command.ToBytes()))
+	}
+
+	resultJSON := buildJSONResponse(result.Code, Response{})
+	fmt.Println(string(resultJSON))
+}
+
+func (handler *NodesHandler) SetChannelCryptoKey(w http.ResponseWriter, r *http.Request) {
+	url := logRequest(r)
+
+	contractorID, isParamPresent := mux.Vars(r)["contractor_id"]
+	if !isParamPresent {
+		logger.Error("Bad request: missing contractor_id parameter: " + url)
+		w.WriteHeader(BAD_REQUEST)
+		return
+	}
+
+	if !ValidateInt(contractorID) {
+		logger.Error("Bad request: invalid contractor_id parameter")
+		w.WriteHeader(BAD_REQUEST)
+		return
+	}
+
+	cryptoKey := r.FormValue("crypto_key")
+
+	// Command generation
+	command := NewCommand("SET:channel/crypto-key", contractorID, cryptoKey)
+
+	type Response struct{}
+
+	err := handler.node.SendCommand(command)
+	if err != nil {
+		logger.Error("Can't send command: " + string(command.ToBytes()) + " to node. Details: " + err.Error())
+		writeHTTPResponse(w, COMMAND_TRANSFERRING_ERROR, Response{})
+		return
+	}
+
+	result, err := handler.node.GetResult(command, TRUST_LINE_RESULT_TIMEOUT)
+	if err != nil {
+		logger.Error("Node is inaccessible during processing command: " +
+			string(command.ToBytes()) + ". Details: " + err.Error())
+		writeHTTPResponse(w, NODE_IS_INACCESSIBLE, Response{})
+		return
+	}
+
+	if result.Code != OK {
+		logger.Error("Node return wrong command result: " + strconv.Itoa(result.Code) +
+			" on command: " + string(command.ToBytes()))
+	}
+
+	writeHTTPResponse(w, result.Code, Response{})
+}
+
+func (handler *NodesHandler) regenerateChannelCryptoKey() {
+
+	if !ValidateInt(ContractorID) {
+		logger.Error("Bad request: invalid contractor_id parameter in channels regenerate-crypto-key request")
+		fmt.Println("Bad request: invalid contractor_id parameter")
+		return
+	}
+
+	command := NewCommand("SET:channel/regenerate-crypto-key", ContractorID)
+
+	go handler.regenerateChannelCryptoKeyGetResult(command)
+}
+
+func (handler *NodesHandler) regenerateChannelCryptoKeyGetResult(command *Command) {
+	type Response struct {
+		ChannelID string `json:"channel_id"`
+		CryptoKey string `json:"crypto_key"`
+	}
+
+	err := handler.node.SendCommand(command)
+	if err != nil {
+		logger.Error("Can't send command: " + string(command.ToBytes()) + " to node. Details: " + err.Error())
+		resultJSON := buildJSONResponse(COMMAND_TRANSFERRING_ERROR, Response{})
+		fmt.Println(string(resultJSON))
+		return
+	}
+
+	result, err := handler.node.GetResult(command, CHANNEL_RESULT_TIMEOUT)
+	if err != nil {
+		logger.Error("Node is inaccessible during processing command: " +
+			string(command.ToBytes()) + ". Details: " + err.Error())
+		resultJSON := buildJSONResponse(NODE_IS_INACCESSIBLE, Response{})
+		fmt.Println(string(resultJSON))
+		return
+	}
+
+	if result.Code != OK {
+		logger.Error("Node return wrong command result: " + strconv.Itoa(result.Code) +
+			" on command: " + string(command.ToBytes()))
+		resultJSON := buildJSONResponse(result.Code, Response{})
+		fmt.Println(string(resultJSON))
+		return
+	}
+
+	if len(result.Tokens) < 2 {
+		logger.Error("Node return invalid result tokens size on command: " + string(command.ToBytes()))
+		resultJSON := buildJSONResponse(ENGINE_UNEXPECTED_ERROR, Response{})
+		fmt.Println(string(resultJSON))
+		return
+	}
+	resultJSON := buildJSONResponse(result.Code, Response{
+		ChannelID: result.Tokens[0],
+		CryptoKey: result.Tokens[1]})
+	fmt.Println(string(resultJSON))
+}
+
+func (handler *NodesHandler) RegenerateChannelCryptoKey(w http.ResponseWriter, r *http.Request) {
+	url := logRequest(r)
+
+	contractorID, isParamPresent := mux.Vars(r)["contractor_id"]
+	if !isParamPresent {
+		logger.Error("Bad request: missing contractor_id parameter: " + url)
+		w.WriteHeader(BAD_REQUEST)
+		return
+	}
+
+	if !ValidateInt(contractorID) {
+		logger.Error("Bad request: invalid contractor_id parameter")
+		w.WriteHeader(BAD_REQUEST)
+		return
+	}
+
+	// Command generation
+	command := NewCommand("SET:channel/regenerate-crypto-key", contractorID)
+
+	type Response struct {
+		ChannelID string `json:"channel_id"`
+		CryptoKey string `json:"crypto_key"`
+	}
+
+	err := handler.node.SendCommand(command)
+	if err != nil {
+		logger.Error("Can't send command: " + string(command.ToBytes()) + " to node. Details: " + err.Error())
+		writeHTTPResponse(w, COMMAND_TRANSFERRING_ERROR, Response{})
+		return
+	}
+
+	result, err := handler.node.GetResult(command, TRUST_LINE_RESULT_TIMEOUT)
+	if err != nil {
+		logger.Error("Node is inaccessible during processing command: " +
+			string(command.ToBytes()) + ". Details: " + err.Error())
+		writeHTTPResponse(w, NODE_IS_INACCESSIBLE, Response{})
+		return
+	}
+
+	if result.Code != OK {
+		logger.Error("Node return wrong command result: " + strconv.Itoa(result.Code) +
+			" on command: " + string(command.ToBytes()))
+		writeHTTPResponse(w, result.Code, Response{})
+		return
+	}
+
+	if len(result.Tokens) < 2 {
+		logger.Error("Node return invalid result tokens size on command: " + string(command.ToBytes()))
+		writeHTTPResponse(w, ENGINE_UNEXPECTED_ERROR, Response{})
+		return
+	}
+
+	writeHTTPResponse(w, OK, Response{
+		ChannelID: result.Tokens[0],
+		CryptoKey: result.Tokens[1]})
 }
