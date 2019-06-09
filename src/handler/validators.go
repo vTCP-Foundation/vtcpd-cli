@@ -37,6 +37,8 @@ func ValidateAddress(value string) (string, string) {
 	switch typeAndAddress[0] {
 	case "ipv4":
 		clientAddressType = "12"
+	case "gns":
+		clientAddressType = "41"
 	default:
 		clientAddressType = ""
 	}
@@ -49,4 +51,3 @@ func ValidateInt(value string) bool {
 	}
 	return true
 }
-
