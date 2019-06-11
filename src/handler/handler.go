@@ -31,19 +31,20 @@ var (
 )
 
 var (
-	CommandType  = ""
-	Addresses    []string
-	ContractorID = ""
-	Amount       = ""
-	Offset       = ""
-	Count        = ""
-	Equivalent   = ""
-	HistoryFrom  = ""
-	HistoryTo    = ""
-	AmountFrom   = ""
-	AmountTo     = ""
-	CryptoKey    = ""
-	Payload      = ""
+	CommandType               = ""
+	Addresses                 []string
+	ContractorID              = ""
+	ChannelIDOnContractorSide = ""
+	Amount                    = ""
+	Offset                    = ""
+	Count                     = ""
+	Equivalent                = ""
+	HistoryFrom               = ""
+	HistoryTo                 = ""
+	AmountFrom                = ""
+	AmountTo                  = ""
+	CryptoKey                 = ""
+	Payload                   = ""
 )
 
 type NodesHandler struct {

@@ -149,7 +149,7 @@ func (handler *NodesHandler) InitChannel(w http.ResponseWriter, r *http.Request)
 	if cryptoKey != "" {
 		contractorChannelID := r.FormValue("contractor_id")
 		if !ValidateInt(contractorChannelID) {
-			logger.Error("Bad request: there are no contractor_id parameters: " + url)
+			logger.Error("Bad request: there are no contractor_id parameter: " + url)
 			w.WriteHeader(BAD_REQUEST)
 			return
 		}
@@ -340,8 +340,8 @@ func (handler *NodesHandler) ListChannels(w http.ResponseWriter, r *http.Request
 func (handler *NodesHandler) channelInfo() {
 
 	if !ValidateInt(ContractorID) {
-		logger.Error("Bad request: invalid contractor_id parameter in channels one request")
-		fmt.Println("Bad request: invalid contractor_id parameter")
+		logger.Error("Bad request: invalid contractorID parameter in channels one request")
+		fmt.Println("Bad request: invalid contractorID parameter")
 		return
 	}
 
@@ -505,8 +505,8 @@ func (handler *NodesHandler) ChannelInfo(w http.ResponseWriter, r *http.Request)
 func (handler *NodesHandler) setChannelAddresses() {
 
 	if !ValidateInt(ContractorID) {
-		logger.Error("Bad request: invalid contractor_id parameter in channels set-addresses request")
-		fmt.Println("Bad request: invalid contractor_id parameter")
+		logger.Error("Bad request: invalid contractorID parameter in channels set-addresses request")
+		fmt.Println("Bad request: invalid contractorID parameter")
 		return
 	}
 
@@ -630,12 +630,23 @@ func (handler *NodesHandler) SetChannelAddresses(w http.ResponseWriter, r *http.
 func (handler *NodesHandler) setChannelCryptoKey() {
 
 	if !ValidateInt(ContractorID) {
-		logger.Error("Bad request: invalid contractor_id parameter in channels set-crypto-key request")
-		fmt.Println("Bad request: invalid contractor_id parameter")
+		logger.Error("Bad request: invalid contractorID parameter in channels set-crypto-key request")
+		fmt.Println("Bad request: invalid contractorID parameter")
 		return
 	}
 
-	command := NewCommand("SET:channel/crypto-key", ContractorID, CryptoKey)
+	var commandParams []string
+	commandParams = append(commandParams, "SET:channel/crypto-key", ContractorID, CryptoKey)
+	if ChannelIDOnContractorSide != "" {
+		if !ValidateInt(ChannelIDOnContractorSide) {
+			logger.Error("Bad request: invalid channel-id-on-contractor-side parameter in channels set-crypto-key request")
+			fmt.Println("Bad request: invalid channel-id-on-contractor-side parameter")
+			return
+		}
+		commandParams = append(commandParams, []string{ChannelIDOnContractorSide}...)
+	}
+
+	command := NewCommand(commandParams...)
 
 	go handler.setChannelCryptoKeyGetResult(command)
 }
@@ -686,12 +697,23 @@ func (handler *NodesHandler) SetChannelCryptoKey(w http.ResponseWriter, r *http.
 	}
 
 	cryptoKey := r.FormValue("crypto_key")
+	var commandParams []string
+	commandParams = append(commandParams, "SET:channel/crypto-key", contractorID, cryptoKey)
 
-	// Command generation
-	command := NewCommand("SET:channel/crypto-key", contractorID, cryptoKey)
+	channelIDOnContractorSide := r.FormValue("channel_id_on_contractor_side")
+	if channelIDOnContractorSide != "" {
+		if !ValidateInt(channelIDOnContractorSide) {
+			logger.Error("Bad request: invalid channel_id_on_contractor_side parameter: " + url)
+			w.WriteHeader(BAD_REQUEST)
+			return
+		}
+		commandParams = append(commandParams, []string{channelIDOnContractorSide}...)
+	}
 
 	type Response struct{}
 
+	// Command generation
+	command := NewCommand(commandParams...)
 	err := handler.node.SendCommand(command)
 	if err != nil {
 		logger.Error("Can't send command: " + string(command.ToBytes()) + " to node. Details: " + err.Error())

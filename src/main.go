@@ -13,20 +13,22 @@ import (
 )
 
 var (
-	command      = kingpin.Arg("command", "Command name.").Required().String()
-	commandType  = kingpin.Arg("type", "Command type.").Default("").String()
-	addresses    = kingpin.Flag("address", "Contractor address").Default("").Strings()
-	contractorID = kingpin.Flag("contractorID", "Contractor ID").Default("").String()
-	amount       = kingpin.Flag("amount", "Amount").Default("").String()
-	offset       = kingpin.Flag("offset", "Offset of list of requested data.").Default("").String()
-	count        = kingpin.Flag("count", "Count requested data.").Default("").String()
-	equivalent   = kingpin.Flag("eq", "Equivalent.").Default("").String()
-	historyFrom  = kingpin.Flag("history-from", "Lower value of history date.").Default("").String()
-	historyTo    = kingpin.Flag("history-to", "Higher value of history date.").Default("").String()
-	amountFrom   = kingpin.Flag("amount-from", "Lower value of history amount.").Default("").String()
-	amountTo     = kingpin.Flag("amount-to", "Higher value of history amount.").Default("").String()
-	cryptoKey    = kingpin.Flag("crypto-key", "Channel crypto key.").Default("").String()
-	payload      = kingpin.Flag("payload", "Payload for payment transaction.").Default("").String()
+	command                   = kingpin.Arg("command", "Command name.").Required().String()
+	commandType               = kingpin.Arg("type", "Command type.").Default("").String()
+	addresses                 = kingpin.Flag("address", "Contractor address").Default("").Strings()
+	contractorID              = kingpin.Flag("contractorID", "Contractor ID").Default("").String()
+	channelIDOnContractorSide = kingpin.Flag("channel-id-on-contractor-side",
+		"Channel ID on contractor side").Default("").String()
+	amount      = kingpin.Flag("amount", "Amount").Default("").String()
+	offset      = kingpin.Flag("offset", "Offset of list of requested data.").Default("").String()
+	count       = kingpin.Flag("count", "Count requested data.").Default("").String()
+	equivalent  = kingpin.Flag("eq", "Equivalent.").Default("").String()
+	historyFrom = kingpin.Flag("history-from", "Lower value of history date.").Default("").String()
+	historyTo   = kingpin.Flag("history-to", "Higher value of history date.").Default("").String()
+	amountFrom  = kingpin.Flag("amount-from", "Lower value of history amount.").Default("").String()
+	amountTo    = kingpin.Flag("amount-to", "Higher value of history amount.").Default("").String()
+	cryptoKey   = kingpin.Flag("crypto-key", "Channel crypto key.").Default("").String()
+	payload     = kingpin.Flag("payload", "Payload for payment transaction.").Default("").String()
 )
 
 func main() {
@@ -54,6 +56,7 @@ func main() {
 	handler.CommandType = *commandType
 	handler.Addresses = *addresses
 	handler.ContractorID = *contractorID
+	handler.ChannelIDOnContractorSide = *channelIDOnContractorSide
 	handler.Amount = *amount
 	handler.Offset = *offset
 	handler.Count = *count
