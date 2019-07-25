@@ -22,9 +22,15 @@ type ServiceSettings struct {
 	Port                            uint16 `json:"port"`
 }
 
+type SecuritySettings struct {
+	ApiKey       string   `json:"api_key"`
+	AllowableIPs []string `json:"allowable_ips"`
+}
+
 type Settings struct {
-	Handler HandlerSettings `json:"handler"`
-	Service ServiceSettings `json:"collecting_data_service"`
+	Handler  HandlerSettings  `json:"handler"`
+	Service  ServiceSettings  `json:"collecting_data_service"`
+	Security SecuritySettings `json:"security"`
 }
 
 func (s ServiceSettings) ServiceInterface() string {

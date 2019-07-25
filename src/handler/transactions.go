@@ -141,7 +141,12 @@ func (handler *NodesHandler) maxFlowGetResult(command *Command) {
 }
 
 func (handler *NodesHandler) BatchMaxFullyTransaction(w http.ResponseWriter, r *http.Request) {
-	url := logRequest(r)
+	url, err := preprocessRequest(r)
+	if err != nil {
+		logger.Error("Bad request: invalid security parameters: " + err.Error())
+		w.WriteHeader(BAD_REQUEST)
+		return
+	}
 
 	equivalent, isParamPresent := mux.Vars(r)["equivalent"]
 	if !isParamPresent {
@@ -185,7 +190,7 @@ func (handler *NodesHandler) BatchMaxFullyTransaction(w http.ResponseWriter, r *
 		Records []Record `json:"records"`
 	}
 
-	err := handler.node.SendCommand(command)
+	err = handler.node.SendCommand(command)
 	if err != nil {
 		logger.Error("Can't send command: " + string(command.ToBytes()) + " to node. Details: " + err.Error())
 		writeHTTPResponse(w, COMMAND_TRANSFERRING_ERROR, Response{})
@@ -543,7 +548,12 @@ func (handler *NodesHandler) paymentResult(command *Command) {
 }
 
 func (handler *NodesHandler) CreateTransaction(w http.ResponseWriter, r *http.Request) {
-	url := logRequest(r)
+	url, err := preprocessRequest(r)
+	if err != nil {
+		logger.Error("Bad request: invalid security parameters: " + err.Error())
+		w.WriteHeader(BAD_REQUEST)
+		return
+	}
 
 	equivalent, isParamPresent := mux.Vars(r)["equivalent"]
 	if !isParamPresent {
@@ -594,7 +604,7 @@ func (handler *NodesHandler) CreateTransaction(w http.ResponseWriter, r *http.Re
 		TransactionUUID string `json:"transaction_uuid"`
 	}
 
-	err := handler.node.SendCommand(command)
+	err = handler.node.SendCommand(command)
 	if err != nil {
 		logger.Error("Can't send command: " + string(command.ToBytes()) + " to node. Details: " + err.Error())
 		writeHTTPResponse(w, COMMAND_TRANSFERRING_ERROR, Response{})

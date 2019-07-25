@@ -153,7 +153,12 @@ func (handler *NodesHandler) trustLinesHistoryResult(command *Command) {
 }
 
 func (handler *NodesHandler) TrustLinesHistory(w http.ResponseWriter, r *http.Request) {
-	url := logRequest(r)
+	url, err := preprocessRequest(r)
+	if err != nil {
+		logger.Error("Bad request: invalid security parameters: " + err.Error())
+		w.WriteHeader(BAD_REQUEST)
+		return
+	}
 
 	offset, isParamPresent := mux.Vars(r)["offset"]
 	if !isParamPresent || !ValidateInt(offset) {
@@ -202,7 +207,7 @@ func (handler *NodesHandler) TrustLinesHistory(w http.ResponseWriter, r *http.Re
 		Records []Record `json:"records"`
 	}
 
-	err := handler.node.SendCommand(command)
+	err = handler.node.SendCommand(command)
 	if err != nil {
 		logger.Error("Can't send command: " + string(command.ToBytes()) + " to node. Details: " + err.Error())
 		writeHTTPResponse(w, COMMAND_TRANSFERRING_ERROR, Response{})
@@ -406,7 +411,12 @@ func (handler *NodesHandler) paymentsHistoryResult(command *Command) {
 }
 
 func (handler *NodesHandler) PaymentsHistory(w http.ResponseWriter, r *http.Request) {
-	url := logRequest(r)
+	url, err := preprocessRequest(r)
+	if err != nil {
+		logger.Error("Bad request: invalid security parameters: " + err.Error())
+		w.WriteHeader(BAD_REQUEST)
+		return
+	}
 
 	offset, isParamPresent := mux.Vars(r)["offset"]
 	if !isParamPresent || !ValidateInt(offset) {
@@ -476,7 +486,7 @@ func (handler *NodesHandler) PaymentsHistory(w http.ResponseWriter, r *http.Requ
 		Records []Record `json:"records"`
 	}
 
-	err := handler.node.SendCommand(command)
+	err = handler.node.SendCommand(command)
 	if err != nil {
 		logger.Error("Can't send command: " + string(command.ToBytes()) + " to node. Details: " + err.Error())
 		writeHTTPResponse(w, COMMAND_TRANSFERRING_ERROR, Response{})
@@ -682,7 +692,12 @@ func (handler *NodesHandler) contractorOperationsHistoryResult(command *Command)
 }
 
 func (handler *NodesHandler) HistoryWithContractor(w http.ResponseWriter, r *http.Request) {
-	url := logRequest(r)
+	url, err := preprocessRequest(r)
+	if err != nil {
+		logger.Error("Bad request: invalid security parameters: " + err.Error())
+		w.WriteHeader(BAD_REQUEST)
+		return
+	}
 
 	offset, isParamPresent := mux.Vars(r)["offset"]
 	if !isParamPresent || !ValidateInt(offset) {
@@ -744,7 +759,7 @@ func (handler *NodesHandler) HistoryWithContractor(w http.ResponseWriter, r *htt
 		Records []Record `json:"records"`
 	}
 
-	err := handler.node.SendCommand(command)
+	err = handler.node.SendCommand(command)
 	if err != nil {
 		logger.Error("Can't send command: " + string(command.ToBytes()) + " to node. Details: " + err.Error())
 		writeHTTPResponse(w, COMMAND_TRANSFERRING_ERROR, Response{})
@@ -964,7 +979,12 @@ func (handler *NodesHandler) additionalHistoryResult(command *Command) {
 }
 
 func (handler *NodesHandler) PaymentsAdditionalHistory(w http.ResponseWriter, r *http.Request) {
-	url := logRequest(r)
+	url, err := preprocessRequest(r)
+	if err != nil {
+		logger.Error("Bad request: invalid security parameters: " + err.Error())
+		w.WriteHeader(BAD_REQUEST)
+		return
+	}
 
 	offset, isParamPresent := mux.Vars(r)["offset"]
 	if !isParamPresent || !ValidateInt(offset) {
@@ -1025,7 +1045,7 @@ func (handler *NodesHandler) PaymentsAdditionalHistory(w http.ResponseWriter, r 
 		Records []Record `json:"records"`
 	}
 
-	err := handler.node.SendCommand(command)
+	err = handler.node.SendCommand(command)
 	if err != nil {
 		logger.Error("Can't send command: " + string(command.ToBytes()) + " to node. Details: " + err.Error())
 		writeHTTPResponse(w, COMMAND_TRANSFERRING_ERROR, Response{})

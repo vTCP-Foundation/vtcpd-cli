@@ -7,11 +7,13 @@ import (
 	"errors"
 	"io/ioutil"
 	"logger"
+	"net"
 	"net/http"
 	"os"
 	"os/exec"
 	"path"
 	"strconv"
+	"strings"
 	"syscall"
 )
 
@@ -320,7 +322,7 @@ func writeServerError(message string, w http.ResponseWriter) {
 	w.Write(js)
 }
 
-func logRequest(r *http.Request) string {
+func preprocessRequest(r *http.Request) (string, error) {
 	url := ""
 	if r.Method == "GET" {
 		url = r.Method + ": " + r.URL.String()
@@ -329,7 +331,51 @@ func logRequest(r *http.Request) string {
 		url = r.Method + ": " + r.URL.String() + "{ " + string(bodyBytes) + "}"
 	}
 	logger.Info(url)
-	return url
+	requesterIP := getRealAddr(r)
+	logger.Info("Requester IP: " + requesterIP)
+	if len(conf.Params.Security.AllowableIPs) > 0 {
+		ipIsAllow := false
+		for _, allowableIP := range conf.Params.Security.AllowableIPs {
+			if allowableIP == requesterIP {
+				ipIsAllow = true
+				break
+			}
+		}
+		if !ipIsAllow {
+			return url, errors.New("IP " + requesterIP + " is not allow")
+		}
+	}
+	apiKey := r.Header.Get("api-key")
+	if conf.Params.Security.ApiKey != "" {
+		if apiKey != conf.Params.Security.ApiKey {
+			return url, errors.New("Invalid api-key " + apiKey)
+		}
+	}
+	return url, nil
+}
+
+func getRealAddr(r *http.Request) string {
+	remoteIP := ""
+	// the default is the originating ip. but we try to find better options because this is almost
+	// never the right IP
+	if parts := strings.Split(r.RemoteAddr, ":"); len(parts) == 2 {
+		remoteIP = parts[0]
+	}
+	// If we have a forwarded-for header, take the address from there
+	if xff := strings.Trim(r.Header.Get("X-Forwarded-For"), ","); len(xff) > 0 {
+		addrs := strings.Split(xff, ",")
+		lastFwd := addrs[len(addrs)-1]
+		if ip := net.ParseIP(lastFwd); ip != nil {
+			remoteIP = ip.String()
+		}
+		// parse X-Real-Ip header
+	} else if xri := r.Header.Get("X-Real-Ip"); len(xri) > 0 {
+		if ip := net.ParseIP(xri); ip != nil {
+			remoteIP = ip.String()
+		}
+	}
+
+	return remoteIP
 }
 
 // Shortcut method for the errors wrapping.

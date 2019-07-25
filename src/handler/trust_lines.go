@@ -160,7 +160,12 @@ func (handler *NodesHandler) actionTrustLineGetResult(command *Command) {
 }
 
 func (handler *NodesHandler) InitTrustLine(w http.ResponseWriter, r *http.Request) {
-	url := logRequest(r)
+	url, err := preprocessRequest(r)
+	if err != nil {
+		logger.Error("Bad request: invalid security parameters: " + err.Error())
+		w.WriteHeader(BAD_REQUEST)
+		return
+	}
 
 	contractorID := mux.Vars(r)["contractor_id"]
 	if !ValidateInt(contractorID) {
@@ -181,7 +186,7 @@ func (handler *NodesHandler) InitTrustLine(w http.ResponseWriter, r *http.Reques
 
 	type Response struct{}
 
-	err := handler.node.SendCommand(command)
+	err = handler.node.SendCommand(command)
 	if err != nil {
 		logger.Error("Can't send command: " + string(command.ToBytes()) + " to node. Details: " + err.Error())
 		writeHTTPResponse(w, COMMAND_TRANSFERRING_ERROR, Response{})
@@ -205,7 +210,12 @@ func (handler *NodesHandler) InitTrustLine(w http.ResponseWriter, r *http.Reques
 }
 
 func (handler *NodesHandler) SetTrustLine(w http.ResponseWriter, r *http.Request) {
-	url := logRequest(r)
+	url, err := preprocessRequest(r)
+	if err != nil {
+		logger.Error("Bad request: invalid security parameters: " + err.Error())
+		w.WriteHeader(BAD_REQUEST)
+		return
+	}
 
 	contractorID := mux.Vars(r)["contractor_id"]
 	if !ValidateInt(contractorID) {
@@ -233,7 +243,7 @@ func (handler *NodesHandler) SetTrustLine(w http.ResponseWriter, r *http.Request
 
 	type Response struct{}
 
-	err := handler.node.SendCommand(command)
+	err = handler.node.SendCommand(command)
 	if err != nil {
 		logger.Error("Can't send command: " + string(command.ToBytes()) + " to node. Details: " + err.Error())
 		writeHTTPResponse(w, COMMAND_TRANSFERRING_ERROR, Response{})
@@ -257,7 +267,12 @@ func (handler *NodesHandler) SetTrustLine(w http.ResponseWriter, r *http.Request
 }
 
 func (handler *NodesHandler) CloseIncomingTrustLine(w http.ResponseWriter, r *http.Request) {
-	url := logRequest(r)
+	url, err := preprocessRequest(r)
+	if err != nil {
+		logger.Error("Bad request: invalid security parameters: " + err.Error())
+		w.WriteHeader(BAD_REQUEST)
+		return
+	}
 
 	contractorID := mux.Vars(r)["contractor_id"]
 	if !ValidateInt(contractorID) {
@@ -278,7 +293,7 @@ func (handler *NodesHandler) CloseIncomingTrustLine(w http.ResponseWriter, r *ht
 
 	type Response struct{}
 
-	err := handler.node.SendCommand(command)
+	err = handler.node.SendCommand(command)
 	if err != nil {
 		logger.Error("Can't send command: " + string(command.ToBytes()) + " to node. Details: " + err.Error())
 		writeHTTPResponse(w, COMMAND_TRANSFERRING_ERROR, Response{})
@@ -302,7 +317,12 @@ func (handler *NodesHandler) CloseIncomingTrustLine(w http.ResponseWriter, r *ht
 }
 
 func (handler *NodesHandler) PublicKeysSharing(w http.ResponseWriter, r *http.Request) {
-	url := logRequest(r)
+	url, err := preprocessRequest(r)
+	if err != nil {
+		logger.Error("Bad request: invalid security parameters: " + err.Error())
+		w.WriteHeader(BAD_REQUEST)
+		return
+	}
 
 	contractorID := mux.Vars(r)["contractor_id"]
 	if !ValidateInt(contractorID) {
@@ -323,7 +343,7 @@ func (handler *NodesHandler) PublicKeysSharing(w http.ResponseWriter, r *http.Re
 
 	type Response struct{}
 
-	err := handler.node.SendCommand(command)
+	err = handler.node.SendCommand(command)
 	if err != nil {
 		logger.Error("Can't send command: " + string(command.ToBytes()) + " to node. Details: " + err.Error())
 		writeHTTPResponse(w, COMMAND_TRANSFERRING_ERROR, Response{})
@@ -463,7 +483,12 @@ func (handler *NodesHandler) listTrustLinesResult(command *Command) {
 }
 
 func (handler *NodesHandler) ListTrustLines(w http.ResponseWriter, r *http.Request) {
-	url := logRequest(r)
+	url, err := preprocessRequest(r)
+	if err != nil {
+		logger.Error("Bad request: invalid security parameters: " + err.Error())
+		w.WriteHeader(BAD_REQUEST)
+		return
+	}
 
 	equivalent, isParamPresent := mux.Vars(r)["equivalent"]
 	if !isParamPresent {
@@ -490,7 +515,7 @@ func (handler *NodesHandler) ListTrustLines(w http.ResponseWriter, r *http.Reque
 		TrustLines []TrustLine `json:"trust_lines"`
 	}
 
-	err := handler.node.SendCommand(command)
+	err = handler.node.SendCommand(command)
 	if err != nil {
 		logger.Error("Can't send command: " + string(command.ToBytes()) + " to node. Details: " + err.Error())
 		writeHTTPResponse(w, COMMAND_TRANSFERRING_ERROR, Response{})
@@ -554,7 +579,12 @@ func (handler *NodesHandler) ListTrustLines(w http.ResponseWriter, r *http.Reque
 }
 
 func (handler *NodesHandler) ListTrustLinesPortions(w http.ResponseWriter, r *http.Request) {
-	url := logRequest(r)
+	url, err := preprocessRequest(r)
+	if err != nil {
+		logger.Error("Bad request: invalid security parameters: " + err.Error())
+		w.WriteHeader(BAD_REQUEST)
+		return
+	}
 
 	offset, isParamPresent := mux.Vars(r)["offset"]
 	if !isParamPresent || !ValidateInt(offset) {
@@ -595,7 +625,7 @@ func (handler *NodesHandler) ListTrustLinesPortions(w http.ResponseWriter, r *ht
 		TrustLines []TrustLine `json:"trust_lines"`
 	}
 
-	err := handler.node.SendCommand(command)
+	err = handler.node.SendCommand(command)
 	if err != nil {
 		logger.Error("Can't send command: " + string(command.ToBytes()) + " to node. Details: " + err.Error())
 		writeHTTPResponse(w, COMMAND_TRANSFERRING_ERROR, Response{})
@@ -748,7 +778,12 @@ func (handler *NodesHandler) listContractorsResult(command *Command) {
 }
 
 func (handler *NodesHandler) ListContractors(w http.ResponseWriter, r *http.Request) {
-	url := logRequest(r)
+	url, err := preprocessRequest(r)
+	if err != nil {
+		logger.Error("Bad request: invalid security parameters: " + err.Error())
+		w.WriteHeader(BAD_REQUEST)
+		return
+	}
 
 	equivalent, isParamPresent := mux.Vars(r)["equivalent"]
 	if !isParamPresent {
@@ -769,7 +804,7 @@ func (handler *NodesHandler) ListContractors(w http.ResponseWriter, r *http.Requ
 		Contractors []Record `json:"contractors"`
 	}
 
-	err := handler.node.SendCommand(command)
+	err = handler.node.SendCommand(command)
 	if err != nil {
 		logger.Error("Can't send command: " + string(command.ToBytes()) + " to node. Details: " + err.Error())
 		writeHTTPResponse(w, COMMAND_TRANSFERRING_ERROR, Response{})
@@ -950,7 +985,12 @@ func (handler *NodesHandler) trustLineGetResult(command *Command) {
 }
 
 func (handler *NodesHandler) GetTrustLineByID(w http.ResponseWriter, r *http.Request) {
-	url := logRequest(r)
+	url, err := preprocessRequest(r)
+	if err != nil {
+		logger.Error("Bad request: invalid security parameters: " + err.Error())
+		w.WriteHeader(BAD_REQUEST)
+		return
+	}
 
 	equivalent, isParamPresent := mux.Vars(r)["equivalent"]
 	if !isParamPresent {
@@ -983,7 +1023,7 @@ func (handler *NodesHandler) GetTrustLineByID(w http.ResponseWriter, r *http.Req
 		TrustLine TrustLine `json:"trust_line"`
 	}
 
-	err := handler.node.SendCommand(command)
+	err = handler.node.SendCommand(command)
 	if err != nil {
 		logger.Error("Can't send command: " + string(command.ToBytes()) + " to node. Details: " + err.Error())
 		writeHTTPResponse(w, COMMAND_TRANSFERRING_ERROR, Response{})
@@ -1036,7 +1076,12 @@ func (handler *NodesHandler) GetTrustLineByID(w http.ResponseWriter, r *http.Req
 }
 
 func (handler *NodesHandler) GetTrustLineByAddress(w http.ResponseWriter, r *http.Request) {
-	url := logRequest(r)
+	url, err := preprocessRequest(r)
+	if err != nil {
+		logger.Error("Bad request: invalid security parameters: " + err.Error())
+		w.WriteHeader(BAD_REQUEST)
+		return
+	}
 
 	equivalent, isParamPresent := mux.Vars(r)["equivalent"]
 	if !isParamPresent {
@@ -1084,7 +1129,7 @@ func (handler *NodesHandler) GetTrustLineByAddress(w http.ResponseWriter, r *htt
 		TrustLine TrustLine `json:"trust_line"`
 	}
 
-	err := handler.node.SendCommand(command)
+	err = handler.node.SendCommand(command)
 	if err != nil {
 		logger.Error("Can't send command: " + string(command.ToBytes()) + " to node. Details: " + err.Error())
 		writeHTTPResponse(w, COMMAND_TRANSFERRING_ERROR, Response{})
@@ -1206,7 +1251,12 @@ func (handler *NodesHandler) listEquivalentsGetResult(command *Command) {
 }
 
 func (handler *NodesHandler) ListEquivalents(w http.ResponseWriter, r *http.Request) {
-	logRequest(r)
+	_, err := preprocessRequest(r)
+	if err != nil {
+		logger.Error("Bad request: invalid security parameters: " + err.Error())
+		w.WriteHeader(BAD_REQUEST)
+		return
+	}
 
 	command := NewCommand("GET:equivalents")
 
@@ -1215,7 +1265,7 @@ func (handler *NodesHandler) ListEquivalents(w http.ResponseWriter, r *http.Requ
 		Equivalents []string `json:"equivalents"`
 	}
 
-	err := handler.node.SendCommand(command)
+	err = handler.node.SendCommand(command)
 	if err != nil {
 		logger.Error("Can't send command: " + string(command.ToBytes()) + " to node. Details: " + err.Error())
 		writeHTTPResponse(w, COMMAND_TRANSFERRING_ERROR, Response{})
@@ -1335,7 +1385,12 @@ func (handler *NodesHandler) totalBalanceGetResult(command *Command) {
 }
 
 func (handler *NodesHandler) TotalBalance(w http.ResponseWriter, r *http.Request) {
-	url := logRequest(r)
+	url, err := preprocessRequest(r)
+	if err != nil {
+		logger.Error("Bad request: invalid security parameters: " + err.Error())
+		w.WriteHeader(BAD_REQUEST)
+		return
+	}
 
 	equivalent, isParamPresent := mux.Vars(r)["equivalent"]
 	if !isParamPresent {
@@ -1353,7 +1408,7 @@ func (handler *NodesHandler) TotalBalance(w http.ResponseWriter, r *http.Request
 		TotalUsedOutgoingTrustAmount string `json:"total_used_outgoing_trust_amount"`
 	}
 
-	err := handler.node.SendCommand(command)
+	err = handler.node.SendCommand(command)
 	if err != nil {
 		logger.Error("Can't send command: " + string(command.ToBytes()) + " to node. Details: " + err.Error())
 		writeHTTPResponse(w, COMMAND_TRANSFERRING_ERROR, Response{})

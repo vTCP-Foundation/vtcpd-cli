@@ -119,7 +119,12 @@ func (handler *NodesHandler) initChannelGetResult(command *Command) {
 }
 
 func (handler *NodesHandler) InitChannel(w http.ResponseWriter, r *http.Request) {
-	url := logRequest(r)
+	url, err := preprocessRequest(r)
+	if err != nil {
+		logger.Error("Bad request: invalid security parameters: " + err.Error())
+		w.WriteHeader(BAD_REQUEST)
+		return
+	}
 
 	contractorAddresses := []string{}
 	for key, values := range r.URL.Query() {
@@ -162,7 +167,7 @@ func (handler *NodesHandler) InitChannel(w http.ResponseWriter, r *http.Request)
 		CryptoKey string `json:"crypto_key"`
 	}
 
-	err := handler.node.SendCommand(command)
+	err = handler.node.SendCommand(command)
 	if err != nil {
 		logger.Error("Can't send command: " + string(command.ToBytes()) + " to node. Details: " + err.Error())
 		writeHTTPResponse(w, COMMAND_TRANSFERRING_ERROR, Response{})
@@ -272,7 +277,12 @@ func (handler *NodesHandler) listChannelsGetResult(command *Command) {
 }
 
 func (handler *NodesHandler) ListChannels(w http.ResponseWriter, r *http.Request) {
-	logRequest(r)
+	_, err := preprocessRequest(r)
+	if err != nil {
+		logger.Error("Bad request: invalid security parameters: " + err.Error())
+		w.WriteHeader(BAD_REQUEST)
+		return
+	}
 
 	command := NewCommand("GET:contractors-all")
 
@@ -286,7 +296,7 @@ func (handler *NodesHandler) ListChannels(w http.ResponseWriter, r *http.Request
 		Channels []Channel `json:"channels"`
 	}
 
-	err := handler.node.SendCommand(command)
+	err = handler.node.SendCommand(command)
 	if err != nil {
 		logger.Error("Can't send command: " + string(command.ToBytes()) + " to node. Details: " + err.Error())
 		writeHTTPResponse(w, COMMAND_TRANSFERRING_ERROR, Response{})
@@ -422,7 +432,12 @@ func (handler *NodesHandler) channelInfoGetResult(command *Command) {
 }
 
 func (handler *NodesHandler) ChannelInfo(w http.ResponseWriter, r *http.Request) {
-	url := logRequest(r)
+	url, err := preprocessRequest(r)
+	if err != nil {
+		logger.Error("Bad request: invalid security parameters: " + err.Error())
+		w.WriteHeader(BAD_REQUEST)
+		return
+	}
 
 	contractorID, isParamPresent := mux.Vars(r)["contractor_id"]
 	if !isParamPresent {
@@ -447,7 +462,7 @@ func (handler *NodesHandler) ChannelInfo(w http.ResponseWriter, r *http.Request)
 		ContractorCryptoKey string   `json:"channel_contractor_crypto_key"`
 	}
 
-	err := handler.node.SendCommand(command)
+	err = handler.node.SendCommand(command)
 	if err != nil {
 		logger.Error("Can't send command: " + string(command.ToBytes()) + " to node. Details: " + err.Error())
 		writeHTTPResponse(w, COMMAND_TRANSFERRING_ERROR, Response{})
@@ -563,7 +578,12 @@ func (handler *NodesHandler) setChannelAddressesGetResult(command *Command) {
 }
 
 func (handler *NodesHandler) SetChannelAddresses(w http.ResponseWriter, r *http.Request) {
-	url := logRequest(r)
+	url, err := preprocessRequest(r)
+	if err != nil {
+		logger.Error("Bad request: invalid security parameters: " + err.Error())
+		w.WriteHeader(BAD_REQUEST)
+		return
+	}
 
 	contractorID, isParamPresent := mux.Vars(r)["contractor_id"]
 	if !isParamPresent {
@@ -604,7 +624,7 @@ func (handler *NodesHandler) SetChannelAddresses(w http.ResponseWriter, r *http.
 
 	type Response struct{}
 
-	err := handler.node.SendCommand(command)
+	err = handler.node.SendCommand(command)
 	if err != nil {
 		logger.Error("Can't send command: " + string(command.ToBytes()) + " to node. Details: " + err.Error())
 		writeHTTPResponse(w, COMMAND_TRANSFERRING_ERROR, Response{})
@@ -681,7 +701,12 @@ func (handler *NodesHandler) setChannelCryptoKeyGetResult(command *Command) {
 }
 
 func (handler *NodesHandler) SetChannelCryptoKey(w http.ResponseWriter, r *http.Request) {
-	url := logRequest(r)
+	url, err := preprocessRequest(r)
+	if err != nil {
+		logger.Error("Bad request: invalid security parameters: " + err.Error())
+		w.WriteHeader(BAD_REQUEST)
+		return
+	}
 
 	contractorID, isParamPresent := mux.Vars(r)["contractor_id"]
 	if !isParamPresent {
@@ -714,7 +739,7 @@ func (handler *NodesHandler) SetChannelCryptoKey(w http.ResponseWriter, r *http.
 
 	// Command generation
 	command := NewCommand(commandParams...)
-	err := handler.node.SendCommand(command)
+	err = handler.node.SendCommand(command)
 	if err != nil {
 		logger.Error("Can't send command: " + string(command.ToBytes()) + " to node. Details: " + err.Error())
 		writeHTTPResponse(w, COMMAND_TRANSFERRING_ERROR, Response{})
@@ -794,7 +819,12 @@ func (handler *NodesHandler) regenerateChannelCryptoKeyGetResult(command *Comman
 }
 
 func (handler *NodesHandler) RegenerateChannelCryptoKey(w http.ResponseWriter, r *http.Request) {
-	url := logRequest(r)
+	url, err := preprocessRequest(r)
+	if err != nil {
+		logger.Error("Bad request: invalid security parameters: " + err.Error())
+		w.WriteHeader(BAD_REQUEST)
+		return
+	}
 
 	contractorID, isParamPresent := mux.Vars(r)["contractor_id"]
 	if !isParamPresent {
@@ -817,7 +847,7 @@ func (handler *NodesHandler) RegenerateChannelCryptoKey(w http.ResponseWriter, r
 		CryptoKey string `json:"crypto_key"`
 	}
 
-	err := handler.node.SendCommand(command)
+	err = handler.node.SendCommand(command)
 	if err != nil {
 		logger.Error("Can't send command: " + string(command.ToBytes()) + " to node. Details: " + err.Error())
 		writeHTTPResponse(w, COMMAND_TRANSFERRING_ERROR, Response{})
