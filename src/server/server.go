@@ -35,6 +35,7 @@ func InitNodesHandlerServer(handler *handler.NodesHandler) {
 	router.HandleFunc("/api/v1/node/contractors/{contractor_id}/trust-lines/{equivalent}/", handler.SetTrustLine).Methods("PUT")
 	router.HandleFunc("/api/v1/node/contractors/{contractor_id}/close-incoming-trust-line/{equivalent}/", handler.CloseIncomingTrustLine).Methods("DELETE")
 	router.HandleFunc("/api/v1/node/contractors/{contractor_id}/keys-sharing/{equivalent}/", handler.PublicKeysSharing).Methods("PUT")
+	router.HandleFunc("/api/v1/node/contractors/{contractor_id}/remove-trust-line/{equivalent}/", handler.RemoveTrustLine).Methods("DELETE")
 
 	// Contractors / Transactions
 	router.HandleFunc("/api/v1/node/contractors/transactions/{equivalent}/", handler.CreateTransaction).Methods("POST")

@@ -31,6 +31,9 @@ func (handler *NodesHandler) TrustLines() {
 	} else if CommandType == "share-keys" {
 		handler.shareKeysTrustLine()
 
+	} else if CommandType == "delete" {
+		handler.deleteTrustLine()
+
 	} else if CommandType == "get" {
 		handler.listTrustLinesPortions()
 
@@ -125,6 +128,23 @@ func (handler *NodesHandler) shareKeysTrustLine() {
 	}
 
 	command := NewCommand("SET:contractors/trust-line-keys", ContractorID, Equivalent)
+
+	go handler.actionTrustLineGetResult(command)
+}
+
+func (handler *NodesHandler) deleteTrustLine() {
+	if !ValidateInt(ContractorID) {
+		logger.Error("Bad request: invalid contractorID parameter in delete request")
+		fmt.Println("Bad request: invalid contractorID parameter")
+		return
+	}
+	if !ValidateInt(Equivalent) {
+		logger.Error("Bad request: invalid equivalent parameter in delete request")
+		fmt.Println("Bad request: invalid equivalent parameter")
+		return
+	}
+
+	command := NewCommand("DELETE:contractors/trust-line", ContractorID, Equivalent)
 
 	go handler.actionTrustLineGetResult(command)
 }
@@ -340,6 +360,56 @@ func (handler *NodesHandler) PublicKeysSharing(w http.ResponseWriter, r *http.Re
 
 	command := NewCommand(
 		"SET:contractors/trust-line-keys", contractorID, equivalent)
+
+	type Response struct{}
+
+	err = handler.node.SendCommand(command)
+	if err != nil {
+		logger.Error("Can't send command: " + string(command.ToBytes()) + " to node. Details: " + err.Error())
+		writeHTTPResponse(w, COMMAND_TRANSFERRING_ERROR, Response{})
+		return
+	}
+
+	result, err := handler.node.GetResult(command, TRUST_LINE_RESULT_TIMEOUT)
+	if err != nil {
+		logger.Error("Node is inaccessible during processing command: " +
+			string(command.ToBytes()) + ". Details: " + err.Error())
+		writeHTTPResponse(w, NODE_IS_INACCESSIBLE, Response{})
+		return
+	}
+
+	if result.Code != OK {
+		logger.Error("Node return wrong command result: " + strconv.Itoa(result.Code) +
+			" on command: " + string(command.ToBytes()))
+	}
+
+	writeHTTPResponse(w, result.Code, Response{})
+}
+
+func (handler *NodesHandler) RemoveTrustLine(w http.ResponseWriter, r *http.Request) {
+	url, err := preprocessRequest(r)
+	if err != nil {
+		logger.Error("Bad request: invalid security parameters: " + err.Error())
+		w.WriteHeader(BAD_REQUEST)
+		return
+	}
+
+	contractorID := mux.Vars(r)["contractor_id"]
+	if !ValidateInt(contractorID) {
+		logger.Error("Bad request: invalid contractor_id parameter: " + url)
+		w.WriteHeader(BAD_REQUEST)
+		return
+	}
+
+	equivalent := mux.Vars(r)["equivalent"]
+	if !ValidateInt(equivalent) {
+		logger.Error("Bad request: invalid equivalent parameter: " + url)
+		w.WriteHeader(BAD_REQUEST)
+		return
+	}
+
+	command := NewCommand(
+		"DELETE:contractors/trust-line", contractorID, equivalent)
 
 	type Response struct{}
 
