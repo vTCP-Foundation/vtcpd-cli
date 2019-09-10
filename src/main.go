@@ -19,16 +19,20 @@ var (
 	contractorID              = kingpin.Flag("contractorID", "Contractor ID").Default("").String()
 	channelIDOnContractorSide = kingpin.Flag("channel-id-on-contractor-side",
 		"Channel ID on contractor side").Default("").String()
-	amount      = kingpin.Flag("amount", "Amount").Default("").String()
-	offset      = kingpin.Flag("offset", "Offset of list of requested data.").Default("").String()
-	count       = kingpin.Flag("count", "Count requested data.").Default("").String()
-	equivalent  = kingpin.Flag("eq", "Equivalent.").Default("").String()
-	historyFrom = kingpin.Flag("history-from", "Lower value of history date.").Default("").String()
-	historyTo   = kingpin.Flag("history-to", "Higher value of history date.").Default("").String()
-	amountFrom  = kingpin.Flag("amount-from", "Lower value of history amount.").Default("").String()
-	amountTo    = kingpin.Flag("amount-to", "Higher value of history amount.").Default("").String()
-	cryptoKey   = kingpin.Flag("crypto-key", "Channel crypto key.").Default("").String()
-	payload     = kingpin.Flag("payload", "Payload for payment transaction.").Default("").String()
+	amount         = kingpin.Flag("amount", "Amount").Default("").String()
+	offset         = kingpin.Flag("offset", "Offset of list of requested data.").Default("").String()
+	count          = kingpin.Flag("count", "Count requested data.").Default("").String()
+	equivalent     = kingpin.Flag("eq", "Equivalent.").Default("").String()
+	historyFrom    = kingpin.Flag("history-from", "Lower value of history date.").Default("").String()
+	historyTo      = kingpin.Flag("history-to", "Higher value of history date.").Default("").String()
+	amountFrom     = kingpin.Flag("amount-from", "Lower value of history amount.").Default("").String()
+	amountTo       = kingpin.Flag("amount-to", "Higher value of history amount.").Default("").String()
+	cryptoKey      = kingpin.Flag("crypto-key", "Channel crypto key.").Default("").String()
+	payload        = kingpin.Flag("payload", "Payload for payment transaction.").Default("").String()
+	auditNumber    = kingpin.Flag("audit-number", "Number for audit.").Default("").String()
+	incomingAmount = kingpin.Flag("incoming-amount", "Incoming trust amount.").Default("").String()
+	outgoingAmount = kingpin.Flag("outgoing-amount", "Outgoing trust amount.").Default("").String()
+	balance        = kingpin.Flag("balance", "Trust line balance.").Default("").String()
 )
 
 func main() {
@@ -67,6 +71,10 @@ func main() {
 	handler.AmountTo = *amountTo
 	handler.CryptoKey = *cryptoKey
 	handler.Payload = *payload
+	handler.AuditNumber = *auditNumber
+	handler.IncomingAmount = *incomingAmount
+	handler.OutgoingAmount = *outgoingAmount
+	handler.Balance = *balance
 
 	if *command == "start" {
 		isNodeRunning, err := nodesHandler.CheckNodeRunning()
