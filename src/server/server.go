@@ -52,7 +52,7 @@ func InitNodesHandlerServer(handler *handler.NodesHandler) {
 	router.HandleFunc("/api/v1/node/history/contractors/{offset}/{count}/{equivalent}/", handler.HistoryWithContractor).Methods("GET")
 
 	// Control
-	router.HandleFunc("/api/v1/ctrl/stop", handler.StopEverything).Methods("GET")
+	router.HandleFunc("/api/v1/ctrl/stop/", handler.StopEverything).Methods("POST")
 
 	http.Handle("/", router)
 	logger.Info("Requests accepting started on " + conf.Params.Handler.HTTPInterface())
