@@ -146,6 +146,34 @@ func main() {
 		}
 
 	} else if *command == "start-http" {
+		isNodeRunning, err := nodesHandler.CheckNodeRunning()
+		if err != nil {
+			logger.Error("Can't check if node is running. Details: " + err.Error())
+		}
+		if isNodeRunning {
+			logger.Error("Node already running")
+			fmt.Println("Node already running")
+			os.Exit(0)
+		}
+		isEventsMonitorRunning := nodesHandler.CheckEventsMonitoringRunning()
+		if isEventsMonitorRunning {
+			logger.Info("Events-monitor running. Try stop it")
+			err = nodesHandler.StopEventsMonitoring()
+			if err != nil {
+				logger.Error("Can't stop events-monitor. Details: " + err.Error())
+				// todo : need correct reaction
+			}
+		}
+		if conf.Params.Service.SendEvents || conf.Params.Service.SendLogs {
+			err := nodesHandler.StartEventsMonitoring()
+			if err != nil {
+				logger.Error("Can't start events-monitor. Details: " + err.Error())
+				// todo : need correct reaction
+			}
+			logger.Info("events-monitor started")
+		} else {
+			nodesHandler.ClearEventsMonitoringPID()
+		}
 		err = nodesHandler.RestoreNodeWithCommunication()
 		if err != nil {
 			logger.Error("Can't start. Details: " + err.Error())
