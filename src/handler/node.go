@@ -4,13 +4,13 @@ import (
 	"bufio"
 	"conf"
 	"errors"
+	"github.com/satori/go.uuid"
 	"io"
 	"logger"
 	"os"
 	"os/exec"
 	"path"
 	"time"
-	"github.com/satori/go.uuid"
 )
 
 // This internal type is used for controlling internal node's goroutines behaviour.
@@ -26,27 +26,27 @@ type Node struct {
 	// Map of results of the commands, that was executed already.
 	// Each result is mapped to it's command by the UUID.
 	// Map contains channels, from which http requests handlers should be waiting for the results.
-	results      map[uuid.UUID]chan *Result
+	results map[uuid.UUID]chan *Result
 
 	commandsGoroutineControlChannel chan *goroutineControlEvent
 	resultsGoroutineControlChannel  chan *goroutineControlEvent
-	eventsGoroutineControlChannel  	chan *goroutineControlEvent
+	eventsGoroutineControlChannel   chan *goroutineControlEvent
 	shouldNotBeRestarted            bool
 }
 
 func NewNode() *Node {
 
 	return &Node{
-		commands:     make(chan *Command),
-		results:      make(map[uuid.UUID]chan *Result),
+		commands:                        make(chan *Command),
+		results:                         make(map[uuid.UUID]chan *Result),
 		shouldNotBeRestarted:            false,
 		commandsGoroutineControlChannel: nil,
 		resultsGoroutineControlChannel:  nil,
-		eventsGoroutineControlChannel:	 nil,
+		eventsGoroutineControlChannel:   nil,
 	}
 }
 
-func (node *Node) Start() error {
+func (node *Node) Start() (*exec.Cmd, error) {
 	// Attempt to initially start the node.
 	// In case if this attempt fails - the error must be returned imminently.
 
@@ -56,14 +56,14 @@ func (node *Node) Start() error {
 
 	err := process.Start()
 	if err != nil {
-		return wrap("Can't start child process", err)
+		return nil, wrap("Can't start child process", err)
 	}
 
 	node.logInfo("Started")
-	return nil
+	return process, nil
 }
 
-func (node *Node) StartCommunication() error {
+func (node *Node) StartCommunication() (chan *goroutineControlEvent, chan *goroutineControlEvent, error) {
 	// Node instance must wait some time for the child process to start listening for commands.
 	// this timeout specifies how long it would wait.
 	CHILD_PROCESS_SPAWN_TIMEOUT_SECONDS := 2
@@ -95,7 +95,7 @@ func (node *Node) StartCommunication() error {
 			// It is assumed, that it would exit without external signal,
 			// but the results receiving goroutine must be forced to stop.
 			resultsControlEventsChanel <- &goroutineControlEvent{MustBeStopped: true}
-			return wrap("Can't start commands transferring to the child process", commandsError)
+			return nil, nil, wrap("Can't start commands transferring to the child process", commandsError)
 		}
 
 	case responsesError := <-resultsGoroutinesErrorsChanel:
@@ -104,7 +104,7 @@ func (node *Node) StartCommunication() error {
 			// It is assumed, that it would exit without external signal,
 			// but the commands transferring goroutine must be forced to stop.
 			commandsControlEventsChanel <- &goroutineControlEvent{MustBeStopped: true}
-			return wrap("Can't start results receiving from the child process", responsesError)
+			return nil, nil, wrap("Can't start results receiving from the child process", responsesError)
 		}
 
 	case <-time.After(time.Second * time.Duration(CHILD_PROCESS_MAX_SPAWN_TIMEOUT_SECONDS)):
@@ -122,7 +122,7 @@ func (node *Node) StartCommunication() error {
 	node.resultsGoroutineControlChannel = resultsControlEventsChanel
 
 	node.logInfo("Communication started")
-	return nil
+	return commandsControlEventsChanel, resultsControlEventsChanel, nil
 }
 
 func (node *Node) StopCommunication() error {
@@ -149,7 +149,7 @@ func openFifoFile(commandsFIFOPath string, flag int, perm os.FileMode, node *Nod
 				node.logError("Max tries count expired. Report error and exit")
 				return fifo, err
 			}
-			node.logError("Can't open "+commandsFIFOPath+" for writing. Details: " + err.Error())
+			node.logError("Can't open " + commandsFIFOPath + " for writing. Details: " + err.Error())
 			node.logError("Wait 3s before repeat")
 			time.Sleep(time.Second * 3)
 			continue
@@ -172,7 +172,7 @@ func (node *Node) beginTransferCommands(
 	fifo, err := openFifoFile(commandsFIFOPath, os.O_WRONLY, 0777, node)
 	if err != nil {
 		errorsChannel <- wrap("Can't open "+commandsFIFOPath+" for writing", err)
-		node.logError("Can't open "+commandsFIFOPath+" for writing. Details: " + err.Error())
+		node.logError("Can't open " + commandsFIFOPath + " for writing. Details: " + err.Error())
 		return
 	}
 
@@ -218,7 +218,7 @@ func (node *Node) beginReceiveResults(
 	fifo, err := openFifoFile(resultsFIFOPath, os.O_RDONLY, 0600, node)
 	if err != nil {
 		errorsChannel <- wrap("Can't open "+resultsFIFOPath+" file for reading", err)
-		node.logError("Can't open "+resultsFIFOPath+" for reading. Details: " + err.Error())
+		node.logError("Can't open " + resultsFIFOPath + " for reading. Details: " + err.Error())
 		return
 	}
 
@@ -287,6 +287,66 @@ func (node *Node) beginReceiveResults(
 			node.logError("No channel found for the result " + result.UUID.String() + ". Details are: \"" + string(line) + "\". Dropped")
 			reader.Reset(fifo)
 		}
+	}
+}
+
+func (node *Node) BeginMonitorInternalProcessCrashes(
+	process *exec.Cmd,
+	commandsGoroutineControlEvents chan *goroutineControlEvent,
+	resultsGoroutineControlEvents chan *goroutineControlEvent) {
+
+	MAX_NODE_REINITIALIZATION_ATTEMPTS := 10
+	MIN_TIME_INTERVAL_BETWEEN_CRASHES := time.Second * 30
+
+	currentNodeInitializationAttempt := 0
+	lastReinitialisationAttemptTimestamp := time.Now()
+
+	var err error = nil
+	for {
+		if err != nil {
+			node.logError("Finished unexpectedly with the error: " + err.Error())
+
+			if node.shouldNotBeRestarted {
+				logger.Info("Node was prevented from restarting. It seems that stop method was called.")
+				return
+			}
+
+			if time.Now().Sub(lastReinitialisationAttemptTimestamp) > MIN_TIME_INTERVAL_BETWEEN_CRASHES {
+				// Last node crash was far too in the past.
+				// Crashes counter must be reinitialised.
+				currentNodeInitializationAttempt = 0
+			}
+
+			if currentNodeInitializationAttempt > MAX_NODE_REINITIALIZATION_ATTEMPTS {
+				node.logError("Has been crashed to much times and would not be restored any more.")
+				node.commandsGoroutineControlChannel = nil
+				node.resultsGoroutineControlChannel = nil
+				return
+			}
+
+			currentNodeInitializationAttempt += 1
+			lastReinitialisationAttemptTimestamp = time.Now()
+
+			// Previous process communication goroutines must be closed,
+			// before several new would be started.
+			commandsGoroutineControlEvents <- &goroutineControlEvent{MustBeStopped: true}
+			resultsGoroutineControlEvents <- &goroutineControlEvent{MustBeStopped: true}
+
+			// Attempt to restore the node
+			process, err = node.Start()
+			if err == nil {
+				commandsGoroutineControlEvents, resultsGoroutineControlEvents, err = node.StartCommunication()
+				if err == nil {
+					node.logInfo("Restarted")
+				} else {
+					node.logError("Can't restart node communication")
+				}
+			} else {
+				node.logError("Can't restart node")
+			}
+		}
+
+		err = process.Wait()
 	}
 }
 

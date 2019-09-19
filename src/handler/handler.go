@@ -80,7 +80,7 @@ func (handler *NodesHandler) RestoreNode() error {
 
 	handler.node = NewNode()
 
-	if err := handler.node.Start(); err != nil {
+	if _, err := handler.node.Start(); err != nil {
 		return wrap("Can't start node ", err)
 	}
 
@@ -108,9 +108,42 @@ func (handler *NodesHandler) StartNodeForCommunication() error {
 
 	handler.node = NewNode()
 
-	if err := handler.node.StartCommunication(); err != nil {
+	if _, _, err := handler.node.StartCommunication(); err != nil {
 		return wrap("Can't start node ", err)
 	}
+	return nil
+}
+
+func (handler *NodesHandler) RestoreNodeWithCommunication() error {
+	ioDirPath := conf.Params.Handler.NodeDirPath
+
+	_, err := os.Stat(ioDirPath)
+	if err != nil {
+		return wrap("Can't restore node, there is no node folder ", err)
+	}
+
+	err = handler.ensureNodeConfigurationIsPresent()
+	if err != nil {
+		return wrap("Can't restore node, there is no config file", err)
+	}
+
+	handler.node = NewNode()
+
+	process, err := handler.node.Start()
+	if err != nil {
+		return wrap("Can't start node ", err)
+	}
+
+	commandsControlEventsChanel, resultsControlEventsChanel, err := handler.node.StartCommunication()
+	if err != nil {
+		return wrap("Can't start communication with node ", err)
+	}
+
+	go handler.node.BeginMonitorInternalProcessCrashes(
+		process,
+		commandsControlEventsChanel,
+		resultsControlEventsChanel)
+
 	return nil
 }
 
@@ -173,6 +206,8 @@ func (handler *NodesHandler) StopNode() error {
 	if err != nil {
 		return wrap("There is no node process with PID "+strconv.Itoa(int(nodePID)), err)
 	}
+
+	handler.node.shouldNotBeRestarted = true
 
 	err = process.Kill()
 	if err != nil {

@@ -145,6 +145,20 @@ func main() {
 			os.Exit(-1)
 		}
 
+	} else if *command == "start-http" {
+		err = nodesHandler.RestoreNodeWithCommunication()
+		if err != nil {
+			logger.Error("Can't start. Details: " + err.Error())
+			fmt.Println("Can't start. Details: " + err.Error())
+			os.Exit(1)
+		}
+		server.InitNodesHandlerServer(nodesHandler)
+		err = http.ListenAndServe(conf.Params.Handler.HTTPInterface(), nil)
+		if err != nil {
+			logger.Error("Can't start listener. Error details: " + err.Error())
+			os.Exit(-1)
+		}
+
 	} else if *command == "channels" {
 		err = nodesHandler.StartNodeForCommunication()
 		if err != nil {
