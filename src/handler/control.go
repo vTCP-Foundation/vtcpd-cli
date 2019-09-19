@@ -9,6 +9,13 @@ import (
 )
 
 func (handler *NodesHandler) StopEverything(w http.ResponseWriter, r *http.Request) {
+	_, err := preprocessRequest(r)
+	if err != nil {
+		logger.Error("Bad request: invalid security parameters: " + err.Error())
+		w.WriteHeader(BAD_REQUEST)
+		return
+	}
+
 	type Response struct {
 		Status string `json:"status"`
 		Msg    string `json:"msg"`
