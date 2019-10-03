@@ -24,6 +24,9 @@ func (handler *NodesHandler) Channels() {
 	} else if CommandType == "one" {
 		handler.channelInfo()
 
+	} else if CommandType == "one-by-address" {
+		handler.channelInfoByAddresses()
+
 	} else if CommandType == "set-addresses" {
 		handler.setChannelAddresses()
 
@@ -514,6 +517,149 @@ func (handler *NodesHandler) ChannelInfo(w http.ResponseWriter, r *http.Request)
 		IsConfirmed:         result.Tokens[2+addressesCount],
 		CryptoKey:           result.Tokens[2+addressesCount+1],
 		ContractorCryptoKey: result.Tokens[2+addressesCount+2]}
+	writeHTTPResponse(w, OK, response)
+}
+
+func (handler *NodesHandler) channelInfoByAddresses() {
+
+	if len(Addresses) == 0 {
+		logger.Error("Bad request: there are no contractor addresses parameters in one-by-addresses request")
+		fmt.Println("Bad request: there are no contractor addresses parameters")
+		return
+	}
+
+	var addresses []string
+	for idx := 0; idx < len(Addresses); idx++ {
+		addressType, address := ValidateAddress(Addresses[idx])
+		if addressType == "" {
+			logger.Error("Bad request: invalid address parameter in one-by-addresses request")
+			fmt.Println("Bad request: invalid address parameter")
+			return
+		}
+		addresses = append(addresses, addressType, address)
+	}
+
+	addresses = append([]string{strconv.Itoa(len(Addresses))}, addresses...)
+	addresses = append([]string{"GET:channels/one/address"}, addresses...)
+	addresses = append(addresses, []string{Equivalent}...)
+	command := NewCommand(addresses...)
+
+	go handler.channelInfoByAddressesGetResult(command)
+}
+
+func (handler *NodesHandler) channelInfoByAddressesGetResult(command *Command) {
+	type Response struct {
+		ID          string `json:"channel_id"`
+		IsConfirmed string `json:"channel_confirmed"`
+	}
+
+	err := handler.node.SendCommand(command)
+	if err != nil {
+		logger.Error("Can't send command: " + string(command.ToBytes()) + " to node. Details: " + err.Error())
+		resultJSON := buildJSONResponse(COMMAND_TRANSFERRING_ERROR, Response{})
+		fmt.Println(string(resultJSON))
+		return
+	}
+
+	result, err := handler.node.GetResult(command, CHANNEL_RESULT_TIMEOUT)
+	if err != nil {
+		logger.Error("Node is inaccessible during processing command: " +
+			string(command.ToBytes()) + ". Details: " + err.Error())
+		resultJSON := buildJSONResponse(NODE_IS_INACCESSIBLE, Response{})
+		fmt.Println(string(resultJSON))
+		return
+	}
+
+	if result.Code != OK {
+		logger.Error("Node return wrong command result: " + strconv.Itoa(result.Code) +
+			" on command: " + string(command.ToBytes()))
+		resultJSON := buildJSONResponse(result.Code, Response{})
+		fmt.Println(string(resultJSON))
+		return
+	}
+
+	if len(result.Tokens) < 2 {
+		logger.Error("Node return invalid result tokens size on command: " + string(command.ToBytes()))
+		resultJSON := buildJSONResponse(ENGINE_UNEXPECTED_ERROR, Response{})
+		fmt.Println(string(resultJSON))
+		return
+	}
+
+	response := Response{
+		ID:          result.Tokens[0],
+		IsConfirmed: result.Tokens[1]}
+	resultJSON := buildJSONResponse(OK, response)
+	fmt.Println(string(resultJSON))
+}
+
+func (handler *NodesHandler) ChannelInfoByAddresses(w http.ResponseWriter, r *http.Request) {
+	url, err := preprocessRequest(r)
+	if err != nil {
+		logger.Error("Bad request: invalid security parameters: " + err.Error())
+		w.WriteHeader(BAD_REQUEST)
+		return
+	}
+
+	contractorAddresses := []string{}
+	for key, values := range r.URL.Query() {
+		if key != "contractor_address" {
+			continue
+		}
+
+		for _, value := range values {
+			typeAndAddress := strings.Split(value, "-")
+			contractorAddresses = append(contractorAddresses, typeAndAddress[0])
+			contractorAddresses = append(contractorAddresses, typeAndAddress[1])
+		}
+
+		break
+	}
+	if len(contractorAddresses) == 0 {
+		logger.Error("Bad request: there are no contractor_addresses parameters: " + url)
+		w.WriteHeader(BAD_REQUEST)
+		return
+	}
+
+	contractorAddresses = append([]string{strconv.Itoa(len(contractorAddresses) / 2)}, contractorAddresses...)
+	contractorAddresses = append([]string{"GET:channels/one/address"}, contractorAddresses...)
+	command := NewCommand(contractorAddresses...)
+
+	type Response struct {
+		ID          string `json:"channel_id"`
+		IsConfirmed string `json:"channel_confirmed"`
+	}
+
+	err = handler.node.SendCommand(command)
+	if err != nil {
+		logger.Error("Can't send command: " + string(command.ToBytes()) + " to node. Details: " + err.Error())
+		writeHTTPResponse(w, COMMAND_TRANSFERRING_ERROR, Response{})
+		return
+	}
+
+	result, err := handler.node.GetResult(command, TRUST_LINE_RESULT_TIMEOUT)
+	if err != nil {
+		logger.Error("Node is inaccessible during processing command: " +
+			string(command.ToBytes()) + ". Details: " + err.Error())
+		writeHTTPResponse(w, NODE_IS_INACCESSIBLE, Response{})
+		return
+	}
+
+	if result.Code != OK {
+		logger.Error("Node return wrong command result: " + strconv.Itoa(result.Code) +
+			" on command: " + string(command.ToBytes()))
+		writeHTTPResponse(w, result.Code, Response{})
+		return
+	}
+
+	if len(result.Tokens) < 2 {
+		logger.Error("Node return invalid result tokens size on command: " + string(command.ToBytes()))
+		writeHTTPResponse(w, ENGINE_UNEXPECTED_ERROR, Response{})
+		return
+	}
+
+	response := Response{
+		ID:          result.Tokens[0],
+		IsConfirmed: result.Tokens[1]}
 	writeHTTPResponse(w, OK, response)
 }
 
