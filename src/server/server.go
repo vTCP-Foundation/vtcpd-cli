@@ -48,6 +48,7 @@ func InitNodesHandlerServer(handler *handler.NodesHandler) {
 
 	// History
 	router.HandleFunc("/api/v1/node/history/transactions/payments/{offset}/{count}/{equivalent}/", handler.PaymentsHistory).Methods("GET")
+	router.HandleFunc("/api/v1/node/history/transactions/payments-all/{offset}/{count}/", handler.PaymentsHistoryAllEquivalents).Methods("GET")
 	router.HandleFunc("/api/v1/node/history/transactions/payments/additional/{offset}/{count}/{equivalent}/", handler.PaymentsAdditionalHistory).Methods("GET")
 	router.HandleFunc("/api/v1/node/history/transactions/trust-lines/{offset}/{count}/{equivalent}/", handler.TrustLinesHistory).Methods("GET")
 	router.HandleFunc("/api/v1/node/history/contractors/{offset}/{count}/{equivalent}/", handler.HistoryWithContractor).Methods("GET")
