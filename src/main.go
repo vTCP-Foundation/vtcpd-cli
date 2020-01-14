@@ -232,6 +232,15 @@ func main() {
 		}
 		nodesHandler.History()
 
+	} else if *command == "remove-outdated-crypto" {
+		err = nodesHandler.StartNodeForCommunication()
+		if err != nil {
+			logger.Error("Node is not running. Details: " + err.Error())
+			fmt.Println("Node is not running. Details: " + err.Error())
+			os.Exit(1)
+		}
+		nodesHandler.RemoveOutdatedCryptoDataCommand()
+
 	} else {
 		logger.Error("Invalid command " + *command)
 		fmt.Println("Invalid command")
