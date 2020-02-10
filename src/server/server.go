@@ -58,6 +58,8 @@ func InitNodesHandlerServer(handler *handler.NodesHandler) {
 
 	// Control
 	router.HandleFunc("/api/v1/ctrl/stop/", handler.StopEverything).Methods("POST")
+	// save all TL data in nodeTL.json file. used only for internal comparisons
+	router.HandleFunc("/api/v1/ctrl/save/", handler.SaveTrustLineInfo).Methods("POST")
 
 	http.Handle("/", router)
 	logger.Info("Requests accepting started on " + conf.Params.Handler.HTTPInterface())
