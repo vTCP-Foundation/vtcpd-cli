@@ -55,6 +55,7 @@ func InitNodesHandlerServer(handler *handler.NodesHandler) {
 
 	// Optimization
 	router.HandleFunc("/api/v1/node/remove-outdated-crypto/", handler.RemoveOutdatedCryptoData).Methods("DELETE")
+	router.HandleFunc("/api/v1/node/regenerate-all-keys/", handler.RegenerateAllKeys).Methods("POST")
 
 	// Control
 	router.HandleFunc("/api/v1/ctrl/stop/", handler.StopEverything).Methods("POST")

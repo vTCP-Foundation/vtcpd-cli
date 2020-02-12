@@ -6,6 +6,7 @@ import (
 	"net/http"
 	"os"
 	"strconv"
+	"time"
 
 	"logger"
 )
@@ -233,4 +234,165 @@ func (handler *NodesHandler) RemoveOutdatedCryptoData(w http.ResponseWriter, r *
 	}
 
 	writeHTTPResponse(w, result.Code, Response{})
+}
+
+func (handler *NodesHandler) RegenerateAllKeys(w http.ResponseWriter, r *http.Request) {
+	_, err := preprocessRequest(r)
+	if err != nil {
+		logger.Error("Bad request: invalid security parameters: " + err.Error())
+		w.WriteHeader(BAD_REQUEST)
+		return
+	}
+
+	delayInt := 0
+
+	delay := r.URL.Query().Get("delay")
+	if delay == "" {
+		delayInt = 5
+	} else {
+		delayInt, err = strconv.Atoi(delay)
+		if err != nil {
+			logger.Error("Bad request: invalid delay parameters: " + err.Error())
+			w.WriteHeader(BAD_REQUEST)
+			return
+		}
+	}
+
+	var equivalents []string
+	var contractors []string
+
+	type Response struct{}
+
+	command := NewCommand("GET:equivalents")
+
+	err = handler.node.SendCommand(command)
+	if err != nil {
+		logger.Error("Can't send command: " + string(command.ToBytes()) + " to node. Details: " + err.Error())
+		writeHTTPResponse(w, COMMAND_TRANSFERRING_ERROR, Response{})
+		return
+	}
+
+	resultEquivalents, err := handler.node.GetResult(command, TRUST_LINE_RESULT_TIMEOUT)
+	if err != nil {
+		logger.Error("Node is inaccessible during processing command: " +
+			string(command.ToBytes()) + ". Details: " + err.Error())
+		writeHTTPResponse(w, NODE_IS_INACCESSIBLE, Response{})
+		return
+	}
+
+	if resultEquivalents.Code != OK {
+		logger.Error("Node return wrong command result: " + strconv.Itoa(resultEquivalents.Code) +
+			" on command: " + string(command.ToBytes()))
+		writeHTTPResponse(w, resultEquivalents.Code, Response{})
+		return
+	}
+
+	if len(resultEquivalents.Tokens) == 0 {
+		logger.Error("Node return invalid result tokens size on command: " + string(command.ToBytes()))
+		writeHTTPResponse(w, ENGINE_UNEXPECTED_ERROR, Response{})
+		return
+	}
+
+	// Equivalents received well
+	equivalentsCount, err := strconv.Atoi(resultEquivalents.Tokens[0])
+	if err != nil {
+		logger.Error("Node return invalid token on command: " +
+			string(command.ToBytes()) + ". Details: " + err.Error())
+		writeHTTPResponse(w, ENGINE_UNEXPECTED_ERROR, Response{})
+		return
+	}
+
+	if equivalentsCount == 0 {
+		logger.Info("There are no TL")
+		writeHTTPResponse(w, resultEquivalents.Code, Response{})
+		return
+	}
+
+	for i := 0; i < equivalentsCount; i++ {
+		equivalents = append(equivalents, resultEquivalents.Tokens[i+1])
+	}
+
+	/////
+	command = NewCommand("GET:contractors-all")
+
+	err = handler.node.SendCommand(command)
+	if err != nil {
+		logger.Error("Can't send command: " + string(command.ToBytes()) + " to node. Details: " + err.Error())
+		writeHTTPResponse(w, COMMAND_TRANSFERRING_ERROR, Response{})
+		return
+	}
+
+	resultContractors, err := handler.node.GetResult(command, CHANNEL_RESULT_TIMEOUT)
+	if err != nil {
+		logger.Error("Node is inaccessible during processing command: " +
+			string(command.ToBytes()) + ". Details: " + err.Error())
+		writeHTTPResponse(w, NODE_IS_INACCESSIBLE, Response{})
+		return
+	}
+
+	if resultContractors.Code != OK {
+		logger.Error("Node return wrong command result: " + strconv.Itoa(resultContractors.Code) +
+			" on command: " + string(command.ToBytes()))
+		writeHTTPResponse(w, resultContractors.Code, Response{})
+		return
+	}
+
+	if len(resultContractors.Tokens) == 0 {
+		logger.Error("Node return invalid result tokens size on command: " + string(command.ToBytes()))
+		writeHTTPResponse(w, ENGINE_UNEXPECTED_ERROR, Response{})
+		return
+	}
+
+	// Channels received well
+	channelsCount, err := strconv.Atoi(resultContractors.Tokens[0])
+	if err != nil {
+		logger.Error("Node return invalid token on command: " +
+			string(command.ToBytes()) + ". Details: " + err.Error())
+		writeHTTPResponse(w, ENGINE_UNEXPECTED_ERROR, Response{})
+		return
+	}
+
+	if channelsCount == 0 {
+		logger.Info("There are no contractors")
+		writeHTTPResponse(w, resultEquivalents.Code, Response{})
+		return
+	}
+
+	for i := 0; i < channelsCount; i++ {
+		contractors = append(contractors, resultContractors.Tokens[i*2+1])
+	}
+	/////
+
+	go handler.regenerateAllKeys(contractors, equivalents, delayInt)
+	writeHTTPResponse(w, resultEquivalents.Code, Response{})
+}
+
+func (handler *NodesHandler) regenerateAllKeys(contractors []string, equivalents []string, delay int) {
+
+	for _, contractor := range contractors {
+		for _, equivalent := range equivalents {
+
+			command := NewCommand(
+				"SET:contractors/trust-line-keys", contractor, equivalent)
+
+			err := handler.node.SendCommand(command)
+			if err != nil {
+				logger.Error("Can't send command: " + string(command.ToBytes()) + " to node. Details: " + err.Error())
+				continue
+			}
+
+			result, err := handler.node.GetResult(command, TRUST_LINE_RESULT_TIMEOUT)
+			if err != nil {
+				logger.Error("Node is inaccessible during processing command: " +
+					string(command.ToBytes()) + ". Details: " + err.Error())
+				continue
+			}
+
+			if result.Code != OK {
+				logger.Error("Node return wrong command result: " + strconv.Itoa(result.Code) +
+					" on command: " + string(command.ToBytes()))
+			}
+			time.Sleep(time.Second * time.Duration(delay))
+		}
+	}
 }
