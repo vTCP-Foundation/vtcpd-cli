@@ -170,7 +170,7 @@ func (handler *NodesHandler) SaveTrustLineEquivalentInfo(equivalent string, file
 
 func (handler *NodesHandler) RemoveOutdatedCryptoDataCommand() {
 	// Command generation
-	command := NewCommand("DELETE:outdated-crypto")
+	command := NewCommand("DELETE:outdated-crypto", "1")
 
 	type Response struct{}
 
@@ -208,8 +208,13 @@ func (handler *NodesHandler) RemoveOutdatedCryptoData(w http.ResponseWriter, r *
 		return
 	}
 
+	vacuum := r.URL.Query().Get("vacuum")
+	if vacuum == "" {
+		vacuum = "0"
+	}
+
 	// Command generation
-	command := NewCommand("DELETE:outdated-crypto")
+	command := NewCommand("DELETE:outdated-crypto", vacuum)
 
 	type Response struct{}
 
