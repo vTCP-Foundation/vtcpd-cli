@@ -36,6 +36,9 @@ func (handler *NodesHandler) Channels() {
 	} else if CommandType == "regenerate-crypto-key" {
 		handler.regenerateChannelCryptoKey()
 
+	} else if CommandType == "remove" {
+		handler.removeChannel()
+
 	} else {
 		logger.Error("Invalid channel command " + CommandType)
 		fmt.Println("Invalid channel command")
@@ -1000,7 +1003,7 @@ func (handler *NodesHandler) RegenerateChannelCryptoKey(w http.ResponseWriter, r
 		return
 	}
 
-	result, err := handler.node.GetResult(command, TRUST_LINE_RESULT_TIMEOUT)
+	result, err := handler.node.GetResult(command, CHANNEL_RESULT_TIMEOUT)
 	if err != nil {
 		logger.Error("Node is inaccessible during processing command: " +
 			string(command.ToBytes()) + ". Details: " + err.Error())
@@ -1024,4 +1027,95 @@ func (handler *NodesHandler) RegenerateChannelCryptoKey(w http.ResponseWriter, r
 	writeHTTPResponse(w, OK, Response{
 		ChannelID: result.Tokens[0],
 		CryptoKey: result.Tokens[1]})
+}
+
+func (handler *NodesHandler) removeChannel() {
+
+	if !ValidateInt(ContractorID) {
+		logger.Error("Bad request: invalid contractor_id parameter in channels remove request")
+		fmt.Println("Bad request: invalid contractor_id parameter")
+		return
+	}
+
+	command := NewCommand("DELETE:channel/contractor-id", ContractorID)
+
+	go handler.removeChannelGetResult(command)
+}
+
+func (handler *NodesHandler) removeChannelGetResult(command *Command) {
+	type Response struct{}
+
+	err := handler.node.SendCommand(command)
+	if err != nil {
+		logger.Error("Can't send command: " + string(command.ToBytes()) + " to node. Details: " + err.Error())
+		resultJSON := buildJSONResponse(COMMAND_TRANSFERRING_ERROR, Response{})
+		fmt.Println(string(resultJSON))
+		return
+	}
+
+	result, err := handler.node.GetResult(command, CHANNEL_RESULT_TIMEOUT)
+	if err != nil {
+		logger.Error("Node is inaccessible during processing command: " +
+			string(command.ToBytes()) + ". Details: " + err.Error())
+		resultJSON := buildJSONResponse(NODE_IS_INACCESSIBLE, Response{})
+		fmt.Println(string(resultJSON))
+		return
+	}
+
+	if result.Code != OK {
+		logger.Error("Node return wrong command result: " + strconv.Itoa(result.Code) +
+			" on command: " + string(command.ToBytes()))
+	}
+
+	resultJSON := buildJSONResponse(result.Code, Response{})
+	fmt.Println(string(resultJSON))
+}
+
+func (handler *NodesHandler) RemoveChannel(w http.ResponseWriter, r *http.Request) {
+	url, err := preprocessRequest(r)
+	if err != nil {
+		logger.Error("Bad request: invalid security parameters: " + err.Error())
+		w.WriteHeader(BAD_REQUEST)
+		return
+	}
+
+	contractorID, isParamPresent := mux.Vars(r)["contractor_id"]
+	if !isParamPresent {
+		logger.Error("Bad request: missing contractor_id parameter: " + url)
+		w.WriteHeader(BAD_REQUEST)
+		return
+	}
+
+	if !ValidateInt(contractorID) {
+		logger.Error("Bad request: invalid contractor_id parameter")
+		w.WriteHeader(BAD_REQUEST)
+		return
+	}
+
+	// Command generation
+	command := NewCommand("DELETE:channel/contractor-id", contractorID)
+
+	type Response struct{}
+
+	err = handler.node.SendCommand(command)
+	if err != nil {
+		logger.Error("Can't send command: " + string(command.ToBytes()) + " to node. Details: " + err.Error())
+		writeHTTPResponse(w, COMMAND_TRANSFERRING_ERROR, Response{})
+		return
+	}
+
+	result, err := handler.node.GetResult(command, CHANNEL_RESULT_TIMEOUT)
+	if err != nil {
+		logger.Error("Node is inaccessible during processing command: " +
+			string(command.ToBytes()) + ". Details: " + err.Error())
+		writeHTTPResponse(w, NODE_IS_INACCESSIBLE, Response{})
+		return
+	}
+
+	if result.Code != OK {
+		logger.Error("Node return wrong command result: " + strconv.Itoa(result.Code) +
+			" on command: " + string(command.ToBytes()))
+	}
+
+	writeHTTPResponse(w, result.Code, Response{})
 }

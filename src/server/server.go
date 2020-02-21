@@ -23,6 +23,7 @@ func InitNodesHandlerServer(handler *handler.NodesHandler) {
 	router.HandleFunc("/api/v1/node/channels/{contractor_id}/set-addresses/", handler.SetChannelAddresses).Methods("PUT")
 	router.HandleFunc("/api/v1/node/channels/{contractor_id}/set-crypto-key/", handler.SetChannelCryptoKey).Methods("PUT")
 	router.HandleFunc("/api/v1/node/channels/{contractor_id}/regenerate-crypto-key/", handler.RegenerateChannelCryptoKey).Methods("PUT")
+	router.HandleFunc("/api/v1/node/channels/{contractor_id}/remove/", handler.RemoveChannel).Methods("DELETE")
 
 	// Contractors
 	router.HandleFunc("/api/v1/node/contractors/{equivalent}/", handler.ListContractors).Methods("GET")
