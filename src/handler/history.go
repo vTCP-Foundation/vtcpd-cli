@@ -463,6 +463,12 @@ func (handler *NodesHandler) PaymentsHistory(w http.ResponseWriter, r *http.Requ
 		commandUUID = "null"
 	}
 
+	// operationUUID
+	operationUUID := r.URL.Query().Get("operation_uuid")
+	if operationUUID == "" {
+		operationUUID = "null"
+	}
+
 	equivalent, isParamPresent := mux.Vars(r)["equivalent"]
 	if !isParamPresent {
 		logger.Error("Bad request: missing equivalent parameter: " + url)
@@ -472,7 +478,7 @@ func (handler *NodesHandler) PaymentsHistory(w http.ResponseWriter, r *http.Requ
 
 	command := NewCommand(
 		"GET:history/payments", offset, count, dateFromUnixTimestamp, dateToUnixTimestamp,
-		amountFromUnixTimestamp, amountToUnixTimestamp, commandUUID, equivalent)
+		amountFromUnixTimestamp, amountToUnixTimestamp, commandUUID, operationUUID, equivalent)
 
 	type Record struct {
 		TransactionUUID           string `json:"transaction_uuid"`

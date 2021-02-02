@@ -1111,6 +1111,7 @@ func (handler *NodesHandler) trustLineGetResult(command *Command) {
 		State                 string `json:"state"`
 		OwnKeysPresent        string `json:"own_keys_present"`
 		ContractorKeysPresent string `json:"contractor_keys_present"`
+		AuditNumber           string `json:"audit_number"`
 		IncomingTrustAmount   string `json:"incoming_trust_amount"`
 		OutgoingTrustAmount   string `json:"outgoing_trust_amount"`
 		Balance               string `json:"balance"`
@@ -1171,9 +1172,10 @@ func (handler *NodesHandler) trustLineGetResult(command *Command) {
 		State:                 result.Tokens[1],
 		OwnKeysPresent:        result.Tokens[2],
 		ContractorKeysPresent: result.Tokens[3],
-		IncomingTrustAmount:   result.Tokens[4],
-		OutgoingTrustAmount:   result.Tokens[5],
-		Balance:               result.Tokens[6],
+		AuditNumber:           result.Tokens[4],
+		IncomingTrustAmount:   result.Tokens[5],
+		OutgoingTrustAmount:   result.Tokens[6],
+		Balance:               result.Tokens[7],
 	}}
 	resultJSON := buildJSONResponse(OK, response)
 	fmt.Println(string(resultJSON))
@@ -1209,6 +1211,7 @@ func (handler *NodesHandler) GetTrustLineByID(w http.ResponseWriter, r *http.Req
 		State                 string `json:"state"`
 		OwnKeysPresent        string `json:"own_keys_present"`
 		ContractorKeysPresent string `json:"contractor_keys_present"`
+		AuditNumber           string `json:"audit_number"`
 		IncomingTrustAmount   string `json:"incoming_trust_amount"`
 		OutgoingTrustAmount   string `json:"outgoing_trust_amount"`
 		Balance               string `json:"balance"`
@@ -1263,9 +1266,10 @@ func (handler *NodesHandler) GetTrustLineByID(w http.ResponseWriter, r *http.Req
 		State:                 result.Tokens[1],
 		OwnKeysPresent:        result.Tokens[2],
 		ContractorKeysPresent: result.Tokens[3],
-		IncomingTrustAmount:   result.Tokens[4],
-		OutgoingTrustAmount:   result.Tokens[5],
-		Balance:               result.Tokens[6],
+		AuditNumber:           result.Tokens[4],
+		IncomingTrustAmount:   result.Tokens[5],
+		OutgoingTrustAmount:   result.Tokens[6],
+		Balance:               result.Tokens[7],
 	}}
 	writeHTTPResponse(w, OK, response)
 }
@@ -1315,6 +1319,7 @@ func (handler *NodesHandler) GetTrustLineByAddress(w http.ResponseWriter, r *htt
 		State                 string `json:"state"`
 		OwnKeysPresent        string `json:"own_keys_present"`
 		ContractorKeysPresent string `json:"contractor_keys_present"`
+		AuditNumber           string `json:"audit_number"`
 		IncomingTrustAmount   string `json:"incoming_trust_amount"`
 		OutgoingTrustAmount   string `json:"outgoing_trust_amount"`
 		Balance               string `json:"balance"`
@@ -1369,9 +1374,10 @@ func (handler *NodesHandler) GetTrustLineByAddress(w http.ResponseWriter, r *htt
 		State:                 result.Tokens[1],
 		OwnKeysPresent:        result.Tokens[2],
 		ContractorKeysPresent: result.Tokens[3],
-		IncomingTrustAmount:   result.Tokens[4],
-		OutgoingTrustAmount:   result.Tokens[5],
-		Balance:               result.Tokens[6],
+		AuditNumber:           result.Tokens[4],
+		IncomingTrustAmount:   result.Tokens[5],
+		OutgoingTrustAmount:   result.Tokens[6],
+		Balance:               result.Tokens[7],
 	}}
 	writeHTTPResponse(w, OK, response)
 }
