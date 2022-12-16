@@ -1,6 +1,7 @@
 package handler
 
 import (
+	uuid "github.com/satori/go.uuid"
 	"math/big"
 	"strconv"
 	"strings"
@@ -49,5 +50,14 @@ func ValidateInt(value string) bool {
 	if _, err := strconv.Atoi(value); err != nil {
 		return false
 	}
+	return true
+}
+
+func validateUUID(identifier string) bool {
+	_, err := uuid.FromString(identifier)
+	if err != nil {
+		return false
+	}
+
 	return true
 }

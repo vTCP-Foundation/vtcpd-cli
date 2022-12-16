@@ -31,6 +31,7 @@ func InitNodesHandlerServer(handler *handler.NodesHandler) {
 	// Contractors / Trust Lines
 	router.HandleFunc("/api/v1/node/contractors/trust-lines/{equivalent}/", handler.ListTrustLines).Methods("GET")
 	router.HandleFunc("/api/v1/node/contractors/trust-lines/{offset}/{count}/{equivalent}/", handler.ListTrustLinesPortions).Methods("GET")
+	router.HandleFunc("/api/v1/node/contractors/trust-lines/equivalents/all/", handler.ListTrustLinesAllEquivalents).Methods("GET")
 	router.HandleFunc("/api/v1/node/contractors/trust-line-by-id/{equivalent}/", handler.GetTrustLineByID).Methods("GET")
 	router.HandleFunc("/api/v1/node/contractors/trust-line-by-address/{equivalent}/", handler.GetTrustLineByAddress).Methods("GET")
 	router.HandleFunc("/api/v1/node/contractors/{contractor_id}/init-trust-line/{equivalent}/", handler.InitTrustLine).Methods("POST")
@@ -43,6 +44,7 @@ func InitNodesHandlerServer(handler *handler.NodesHandler) {
 	// Contractors / Transactions
 	router.HandleFunc("/api/v1/node/contractors/transactions/{equivalent}/", handler.CreateTransaction).Methods("POST")
 	router.HandleFunc("/api/v1/node/contractors/transactions/max/{equivalent}/", handler.BatchMaxFullyTransaction).Methods("GET")
+	router.HandleFunc("/api/v1/node/transactions/{command_uuid}/", handler.GetTransactionByCommandUUID).Methods("GET")
 
 	// Stats
 	router.HandleFunc("/api/v1/node/stats/total-balance/{equivalent}/", handler.TotalBalance).Methods("GET")

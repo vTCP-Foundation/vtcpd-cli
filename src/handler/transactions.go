@@ -3,6 +3,7 @@ package handler
 import (
 	"fmt"
 	"github.com/gorilla/mux"
+	"github.com/satori/go.uuid"
 	"logger"
 	"net/http"
 	"strconv"
@@ -590,6 +591,17 @@ func (handler *NodesHandler) CreateTransaction(w http.ResponseWriter, r *http.Re
 
 	payload := r.FormValue("payload")
 
+	transactionUUIDStr := r.FormValue("transaction_uuid")
+	var transactionUUID uuid.UUID
+	if transactionUUIDStr != "" {
+		transactionUUID, err = uuid.FromString(transactionUUIDStr)
+		if err != nil {
+			logger.Error("Bad request: invalid transaction_uuid parameter: " + url)
+			w.WriteHeader(BAD_REQUEST)
+			return
+		}
+	}
+
 	// Command processing.
 	// This command may execute relatively slow.
 	contractorAddresses = append([]string{strconv.Itoa(len(contractorAddresses) / 2)}, contractorAddresses...)
@@ -598,7 +610,13 @@ func (handler *NodesHandler) CreateTransaction(w http.ResponseWriter, r *http.Re
 	if payload != "" {
 		contractorAddresses = append(contractorAddresses, []string{payload}...)
 	}
-	command := NewCommand(contractorAddresses...)
+
+	var command *Command
+	if transactionUUIDStr == "" {
+		command = NewCommand(contractorAddresses...)
+	} else {
+		command = NewCommandWithUUID(transactionUUID, contractorAddresses...)
+	}
 
 	type Response struct {
 		TransactionUUID string `json:"transaction_uuid"`
@@ -638,4 +656,78 @@ func (handler *NodesHandler) CreateTransaction(w http.ResponseWriter, r *http.Re
 	}
 
 	writeHTTPResponse(w, OK, Response{TransactionUUID: result.Tokens[0]})
+}
+
+func (handler *NodesHandler) GetTransactionByCommandUUID(w http.ResponseWriter, r *http.Request) {
+	url, err := preprocessRequest(r)
+	if err != nil {
+		logger.Error("Bad request: invalid security parameters: " + err.Error())
+		w.WriteHeader(BAD_REQUEST)
+		return
+	}
+
+	requestedCommandUUID := mux.Vars(r)["command_uuid"]
+	if !validateUUID(requestedCommandUUID) {
+		logger.Error("Bad request: invalid command_uuid parameter: " + url)
+		w.WriteHeader(BAD_REQUEST)
+		return
+	}
+
+	command := NewCommand("GET:transaction/command-uuid", requestedCommandUUID)
+
+	type Response struct {
+		Count           int    `json:"count"`
+		TransactionUUID string `json:"transaction_uuid"`
+	}
+
+	err = handler.node.SendCommand(command)
+	if err != nil {
+		logger.Error("Can't send command: " + string(command.ToBytes()) + ". Details: " + err.Error())
+		writeHTTPResponse(w, COMMAND_TRANSFERRING_ERROR, Response{})
+		return
+	}
+
+	result, err := handler.node.GetResult(command, COMMAND_UUID_TIMEOUT)
+	if err != nil {
+		logger.Error("Node is inaccessible during processing command: " +
+			string(command.ToBytes()) + ". Details: " + err.Error())
+		writeHTTPResponse(w, NODE_IS_INACCESSIBLE, Response{})
+		return
+	}
+
+	if result.Code != OK {
+		logger.Error("Node return wrong command result: " + strconv.Itoa(result.Code) +
+			" on command: " + string(command.ToBytes()))
+		writeHTTPResponse(w, result.Code, Response{})
+		return
+	}
+
+	if len(result.Tokens) == 0 {
+		logger.Error("Node return invalid result tokens size on command: " + string(command.ToBytes()))
+		writeHTTPResponse(w, ENGINE_UNEXPECTED_ERROR, Response{})
+		return
+	}
+
+	count, err := strconv.Atoi(result.Tokens[0])
+	if err != nil {
+		logger.Error("Node return invalid token on command: " + string(command.ToBytes()) + ". Details: " + err.Error())
+		writeHTTPResponse(w, ENGINE_UNEXPECTED_ERROR, Response{})
+		return
+	}
+
+	if count == 0 {
+		writeHTTPResponse(w, OK, Response{Count: 0})
+		return
+	}
+
+	if count == 1 {
+		writeHTTPResponse(w, OK, Response{
+			Count:           1,
+			TransactionUUID: result.Tokens[1]})
+		return
+	}
+
+	logger.Error("Node return invalid token `count` on command: " + string(command.ToBytes()))
+	writeHTTPResponse(w, ENGINE_UNEXPECTED_ERROR, Response{})
+	return
 }

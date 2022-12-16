@@ -25,6 +25,21 @@ func NewCommand(body ...string) *Command {
 	}
 }
 
+func NewCommandWithUUID(transactionUUID uuid.UUID, body ...string) *Command {
+	command := ""
+	for _, token := range body {
+		command += token + "\t"
+	}
+
+	// Removing trailing "\t"
+	command = command[:len(command)-1]
+
+	return &Command{
+		UUID: transactionUUID,
+		Body: command,
+	}
+}
+
 func (c *Command) ToBytes() []byte {
 	command := c.UUID.String()
 	tokens := strings.Split(c.Body, "\t")
