@@ -1,57 +1,58 @@
 package main
 
 import (
-	"conf"
 	"fmt"
-	"gopkg.in/alecthomas/kingpin.v2"
-	"handler"
-	"logger"
 	"net/http"
 	"os"
-	"server"
 	"time"
+
+	"github.com/vTCP-Foundation/vtcpd-cli/pkg/conf"
+	"github.com/vTCP-Foundation/vtcpd-cli/pkg/handler"
+	"github.com/vTCP-Foundation/vtcpd-cli/pkg/logger"
+	"github.com/vTCP-Foundation/vtcpd-cli/pkg/server"
+
+	"github.com/alecthomas/kingpin/v2"
 )
 
 var (
-	command                   = kingpin.Arg("command", "Command name.").Required().String()
-	commandType               = kingpin.Arg("type", "Command type.").Default("").String()
+	command                   = kingpin.Arg("command", "Command name").Required().String()
+	commandType               = kingpin.Arg("type", "Command type").Default("").String()
 	addresses                 = kingpin.Flag("address", "Contractor address").Default("").Strings()
 	contractorID              = kingpin.Flag("contractorID", "Contractor ID").Default("").String()
-	channelIDOnContractorSide = kingpin.Flag("channel-id-on-contractor-side",
-		"Channel ID on contractor side").Default("").String()
-	amount         = kingpin.Flag("amount", "Amount").Default("").String()
-	offset         = kingpin.Flag("offset", "Offset of list of requested data.").Default("").String()
-	count          = kingpin.Flag("count", "Count requested data.").Default("").String()
-	equivalent     = kingpin.Flag("eq", "Equivalent.").Default("").String()
-	historyFrom    = kingpin.Flag("history-from", "Lower value of history date.").Default("").String()
-	historyTo      = kingpin.Flag("history-to", "Higher value of history date.").Default("").String()
-	amountFrom     = kingpin.Flag("amount-from", "Lower value of history amount.").Default("").String()
-	amountTo       = kingpin.Flag("amount-to", "Higher value of history amount.").Default("").String()
-	cryptoKey      = kingpin.Flag("crypto-key", "Channel crypto key.").Default("").String()
-	payload        = kingpin.Flag("payload", "Payload for payment transaction.").Default("").String()
-	auditNumber    = kingpin.Flag("audit-number", "Number for audit.").Default("").String()
-	incomingAmount = kingpin.Flag("incoming-amount", "Incoming trust amount.").Default("").String()
-	outgoingAmount = kingpin.Flag("outgoing-amount", "Outgoing trust amount.").Default("").String()
-	balance        = kingpin.Flag("balance", "Trust line balance.").Default("").String()
+	channelIDOnContractorSide = kingpin.Flag("channel-id-on-contractor-side", "Channel ID on contractor side").Default("").String()
+	amount                    = kingpin.Flag("amount", "Amount").Default("").String()
+	offset                    = kingpin.Flag("offset", "Offset of list of requested data.").Default("").String()
+	count                     = kingpin.Flag("count", "Count requested data.").Default("").String()
+	equivalent                = kingpin.Flag("eq", "Equivalent.").Default("").String()
+	historyFrom               = kingpin.Flag("history-from", "Lower value of history date.").Default("").String()
+	historyTo                 = kingpin.Flag("history-to", "Higher value of history date.").Default("").String()
+	amountFrom                = kingpin.Flag("amount-from", "Lower value of history amount.").Default("").String()
+	amountTo                  = kingpin.Flag("amount-to", "Higher value of history amount.").Default("").String()
+	cryptoKey                 = kingpin.Flag("crypto-key", "Channel crypto key.").Default("").String()
+	payload                   = kingpin.Flag("payload", "Payload for payment transaction.").Default("").String()
+	auditNumber               = kingpin.Flag("audit-number", "Number for audit.").Default("").String()
+	incomingAmount            = kingpin.Flag("incoming-amount", "Incoming trust amount.").Default("").String()
+	outgoingAmount            = kingpin.Flag("outgoing-amount", "Outgoing trust amount.").Default("").String()
+	balance                   = kingpin.Flag("balance", "Trust line balance.").Default("").String()
 )
 
 func main() {
 	err := conf.LoadSettings()
 	if err != nil {
-		println("ERROR: Settings can't be loaded." + err.Error())
+		println("Settings can't be loaded: " + err.Error())
 		os.Exit(1)
 	}
 
 	err = logger.Init()
 	if err != nil {
-		logger.Error("Can't init logger.")
-		os.Exit(-1)
+		println("Can't init logger: " + err.Error())
+		os.Exit(2)
 	}
 
 	nodesHandler, err := handler.InitNodesHandler()
 	if err != nil {
-		logger.Error("Can't initialise node handler. Details: " + err.Error())
-		os.Exit(-1)
+		logger.Error("Can't initialize node handler. Details: " + err.Error())
+		os.Exit(3)
 	}
 
 	kingpin.Version("0.0.1")
