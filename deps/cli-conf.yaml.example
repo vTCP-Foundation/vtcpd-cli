@@ -1,0 +1,19 @@
+# VTCP daemon configuration
+vtcpd:
+  # Path to the FIFO file for sending commands to the daemon
+  commands_fifo_path: /path/to/fifo/commands.fifo
+
+  # Path to the FIFO file for receiving command results from the daemon
+  results_fifo_path: /path/to/fifo/results.fifo
+
+# HTTP interface configuration
+interface:
+  http:
+    host: 0.0.0.0
+    port: 8080
+
+# Logging configuration
+log:
+  # Log level configuration
+  # Available levels: debug, info, warn, error, fatal, panic
+  level: debug
