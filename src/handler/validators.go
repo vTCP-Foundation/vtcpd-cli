@@ -1,10 +1,11 @@
 package handler
 
 import (
-	uuid "github.com/satori/go.uuid"
 	"math/big"
 	"strconv"
 	"strings"
+
+	uuid "github.com/satori/go.uuid"
 )
 
 var (
@@ -55,9 +56,5 @@ func ValidateInt(value string) bool {
 
 func validateUUID(identifier string) bool {
 	_, err := uuid.FromString(identifier)
-	if err != nil {
-		return false
-	}
-
-	return true
+	return err == nil
 }

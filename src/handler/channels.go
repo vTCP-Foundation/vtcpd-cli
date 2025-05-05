@@ -2,11 +2,12 @@ package handler
 
 import (
 	"fmt"
-	"github.com/gorilla/mux"
-	"logger"
 	"net/http"
 	"strconv"
 	"strings"
+
+	"github.com/gorilla/mux"
+	"github.com/vTCP-Foundation/vtcpd-cli/src/logger"
 )
 
 var (

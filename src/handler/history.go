@@ -3,7 +3,7 @@ package handler
 import (
 	"fmt"
 	"github.com/gorilla/mux"
-	"logger"
+	"github.com/vTCP-Foundation/vtcpd-cli/src/logger"
 	"net/http"
 	"strconv"
 	"strings"

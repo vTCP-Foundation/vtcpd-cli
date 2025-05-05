@@ -3,7 +3,7 @@ package conf
 import (
 	"encoding/json"
 	"errors"
-	"io/ioutil"
+	"os"
 	"strconv"
 )
 
@@ -41,7 +41,7 @@ var (
 
 func LoadSettings() error {
 	// Reading configuration file
-	bytes, err := ioutil.ReadFile("conf.json")
+	bytes, err := os.ReadFile("conf.json")
 	if err != nil {
 		return errors.New("Can't read configuration. Details: " + err.Error())
 	}

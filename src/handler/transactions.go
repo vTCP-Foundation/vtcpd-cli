@@ -2,12 +2,13 @@ package handler
 
 import (
 	"fmt"
-	"github.com/gorilla/mux"
-	"github.com/satori/go.uuid"
-	"logger"
 	"net/http"
 	"strconv"
 	"strings"
+
+	"github.com/gorilla/mux"
+	uuid "github.com/satori/go.uuid"
+	"github.com/vTCP-Foundation/vtcpd-cli/src/logger"
 )
 
 var (
@@ -729,5 +730,4 @@ func (handler *NodesHandler) GetTransactionByCommandUUID(w http.ResponseWriter, 
 
 	logger.Error("Node return invalid token `count` on command: " + string(command.ToBytes()))
 	writeHTTPResponse(w, ENGINE_UNEXPECTED_ERROR, Response{})
-	return
 }

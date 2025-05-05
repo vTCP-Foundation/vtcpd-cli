@@ -2,15 +2,16 @@ package handler
 
 import (
 	"bufio"
-	"conf"
 	"errors"
-	"github.com/satori/go.uuid"
 	"io"
-	"logger"
 	"os"
 	"os/exec"
 	"path"
 	"time"
+
+	uuid "github.com/satori/go.uuid"
+	"github.com/vTCP-Foundation/vtcpd-cli/src/conf"
+	"github.com/vTCP-Foundation/vtcpd-cli/src/logger"
 )
 
 // This internal type is used for controlling internal node's goroutines behaviour.
@@ -311,7 +312,7 @@ func (node *Node) BeginMonitorInternalProcessCrashes(
 				return
 			}
 
-			if time.Now().Sub(lastReinitialisationAttemptTimestamp) > MIN_TIME_INTERVAL_BETWEEN_CRASHES {
+			if time.Since(lastReinitialisationAttemptTimestamp) > MIN_TIME_INTERVAL_BETWEEN_CRASHES {
 				// Last node crash was far too in the past.
 				// Crashes counter must be reinitialised.
 				currentNodeInitializationAttempt = 0
@@ -362,7 +363,7 @@ func (node *Node) SendCommand(command *Command) error {
 	case node.commands <- command:
 		return nil
 	case <-time.After(time.Second * 10):
-		return errors.New("Can't add command to node commands channel.")
+		return errors.New("can't add command to node commands channel")
 	}
 
 }
@@ -379,7 +380,7 @@ func (node *Node) WaitCommand(command *Command) {
 func (node *Node) GetResult(command *Command, timeoutSeconds uint16) (*Result, error) {
 	channel, isPresent := node.results[command.UUID]
 	if !isPresent {
-		return nil, errors.New("No results channel is present for this UUID.")
+		return nil, errors.New("no results channel is present for this UUID")
 	}
 
 	select {
@@ -397,7 +398,7 @@ func (node *Node) GetResult(command *Command, timeoutSeconds uint16) (*Result, e
 		// There is a write access here, so the mutex must be used.
 		delete(node.results, command.UUID)
 
-		return nil, errors.New("Timeout fired up")
+		return nil, errors.New("timeout fired up")
 	}
 
 }

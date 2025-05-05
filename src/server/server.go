@@ -1,10 +1,10 @@
 package server
 
 import (
-	"conf"
 	"github.com/gorilla/mux"
-	"handler"
-	"logger"
+	"github.com/vTCP-Foundation/vtcpd-cli/src/conf"
+	"github.com/vTCP-Foundation/vtcpd-cli/src/handler"
+	"github.com/vTCP-Foundation/vtcpd-cli/src/logger"
 	"net/http"
 )
 

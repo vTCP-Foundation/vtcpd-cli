@@ -8,7 +8,7 @@ import (
 	"strconv"
 	"time"
 
-	"logger"
+	"github.com/vTCP-Foundation/vtcpd-cli/src/logger"
 )
 
 var (

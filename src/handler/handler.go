@@ -2,11 +2,9 @@ package handler
 
 import (
 	"bufio"
-	"conf"
 	"encoding/json"
 	"errors"
-	"io/ioutil"
-	"logger"
+	"io"
 	"net"
 	"net/http"
 	"os"
@@ -15,6 +13,9 @@ import (
 	"strconv"
 	"strings"
 	"syscall"
+
+	"github.com/vTCP-Foundation/vtcpd-cli/src/conf"
+	"github.com/vTCP-Foundation/vtcpd-cli/src/logger"
 )
 
 var (
@@ -95,15 +96,15 @@ func (handler *NodesHandler) StartNodeForCommunication() error {
 
 	nodePID, err := getProcessPID(path.Join(conf.Params.Handler.NodeDirPath, "process.pid"))
 	if err != nil {
-		return wrap("Can't read node PID", err)
+		return wrap("can't read node PID", err)
 	}
 	process, err := os.FindProcess(int(nodePID))
 	if err != nil {
-		return errors.New("Can't find node process")
+		return errors.New("can't find node process")
 	}
 	err = process.Signal(syscall.SIGCHLD)
 	if err != nil {
-		return errors.New("Can't find node process")
+		return errors.New("can't find node process")
 	}
 
 	handler.node = NewNode()
@@ -172,11 +173,7 @@ func (handler *NodesHandler) CheckNodeRunning() (bool, error) {
 		return false, nil
 	}
 	err = process.Signal(syscall.SIGCHLD)
-	if err != nil {
-		return false, nil
-	}
-
-	return true, nil
+	return err == nil, nil
 }
 
 // Creates configuration file for the node.
@@ -283,11 +280,7 @@ func (handler *NodesHandler) CheckEventsMonitoringRunning() bool {
 		return false
 	}
 	err = process.Signal(syscall.SIGCHLD)
-	if err != nil {
-		return false
-	}
-
-	return true
+	return err == nil
 }
 
 func getProcessPID(pidFileName string) (int, error) {
@@ -366,7 +359,7 @@ func preprocessRequest(r *http.Request) (string, error) {
 	if r.Method == "GET" {
 		url = r.Method + ": " + r.URL.String()
 	} else {
-		bodyBytes, _ := ioutil.ReadAll(r.Body)
+		bodyBytes, _ := io.ReadAll(r.Body)
 		url = r.Method + ": " + r.URL.String() + "{ " + string(bodyBytes) + "}"
 	}
 	logger.Info(url)

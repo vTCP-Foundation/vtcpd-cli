@@ -1,8 +1,9 @@
 package handler
 
 import (
-	"github.com/satori/go.uuid"
 	"strings"
+
+	uuid "github.com/satori/go.uuid"
 )
 
 type Command struct {
@@ -20,7 +21,7 @@ func NewCommand(body ...string) *Command {
 	command = command[:len(command)-1]
 
 	return &Command{
-		UUID: uuid.Must(uuid.NewV4()),
+		UUID: uuid.Must(uuid.NewV4(), nil),
 		Body: command,
 	}
 }

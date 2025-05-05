@@ -1,15 +1,16 @@
 package main
 
 import (
-	"conf"
 	"fmt"
-	"gopkg.in/alecthomas/kingpin.v2"
-	"handler"
-	"logger"
 	"net/http"
 	"os"
-	"server"
 	"time"
+
+	"github.com/alecthomas/kingpin/v2"
+	"github.com/vTCP-Foundation/vtcpd-cli/src/conf"
+	"github.com/vTCP-Foundation/vtcpd-cli/src/handler"
+	"github.com/vTCP-Foundation/vtcpd-cli/src/logger"
+	"github.com/vTCP-Foundation/vtcpd-cli/src/server"
 )
 
 var (
