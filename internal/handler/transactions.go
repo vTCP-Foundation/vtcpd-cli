@@ -77,7 +77,7 @@ func (handler *NodesHandler) maxFlowFully() {
 	}
 
 	var addresses []string
-	for idx := 0; idx < len(Addresses); idx++ {
+	for idx := range len(Addresses) {
 		addressType, address := ValidateAddress(Addresses[idx])
 		if addressType == "" {
 			logger.Error("Bad request: invalid address parameter in max-flow request")
@@ -150,7 +150,7 @@ func (handler *NodesHandler) maxFlowGetResult(command *Command) {
 	}
 
 	response := MaxFlowResponse{Count: contractorsCount}
-	for i := 0; i < contractorsCount; i++ {
+	for i := range contractorsCount {
 		response.Records = append(response.Records, MaxFlowRecord{
 			ContractorAddressType: result.Tokens[i*3+1],
 			ContractorAddress:     result.Tokens[i*3+2],
@@ -250,7 +250,7 @@ func (handler *NodesHandler) BatchMaxFullyTransaction(w http.ResponseWriter, r *
 	}
 
 	response := MaxFlowResponse{Count: contractorsCount}
-	for i := 0; i < contractorsCount; i++ {
+	for i := range contractorsCount {
 		response.Records = append(response.Records, MaxFlowRecord{
 			ContractorAddressType: result.Tokens[i*3+1],
 			ContractorAddress:     result.Tokens[i*3+2],
@@ -274,7 +274,7 @@ func (handler *NodesHandler) maxFlowPartly() {
 	}
 
 	var addresses []string
-	for idx := 0; idx < len(Addresses); idx++ {
+	for idx := range len(Addresses) {
 		addressType, address := ValidateAddress(Addresses[idx])
 		if addressType == "" {
 			logger.Error("Bad request: invalid address parameter in max-flow partly request")
@@ -358,7 +358,7 @@ func (handler *NodesHandler) maxFlowPartlyGetResult(command *Command) {
 	response := MaxFlowPartialResponse{
 		State: stateResult,
 		Count: contractorsCount}
-	for i := 0; i < contractorsCount; i++ {
+	for i := range contractorsCount {
 		response.Records = append(response.Records, MaxFlowRecord{
 			ContractorAddressType: result.Tokens[i*3+2],
 			ContractorAddress:     result.Tokens[i*3+3],
@@ -429,7 +429,7 @@ func (handler *NodesHandler) maxFlowPartlyStepTwoGetResult(command *Command) {
 	response := MaxFlowPartialResponse{
 		State: stateResult,
 		Count: contractorsCount}
-	for i := 0; i < contractorsCount; i++ {
+	for i := range contractorsCount {
 		response.Records = append(response.Records, MaxFlowRecord{
 			ContractorAddressType: result.Tokens[i*3+2],
 			ContractorAddress:     result.Tokens[i*3+3],
@@ -465,7 +465,7 @@ func (handler *NodesHandler) Payment() {
 	}
 
 	var addresses []string
-	for idx := 0; idx < len(Addresses); idx++ {
+	for idx := range len(Addresses) {
 		addressType, address := ValidateAddress(Addresses[idx])
 		if addressType == "" {
 			logger.Error("Bad request: invalid address parameter in payment request")

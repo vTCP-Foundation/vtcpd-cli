@@ -89,7 +89,7 @@ func (handler *NodesHandler) initChannel() {
 	}
 
 	var addresses []string
-	for idx := 0; idx < len(Addresses); idx++ {
+	for idx := range len(Addresses) {
 		addressType, address := ValidateAddress(Addresses[idx])
 		if addressType == "" {
 			logger.Error("Bad request: invalid address parameter in channel init request")
@@ -288,7 +288,7 @@ func (handler *NodesHandler) listChannelsGetResult(command *Command) {
 	}
 
 	response := ChannelListResponse{Count: channelsCount}
-	for i := 0; i < channelsCount; i++ {
+	for i := range channelsCount {
 		response.Channels = append(response.Channels, ChannelListItem{
 			ID:        result.Tokens[i*2+1],
 			Addresses: result.Tokens[i*2+2]})
@@ -350,7 +350,7 @@ func (handler *NodesHandler) ListChannels(w http.ResponseWriter, r *http.Request
 	}
 
 	response := ChannelListResponse{Count: channelsCount}
-	for i := 0; i < channelsCount; i++ {
+	for i := range channelsCount {
 		response.Channels = append(response.Channels, ChannelListItem{
 			ID:        result.Tokens[i*2+1],
 			Addresses: result.Tokens[i*2+2]})
@@ -420,7 +420,7 @@ func (handler *NodesHandler) channelInfoGetResult(command *Command) {
 	}
 
 	var addresses []string
-	for idx := 0; idx < addressesCount; idx++ {
+	for idx := range addressesCount {
 		addresses = append(addresses, result.Tokens[idx+2])
 	}
 
@@ -499,7 +499,7 @@ func (handler *NodesHandler) ChannelInfo(w http.ResponseWriter, r *http.Request)
 	}
 
 	var addresses []string
-	for idx := 0; idx < addressesCount; idx++ {
+	for idx := range addressesCount {
 		addresses = append(addresses, result.Tokens[idx+2])
 	}
 
@@ -521,7 +521,7 @@ func (handler *NodesHandler) channelInfoByAddresses() {
 	}
 
 	var addresses []string
-	for idx := 0; idx < len(Addresses); idx++ {
+	for idx := range len(addresses) {
 		addressType, address := ValidateAddress(Addresses[idx])
 		if addressType == "" {
 			logger.Error("Bad request: invalid address parameter in one-by-addresses request")
@@ -660,7 +660,7 @@ func (handler *NodesHandler) setChannelAddresses() {
 	}
 
 	var addresses []string
-	for idx := 0; idx < len(Addresses); idx++ {
+	for idx := range len(Addresses) {
 		addressType, address := ValidateAddress(Addresses[idx])
 		if addressType == "" {
 			logger.Error("Bad request: invalid address parameter in channel set-addresses request")

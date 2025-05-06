@@ -8,7 +8,6 @@ import (
 	"net"
 	"net/http"
 	"os"
-	"os/exec"
 	"path"
 	"strconv"
 	"strings"
@@ -211,76 +210,6 @@ func (handler *NodesHandler) StopNode() error {
 		return wrap("Can't kill node process", err)
 	}
 	return nil
-}
-
-func (handler *NodesHandler) StartEventsMonitoring() error {
-
-	// Starting child process.
-	process := exec.Command(conf.Params.Service.EventsMonitorExecutableFullPath)
-	process.Dir = path.Join(conf.Params.Handler.NodeDirPath, "..")
-
-	err := process.Start()
-	if err != nil {
-		return wrap("Can't start events monitor process", err)
-	}
-
-	pidFile, err := os.OpenFile("events-monitor.pid", os.O_CREATE|os.O_WRONLY|os.O_TRUNC, 0777)
-	if err != nil {
-		process.Process.Kill()
-		return wrap("Can't open PID file for writing.", err)
-	}
-	defer pidFile.Close()
-
-	writer := bufio.NewWriter(pidFile)
-	_, err = writer.WriteString(strconv.Itoa(process.Process.Pid))
-	if err != nil {
-		process.Process.Kill()
-		return wrap("Can't write events-monitor PID", err)
-	}
-	writer.Flush()
-
-	process.Process.Release()
-
-	// It seems, that child process started well.
-	// Now the process descriptor must be transferred to the top, for further control.
-	return nil
-}
-
-func (handler *NodesHandler) StopEventsMonitoring() error {
-	eventsMonitorPID, err := getProcessPID("events-monitor.pid")
-	if err != nil {
-		return wrap("Can't read events-monitor PID", err)
-	}
-
-	process, err := os.FindProcess(int(eventsMonitorPID))
-	if err != nil {
-		return wrap("There is no process with PID "+strconv.Itoa(int(eventsMonitorPID)), err)
-	}
-
-	err = process.Kill()
-	if err != nil {
-		return wrap("Can't kill events-monitor process", err)
-	}
-	return nil
-}
-
-func (handler *NodesHandler) ClearEventsMonitoringPID() {
-	pidFile, _ := os.OpenFile("events-monitor.pid", os.O_CREATE|os.O_WRONLY|os.O_TRUNC, 0777)
-	pidFile.Close()
-}
-
-func (handler *NodesHandler) CheckEventsMonitoringRunning() bool {
-	eventsMonitorPID, err := getProcessPID("events-monitor.pid")
-	if err != nil {
-		return false
-	}
-
-	process, err := os.FindProcess(int(eventsMonitorPID))
-	if err != nil {
-		return false
-	}
-	err = process.Signal(syscall.SIGCHLD)
-	return err == nil
 }
 
 func getProcessPID(pidFileName string) (int, error) {

@@ -691,7 +691,7 @@ func (handler *NodesHandler) listSettlementLinesResult(command *Command) {
 	response := SettlementLineListResponse{Count: contractorsCount}
 	response.SettlementLines = make([]SettlementLineListItem, 0, contractorsCount)
 
-	for i := 0; i < contractorsCount; i++ {
+	for i := range contractorsCount {
 		response.SettlementLines = append(response.SettlementLines, SettlementLineListItem{
 			ID:                    result.Tokens[i*8+1],
 			Contractor:            result.Tokens[i*8+2],
@@ -773,7 +773,7 @@ func (handler *NodesHandler) ListSettlementLines(w http.ResponseWriter, r *http.
 	response := SettlementLineListResponse{Count: contractorsCount}
 	response.SettlementLines = make([]SettlementLineListItem, 0, contractorsCount)
 
-	for i := 0; i < contractorsCount; i++ {
+	for i := range contractorsCount {
 		response.SettlementLines = append(response.SettlementLines, SettlementLineListItem{
 			ID:                    result.Tokens[i*8+1],
 			Contractor:            result.Tokens[i*8+2],
@@ -868,7 +868,7 @@ func (handler *NodesHandler) ListSettlementLinesPortions(w http.ResponseWriter, 
 	response := SettlementLineListResponse{Count: contractorsCount}
 	response.SettlementLines = make([]SettlementLineListItem, 0, contractorsCount)
 
-	for i := 0; i < contractorsCount; i++ {
+	for i := range contractorsCount {
 		response.SettlementLines = append(response.SettlementLines, SettlementLineListItem{
 			ID:                    result.Tokens[i*8+1],
 			Contractor:            result.Tokens[i*8+2],
@@ -937,7 +937,7 @@ func (handler *NodesHandler) ListSettlementLinesAllEquivalents(w http.ResponseWr
 	tokenIdx := 1
 
 	response := AllEquivalentsResponse{Count: equivalentsCount}
-	for i := 0; i < equivalentsCount; i++ {
+	for range equivalentsCount {
 		contractorsCount, err := strconv.Atoi(result.Tokens[tokenIdx+1])
 		if err != nil {
 			logger.Error("Node return invalid token on command: " +
@@ -947,7 +947,7 @@ func (handler *NodesHandler) ListSettlementLinesAllEquivalents(w http.ResponseWr
 		}
 		responseSettlementLines := EquivalentStatistics{Eq: result.Tokens[tokenIdx], Count: contractorsCount}
 		tokenIdx = tokenIdx + 2
-		for i := 0; i < contractorsCount; i++ {
+		for i := range contractorsCount {
 			responseSettlementLines.SettlementLines = append(responseSettlementLines.SettlementLines, SettlementLineListItem{
 				ID:                    result.Tokens[tokenIdx+i*8],
 				Contractor:            result.Tokens[tokenIdx+i*8+1],
@@ -1033,7 +1033,7 @@ func (handler *NodesHandler) listContractorsResult(command *Command) {
 	}
 
 	response := ContractorsListResponse{Count: contractorsCount}
-	for i := 0; i < contractorsCount; i++ {
+	for i := range contractorsCount {
 		response.Contractors = append(response.Contractors, ContractorInfo{
 			ContractorID:        result.Tokens[i*2+1],
 			ContractorAddresses: result.Tokens[i*2+2],
@@ -1108,7 +1108,7 @@ func (handler *NodesHandler) ListContractors(w http.ResponseWriter, r *http.Requ
 	}
 
 	response := ContractorsListResponse{Count: contractorsCount}
-	for i := 0; i < contractorsCount; i++ {
+	for i := range contractorsCount {
 		response.Contractors = append(response.Contractors, ContractorInfo{
 			ContractorID:        result.Tokens[i*2+1],
 			ContractorAddresses: result.Tokens[i*2+2],
@@ -1149,7 +1149,7 @@ func (handler *NodesHandler) settlementLineByAddresses() {
 	}
 
 	var addresses []string
-	for idx := 0; idx < len(Addresses); idx++ {
+	for idx := range len(Addresses) {
 		addressType, address := ValidateAddress(Addresses[idx])
 		if addressType == "" {
 			logger.Error("Bad request: invalid address parameter in get-by-addresses request")
@@ -1449,7 +1449,7 @@ func (handler *NodesHandler) listEquivalentsGetResult(command *Command) {
 	}
 
 	response := EquivalentsListResponse{Count: equivalentsCount}
-	for i := 0; i < equivalentsCount; i++ {
+	for i := range equivalentsCount {
 		response.Equivalents = append(response.Equivalents, result.Tokens[i+1])
 	}
 	resultJSON := buildJSONResponse(OK, response)
@@ -1508,7 +1508,7 @@ func (handler *NodesHandler) ListEquivalents(w http.ResponseWriter, r *http.Requ
 	}
 
 	response := EquivalentsListResponse{Count: equivalentsCount}
-	for i := 0; i < equivalentsCount; i++ {
+	for i := range equivalentsCount {
 		response.Equivalents = append(response.Equivalents, result.Tokens[i+1])
 	}
 	writeHTTPResponse(w, OK, response)

@@ -18,22 +18,21 @@ var (
 	commandType               = kingpin.Arg("type", "Command type.").Default("").String()
 	addresses                 = kingpin.Flag("address", "Contractor address").Default("").Strings()
 	contractorID              = kingpin.Flag("contractorID", "Contractor ID").Default("").String()
-	channelIDOnContractorSide = kingpin.Flag("channel-id-on-contractor-side",
-		"Channel ID on contractor side").Default("").String()
-	amount         = kingpin.Flag("amount", "Amount").Default("").String()
-	offset         = kingpin.Flag("offset", "Offset of list of requested data.").Default("").String()
-	count          = kingpin.Flag("count", "Count requested data.").Default("").String()
-	equivalent     = kingpin.Flag("eq", "Equivalent.").Default("").String()
-	historyFrom    = kingpin.Flag("history-from", "Lower value of history date.").Default("").String()
-	historyTo      = kingpin.Flag("history-to", "Higher value of history date.").Default("").String()
-	amountFrom     = kingpin.Flag("amount-from", "Lower value of history amount.").Default("").String()
-	amountTo       = kingpin.Flag("amount-to", "Higher value of history amount.").Default("").String()
-	cryptoKey      = kingpin.Flag("crypto-key", "Channel crypto key.").Default("").String()
-	payload        = kingpin.Flag("payload", "Payload for payment transaction.").Default("").String()
-	auditNumber    = kingpin.Flag("audit-number", "Number for audit.").Default("").String()
-	incomingAmount = kingpin.Flag("incoming-amount", "Incoming trust amount.").Default("").String()
-	outgoingAmount = kingpin.Flag("outgoing-amount", "Outgoing trust amount.").Default("").String()
-	balance        = kingpin.Flag("balance", "Settlement line balance.").Default("").String()
+	channelIDOnContractorSide = kingpin.Flag("channel-id-on-contractor-side", "Channel ID on contractor side").Default("").String()
+	amount                    = kingpin.Flag("amount", "Amount").Default("").String()
+	offset                    = kingpin.Flag("offset", "Offset of list of requested data.").Default("").String()
+	count                     = kingpin.Flag("count", "Count requested data.").Default("").String()
+	equivalent                = kingpin.Flag("eq", "Equivalent.").Default("").String()
+	historyFrom               = kingpin.Flag("history-from", "Lower value of history date.").Default("").String()
+	historyTo                 = kingpin.Flag("history-to", "Higher value of history date.").Default("").String()
+	amountFrom                = kingpin.Flag("amount-from", "Lower value of history amount.").Default("").String()
+	amountTo                  = kingpin.Flag("amount-to", "Higher value of history amount.").Default("").String()
+	cryptoKey                 = kingpin.Flag("crypto-key", "Channel crypto key.").Default("").String()
+	payload                   = kingpin.Flag("payload", "Payload for payment transaction.").Default("").String()
+	auditNumber               = kingpin.Flag("audit-number", "Number for audit.").Default("").String()
+	maxNegativeBalance        = kingpin.Flag("max-negative-balance", "Max negative balance.").Default("").String()
+	maxPositiveBalance        = kingpin.Flag("max-positive-balance", "Max positive balance.").Default("").String()
+	balance                   = kingpin.Flag("balance", "Settlement line balance.").Default("").String()
 )
 
 func main() {
@@ -73,8 +72,8 @@ func main() {
 	handler.CryptoKey = *cryptoKey
 	handler.Payload = *payload
 	handler.AuditNumber = *auditNumber
-	handler.MaxNegativeBalance = *incomingAmount
-	handler.MaxPositiveBalance = *outgoingAmount
+	handler.MaxNegativeBalance = *maxNegativeBalance
+	handler.MaxPositiveBalance = *maxPositiveBalance
 	handler.Balance = *balance
 
 	if *command == "start" {
@@ -86,25 +85,6 @@ func main() {
 			logger.Error("Node already running")
 			fmt.Println("Node already running")
 			os.Exit(0)
-		}
-		isEventsMonitorRunning := nodesHandler.CheckEventsMonitoringRunning()
-		if isEventsMonitorRunning {
-			logger.Info("Events-monitor running. Try stop it")
-			err = nodesHandler.StopEventsMonitoring()
-			if err != nil {
-				logger.Error("Can't stop events-monitor. Details: " + err.Error())
-				// todo : need correct reaction
-			}
-		}
-		if conf.Params.Service.SendEvents || conf.Params.Service.SendLogs {
-			err := nodesHandler.StartEventsMonitoring()
-			if err != nil {
-				logger.Error("Can't start events-monitor. Details: " + err.Error())
-				// todo : need correct reaction
-			}
-			logger.Info("events-monitor started")
-		} else {
-			nodesHandler.ClearEventsMonitoringPID()
 		}
 		err = nodesHandler.RestoreNode()
 		if err != nil {
@@ -123,13 +103,6 @@ func main() {
 			logger.Info("Node stopped")
 			fmt.Println("Stopped")
 		}
-		err = nodesHandler.StopEventsMonitoring()
-		if err != nil {
-			logger.Error("Can't stop events-monitor. Details: " + err.Error())
-		} else {
-			logger.Info("Events-monitor stopped")
-		}
-		nodesHandler.ClearEventsMonitoringPID()
 		os.Exit(0)
 
 	} else if *command == "http" {
@@ -155,25 +128,6 @@ func main() {
 			logger.Error("Node already running")
 			fmt.Println("Node already running")
 			os.Exit(0)
-		}
-		isEventsMonitorRunning := nodesHandler.CheckEventsMonitoringRunning()
-		if isEventsMonitorRunning {
-			logger.Info("Events-monitor running. Try stop it")
-			err = nodesHandler.StopEventsMonitoring()
-			if err != nil {
-				logger.Error("Can't stop events-monitor. Details: " + err.Error())
-				// todo : need correct reaction
-			}
-		}
-		if conf.Params.Service.SendEvents || conf.Params.Service.SendLogs {
-			err := nodesHandler.StartEventsMonitoring()
-			if err != nil {
-				logger.Error("Can't start events-monitor. Details: " + err.Error())
-				// todo : need correct reaction
-			}
-			logger.Info("events-monitor started")
-		} else {
-			nodesHandler.ClearEventsMonitoringPID()
 		}
 		err = nodesHandler.RestoreNodeWithCommunication()
 		if err != nil {

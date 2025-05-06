@@ -205,7 +205,7 @@ func (handler *NodesHandler) settlementLinesHistoryResult(command *Command) {
 	}
 
 	response := SettlementLineHistoryResponse{Count: recordsCount}
-	for i := 0; i < recordsCount; i++ {
+	for i := range recordsCount {
 		response.Records = append(response.Records, SettlementLineHistoryRecord{
 			TransactionUUID:           result.Tokens[i*5+1],
 			UnixTimestampMicroseconds: result.Tokens[i*5+2],
@@ -308,7 +308,7 @@ func (handler *NodesHandler) SettlementLinesHistory(w http.ResponseWriter, r *ht
 	}
 
 	response := SettlementLineHistoryResponse{Count: recordsCount}
-	for i := 0; i < recordsCount; i++ {
+	for i := range recordsCount {
 		response.Records = append(response.Records, SettlementLineHistoryRecord{
 			TransactionUUID:           result.Tokens[i*5+1],
 			UnixTimestampMicroseconds: result.Tokens[i*5+2],
@@ -433,7 +433,7 @@ func (handler *NodesHandler) paymentsHistoryResult(command *Command) {
 	}
 
 	response := PaymentHistoryResponse{Count: recordsCount}
-	for i := 0; i < recordsCount; i++ {
+	for i := range recordsCount {
 		response.Records = append(response.Records, PaymentHistoryRecord{
 			TransactionUUID:           result.Tokens[i*7+1],
 			UnixTimestampMicroseconds: result.Tokens[i*7+2],
@@ -561,7 +561,7 @@ func (handler *NodesHandler) PaymentsHistory(w http.ResponseWriter, r *http.Requ
 	}
 
 	response := PaymentHistoryResponse{Count: recordsCount}
-	for i := 0; i < recordsCount; i++ {
+	for i := range recordsCount {
 		response.Records = append(response.Records, PaymentHistoryRecord{
 			TransactionUUID:           result.Tokens[i*7+1],
 			UnixTimestampMicroseconds: result.Tokens[i*7+2],
@@ -676,7 +676,7 @@ func (handler *NodesHandler) paymentsHistoryAllEquivalentsResult(command *Comman
 	}
 
 	response := PaymentAllEquivalentsHistoryResponse{Count: recordsCount}
-	for i := 0; i < recordsCount; i++ {
+	for i := range recordsCount {
 		response.Records = append(response.Records, PaymentAllEquivalentsHistoryRecord{
 			Equivalent:                result.Tokens[i*8+1],
 			TransactionUUID:           result.Tokens[i*8+2],
@@ -787,7 +787,7 @@ func (handler *NodesHandler) PaymentsHistoryAllEquivalents(w http.ResponseWriter
 	}
 
 	response := PaymentAllEquivalentsHistoryResponse{Count: recordsCount}
-	for i := 0; i < recordsCount; i++ {
+	for i := range recordsCount {
 		response.Records = append(response.Records, PaymentAllEquivalentsHistoryRecord{
 			Equivalent:                result.Tokens[i*8+1],
 			TransactionUUID:           result.Tokens[i*8+2],
@@ -828,7 +828,7 @@ func (handler *NodesHandler) contractorOperationsHistory() {
 	}
 
 	var addresses []string
-	for idx := 0; idx < len(Addresses); idx++ {
+	for idx := range len(Addresses) {
 		addressType, address := ValidateAddress(Addresses[idx])
 		if addressType == "" {
 			logger.Error("Bad request: invalid address parameter in history with-contractor request")
@@ -903,7 +903,7 @@ func (handler *NodesHandler) contractorOperationsHistoryResult(command *Command)
 
 	response := ContractorOperationsHistoryResponse{Count: recordsCount}
 	tokenIdx := 1
-	for i := 0; i < recordsCount; i++ {
+	for range recordsCount {
 		if result.Tokens[tokenIdx] == "payment" {
 			response.Records = append(response.Records, ContractorOperationHistoryRecord{
 				RecordType:                result.Tokens[tokenIdx],
@@ -1034,7 +1034,7 @@ func (handler *NodesHandler) HistoryWithContractor(w http.ResponseWriter, r *htt
 
 	response := ContractorOperationsHistoryResponse{Count: recordsCount}
 	tokenIdx := 1
-	for i := 0; i < recordsCount; i++ {
+	for range recordsCount {
 		if result.Tokens[tokenIdx] == "payment" {
 			response.Records = append(response.Records, ContractorOperationHistoryRecord{
 				RecordType:                result.Tokens[tokenIdx],
@@ -1179,7 +1179,7 @@ func (handler *NodesHandler) additionalHistoryResult(command *Command) {
 
 	response := AdditionalPaymentHistoryResponse{Count: recordsCount}
 	tokenIdx := 1
-	for i := 0; i < recordsCount; i++ {
+	for range recordsCount {
 		response.Records = append(response.Records, AdditionalPaymentHistoryRecord{
 			TransactionUUID:           result.Tokens[tokenIdx],
 			UnixTimestampMicroseconds: result.Tokens[tokenIdx+1],
@@ -1296,7 +1296,7 @@ func (handler *NodesHandler) PaymentsAdditionalHistory(w http.ResponseWriter, r 
 
 	response := AdditionalPaymentHistoryResponse{Count: recordsCount}
 	tokenIdx := 1
-	for i := 0; i < recordsCount; i++ {
+	for range recordsCount {
 		response.Records = append(response.Records, AdditionalPaymentHistoryRecord{
 			TransactionUUID:           result.Tokens[tokenIdx],
 			UnixTimestampMicroseconds: result.Tokens[tokenIdx+1],

@@ -38,13 +38,6 @@ func (handler *NodesHandler) StopEverything(w http.ResponseWriter, r *http.Reque
 			logger.Info("Node stopped")
 			fmt.Println("Stopped")
 		}
-		err = nodesHandler.StopEventsMonitoring()
-		if err != nil {
-			logger.Error("Can't stop events-monitor. Details: " + err.Error())
-		} else {
-			logger.Info("Events-monitor stopped")
-		}
-		nodesHandler.ClearEventsMonitoringPID()
 		os.Exit(0)
 	}(handler)
 
@@ -190,7 +183,7 @@ func (handler *NodesHandler) RegenerateAllKeys(w http.ResponseWriter, r *http.Re
 		return
 	}
 
-	for i := 0; i < equivalentsCount; i++ {
+	for i := range equivalentsCount {
 		equivalents = append(equivalents, resultEquivalents.Tokens[i+1])
 	}
 
@@ -240,7 +233,7 @@ func (handler *NodesHandler) RegenerateAllKeys(w http.ResponseWriter, r *http.Re
 		return
 	}
 
-	for i := 0; i < channelsCount; i++ {
+	for i := range channelsCount {
 		contractors = append(contractors, resultContractors.Tokens[i*2+1])
 	}
 	/////
