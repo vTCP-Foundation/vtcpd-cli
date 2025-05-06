@@ -7,7 +7,7 @@ import (
 	"strings"
 
 	"github.com/gorilla/mux"
-	"github.com/vTCP-Foundation/vtcpd-cli/src/logger"
+	"github.com/vTCP-Foundation/vtcpd-cli/internal/logger"
 )
 
 var (

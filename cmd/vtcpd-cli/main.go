@@ -7,10 +7,10 @@ import (
 	"time"
 
 	"github.com/alecthomas/kingpin/v2"
-	"github.com/vTCP-Foundation/vtcpd-cli/src/conf"
-	"github.com/vTCP-Foundation/vtcpd-cli/src/handler"
-	"github.com/vTCP-Foundation/vtcpd-cli/src/logger"
-	"github.com/vTCP-Foundation/vtcpd-cli/src/server"
+	"github.com/vTCP-Foundation/vtcpd-cli/internal/conf"
+	"github.com/vTCP-Foundation/vtcpd-cli/internal/handler"
+	"github.com/vTCP-Foundation/vtcpd-cli/internal/logger"
+	"github.com/vTCP-Foundation/vtcpd-cli/internal/server"
 )
 
 var (

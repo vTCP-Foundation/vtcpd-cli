@@ -10,8 +10,8 @@ import (
 	"time"
 
 	"github.com/google/uuid"
-	"github.com/vTCP-Foundation/vtcpd-cli/src/conf"
-	"github.com/vTCP-Foundation/vtcpd-cli/src/logger"
+	"github.com/vTCP-Foundation/vtcpd-cli/internal/conf"
+	"github.com/vTCP-Foundation/vtcpd-cli/internal/logger"
 )
 
 // This internal type is used for controlling internal node's goroutines behaviour.

@@ -4,9 +4,9 @@ import (
 	"net/http"
 
 	"github.com/gorilla/mux"
-	"github.com/vTCP-Foundation/vtcpd-cli/src/conf"
-	"github.com/vTCP-Foundation/vtcpd-cli/src/handler"
-	"github.com/vTCP-Foundation/vtcpd-cli/src/logger"
+	"github.com/vTCP-Foundation/vtcpd-cli/internal/conf"
+	"github.com/vTCP-Foundation/vtcpd-cli/internal/handler"
+	"github.com/vTCP-Foundation/vtcpd-cli/internal/logger"
 )
 
 func InitNodesHandlerServer(handler *handler.NodesHandler) {

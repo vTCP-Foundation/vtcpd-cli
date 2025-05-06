@@ -7,7 +7,7 @@ import (
 	"strconv"
 	"time"
 
-	"github.com/vTCP-Foundation/vtcpd-cli/src/logger"
+	"github.com/vTCP-Foundation/vtcpd-cli/internal/logger"
 )
 
 type ControlMsgResponse struct {

@@ -14,8 +14,8 @@ import (
 	"strings"
 	"syscall"
 
-	"github.com/vTCP-Foundation/vtcpd-cli/src/conf"
-	"github.com/vTCP-Foundation/vtcpd-cli/src/logger"
+	"github.com/vTCP-Foundation/vtcpd-cli/internal/conf"
+	"github.com/vTCP-Foundation/vtcpd-cli/internal/logger"
 )
 
 var (
