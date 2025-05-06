@@ -49,8 +49,8 @@ var (
 	CryptoKey                 = ""
 	Payload                   = ""
 	AuditNumber               = ""
-	IncomingAmount            = ""
-	OutgoingAmount            = ""
+	MaxNegativeBalance        = ""
+	MaxPositiveBalance        = ""
 	Balance                   = ""
 )
 

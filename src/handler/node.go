@@ -9,7 +9,7 @@ import (
 	"path"
 	"time"
 
-	uuid "github.com/satori/go.uuid"
+	"github.com/google/uuid"
 	"github.com/vTCP-Foundation/vtcpd-cli/src/conf"
 	"github.com/vTCP-Foundation/vtcpd-cli/src/logger"
 )

@@ -1,11 +1,12 @@
 package server
 
 import (
+	"net/http"
+
 	"github.com/gorilla/mux"
 	"github.com/vTCP-Foundation/vtcpd-cli/src/conf"
 	"github.com/vTCP-Foundation/vtcpd-cli/src/handler"
 	"github.com/vTCP-Foundation/vtcpd-cli/src/logger"
-	"net/http"
 )
 
 func InitNodesHandlerServer(handler *handler.NodesHandler) {
@@ -28,18 +29,18 @@ func InitNodesHandlerServer(handler *handler.NodesHandler) {
 	// Contractors
 	router.HandleFunc("/api/v1/node/contractors/{equivalent}/", handler.ListContractors).Methods("GET")
 
-	// Contractors / Trust Lines
-	router.HandleFunc("/api/v1/node/contractors/trust-lines/{equivalent}/", handler.ListTrustLines).Methods("GET")
-	router.HandleFunc("/api/v1/node/contractors/trust-lines/{offset}/{count}/{equivalent}/", handler.ListTrustLinesPortions).Methods("GET")
-	router.HandleFunc("/api/v1/node/contractors/trust-lines/equivalents/all/", handler.ListTrustLinesAllEquivalents).Methods("GET")
-	router.HandleFunc("/api/v1/node/contractors/trust-line-by-id/{equivalent}/", handler.GetTrustLineByID).Methods("GET")
-	router.HandleFunc("/api/v1/node/contractors/trust-line-by-address/{equivalent}/", handler.GetTrustLineByAddress).Methods("GET")
-	router.HandleFunc("/api/v1/node/contractors/{contractor_id}/init-trust-line/{equivalent}/", handler.InitTrustLine).Methods("POST")
-	router.HandleFunc("/api/v1/node/contractors/{contractor_id}/trust-lines/{equivalent}/", handler.SetTrustLine).Methods("PUT")
-	router.HandleFunc("/api/v1/node/contractors/{contractor_id}/close-incoming-trust-line/{equivalent}/", handler.CloseIncomingTrustLine).Methods("DELETE")
+	// Contractors / Settlement Lines
+	router.HandleFunc("/api/v1/node/contractors/settlement-lines/{equivalent}/", handler.ListSettlementLines).Methods("GET")
+	router.HandleFunc("/api/v1/node/contractors/settlement-lines/{offset}/{count}/{equivalent}/", handler.ListSettlementLinesPortions).Methods("GET")
+	router.HandleFunc("/api/v1/node/contractors/settlement-lines/equivalents/all/", handler.ListSettlementLinesAllEquivalents).Methods("GET")
+	router.HandleFunc("/api/v1/node/contractors/settlement-line-by-id/{equivalent}/", handler.GetSettlementLineByID).Methods("GET")
+	router.HandleFunc("/api/v1/node/contractors/settlement-line-by-address/{equivalent}/", handler.GetSettlementLineByAddress).Methods("GET")
+	router.HandleFunc("/api/v1/node/contractors/{contractor_id}/init-settlement-line/{equivalent}/", handler.InitSettlementLine).Methods("POST")
+	router.HandleFunc("/api/v1/node/contractors/{contractor_id}/settlement-lines/{equivalent}/", handler.SetMaxPositiveBalance).Methods("PUT")
+	router.HandleFunc("/api/v1/node/contractors/{contractor_id}/close-incoming-settlement-line/{equivalent}/", handler.ZeroOutMaxNegativeBalance).Methods("DELETE")
 	router.HandleFunc("/api/v1/node/contractors/{contractor_id}/keys-sharing/{equivalent}/", handler.PublicKeysSharing).Methods("PUT")
-	router.HandleFunc("/api/v1/node/contractors/{contractor_id}/remove-trust-line/{equivalent}/", handler.RemoveTrustLine).Methods("DELETE")
-	router.HandleFunc("/api/v1/node/contractors/{contractor_id}/reset-trust-line/{equivalent}/", handler.ResetTrustLine).Methods("PUT")
+	router.HandleFunc("/api/v1/node/contractors/{contractor_id}/remove-settlement-line/{equivalent}/", handler.RemoveSettlementLine).Methods("DELETE")
+	router.HandleFunc("/api/v1/node/contractors/{contractor_id}/reset-settlement-line/{equivalent}/", handler.ResetSettlementLine).Methods("PUT")
 
 	// Contractors / Transactions
 	router.HandleFunc("/api/v1/node/contractors/transactions/{equivalent}/", handler.CreateTransaction).Methods("POST")
@@ -53,7 +54,7 @@ func InitNodesHandlerServer(handler *handler.NodesHandler) {
 	router.HandleFunc("/api/v1/node/history/transactions/payments/{offset}/{count}/{equivalent}/", handler.PaymentsHistory).Methods("GET")
 	router.HandleFunc("/api/v1/node/history/transactions/payments-all/{offset}/{count}/", handler.PaymentsHistoryAllEquivalents).Methods("GET")
 	router.HandleFunc("/api/v1/node/history/transactions/payments/additional/{offset}/{count}/{equivalent}/", handler.PaymentsAdditionalHistory).Methods("GET")
-	router.HandleFunc("/api/v1/node/history/transactions/trust-lines/{offset}/{count}/{equivalent}/", handler.TrustLinesHistory).Methods("GET")
+	router.HandleFunc("/api/v1/node/history/transactions/settlement-lines/{offset}/{count}/{equivalent}/", handler.SettlementLinesHistory).Methods("GET")
 	router.HandleFunc("/api/v1/node/history/contractors/{offset}/{count}/{equivalent}/", handler.HistoryWithContractor).Methods("GET")
 
 	// Optimization
@@ -62,11 +63,8 @@ func InitNodesHandlerServer(handler *handler.NodesHandler) {
 
 	// Control
 	router.HandleFunc("/api/v1/ctrl/stop/", handler.StopEverything).Methods("POST")
-	// save all TL data in nodeTL.json file. used only for internal comparisons
-	router.HandleFunc("/api/v1/ctrl/save/", handler.SaveTrustLineInfo).Methods("POST")
 
 	http.Handle("/", router)
 	logger.Info("Requests accepting started on " + conf.Params.Handler.HTTPInterface())
 
-	return
 }

@@ -2,12 +2,88 @@ package handler
 
 import (
 	"fmt"
-	"github.com/gorilla/mux"
-	"github.com/vTCP-Foundation/vtcpd-cli/src/logger"
 	"net/http"
 	"strconv"
 	"strings"
+
+	"github.com/gorilla/mux"
+	"github.com/vTCP-Foundation/vtcpd-cli/src/logger"
 )
+
+// --- Global structs for history ---
+
+type SettlementLineHistoryRecord struct {
+	TransactionUUID           string `json:"transaction_uuid"`
+	UnixTimestampMicroseconds string `json:"unix_timestamp_microseconds"`
+	Contractor                string `json:"contractor"`
+	OperationDirection        string `json:"operation_direction"`
+	Amount                    string `json:"amount"`
+}
+
+type PaymentHistoryRecord struct {
+	TransactionUUID           string `json:"transaction_uuid"`
+	UnixTimestampMicroseconds string `json:"unix_timestamp_microseconds"`
+	Contractor                string `json:"contractor"`
+	OperationDirection        string `json:"operation_direction"`
+	Amount                    string `json:"amount"`
+	BalanceAfterOperation     string `json:"balance_after_operation"`
+	Payload                   string `json:"payload"`
+}
+
+type PaymentAllEquivalentsHistoryRecord struct {
+	Equivalent                string `json:"equivalent"`
+	TransactionUUID           string `json:"transaction_uuid"`
+	UnixTimestampMicroseconds string `json:"unix_timestamp_microseconds"`
+	Contractor                string `json:"contractor"`
+	OperationDirection        string `json:"operation_direction"`
+	Amount                    string `json:"amount"`
+	BalanceAfterOperation     string `json:"balance_after_operation"`
+	Payload                   string `json:"payload"`
+}
+
+type ContractorOperationHistoryRecord struct {
+	RecordType                string `json:"record_type"` // "payment" or "trustline"
+	TransactionUUID           string `json:"transaction_uuid"`
+	UnixTimestampMicroseconds string `json:"unix_timestamp_microseconds"`
+	OperationDirection        string `json:"operation_direction"`
+	Amount                    string `json:"amount"`
+	BalanceAfterOperation     string `json:"balance_after_operation"` // Can be "0" для trustline
+	Payload                   string `json:"payload"`                 // Can be "" для trustline
+}
+
+type AdditionalPaymentHistoryRecord struct {
+	TransactionUUID           string `json:"transaction_uuid"`
+	UnixTimestampMicroseconds string `json:"unix_timestamp_microseconds"`
+	OperationDirection        string `json:"operation_direction"`
+	Amount                    string `json:"amount"`
+}
+
+// --- Global API responses for history ---
+
+type SettlementLineHistoryResponse struct {
+	Count   int                           `json:"count"`
+	Records []SettlementLineHistoryRecord `json:"records"`
+}
+
+type PaymentHistoryResponse struct {
+	Count   int                    `json:"count"`
+	Records []PaymentHistoryRecord `json:"records"`
+}
+
+type PaymentAllEquivalentsHistoryResponse struct {
+	Count   int                                  `json:"count"`
+	Records []PaymentAllEquivalentsHistoryRecord `json:"records"`
+}
+
+type ContractorOperationsHistoryResponse struct {
+	Count   int                                `json:"count"`
+	Records []ContractorOperationHistoryRecord `json:"records"`
+}
+
+type AdditionalPaymentHistoryResponse struct {
+	Count   int                              `json:"count"`
+	Records []AdditionalPaymentHistoryRecord `json:"records"`
+}
 
 var (
 	HISTORY_RESULT_TIMEOUT uint16 = 20 // seconds
@@ -15,8 +91,8 @@ var (
 
 func (handler *NodesHandler) History() {
 
-	if CommandType == "trust-lines" {
-		handler.trustLinesHistory()
+	if CommandType == "settlement-lines" {
+		handler.settlementLinesHistory()
 
 	} else if CommandType == "payments" {
 		handler.paymentsHistory()
@@ -37,22 +113,22 @@ func (handler *NodesHandler) History() {
 	}
 }
 
-func (handler *NodesHandler) trustLinesHistory() {
+func (handler *NodesHandler) settlementLinesHistory() {
 
 	if !ValidateInt(Offset) {
-		logger.Error("Bad request: invalid offset parameter in history trust-lines request")
+		logger.Error("Bad request: invalid offset parameter in history settlement-lines request")
 		fmt.Println("Bad request: invalid offset parameter")
 		return
 	}
 
 	if !ValidateInt(Count) {
-		logger.Error("Bad request: invalid count parameter in history trust-lines request")
+		logger.Error("Bad request: invalid count parameter in history settlement-lines request")
 		fmt.Println("Bad request: invalid count parameter")
 		return
 	}
 
 	if !ValidateInt(Equivalent) {
-		logger.Error("Bad request: invalid equivalent parameter in history trust-lines request")
+		logger.Error("Bad request: invalid equivalent parameter in history settlement-lines request")
 		fmt.Println("Bad request: invalid equivalent parameter")
 		return
 	}
@@ -70,27 +146,14 @@ func (handler *NodesHandler) trustLinesHistory() {
 	command := NewCommand(
 		"GET:history/trust-lines", Offset, Count, dateFromUnixTimestamp, dateToUnixTimestamp, Equivalent)
 
-	go handler.trustLinesHistoryResult(command)
+	go handler.settlementLinesHistoryResult(command)
 }
 
-func (handler *NodesHandler) trustLinesHistoryResult(command *Command) {
-	type Record struct {
-		TransactionUUID           string `json:"transaction_uuid"`
-		UnixTimestampMicroseconds string `json:"unix_timestamp_microseconds"`
-		Contractor                string `json:"contractor"`
-		OperationDirection        string `json:"operation_direction"`
-		Amount                    string `json:"amount"`
-	}
-
-	type Response struct {
-		Count   int      `json:"count"`
-		Records []Record `json:"records"`
-	}
-
+func (handler *NodesHandler) settlementLinesHistoryResult(command *Command) {
 	err := handler.node.SendCommand(command)
 	if err != nil {
 		logger.Error("Can't send command: " + string(command.ToBytes()) + " to node. Details: " + err.Error())
-		resultJSON := buildJSONResponse(COMMAND_TRANSFERRING_ERROR, Response{})
+		resultJSON := buildJSONResponse(COMMAND_TRANSFERRING_ERROR, SettlementLineHistoryResponse{})
 		fmt.Println(string(resultJSON))
 		return
 	}
@@ -99,7 +162,7 @@ func (handler *NodesHandler) trustLinesHistoryResult(command *Command) {
 	if err != nil {
 		logger.Error("Node is inaccessible during processing command " +
 			string(command.ToBytes()) + ". Details: " + err.Error())
-		resultJSON := buildJSONResponse(NODE_IS_INACCESSIBLE, Response{})
+		resultJSON := buildJSONResponse(NODE_IS_INACCESSIBLE, SettlementLineHistoryResponse{})
 		fmt.Println(string(resultJSON))
 		return
 	}
@@ -107,13 +170,13 @@ func (handler *NodesHandler) trustLinesHistoryResult(command *Command) {
 	if result.Code != OK && result.Code != ENGINE_NO_EQUIVALENT {
 		logger.Error("Node return wrong command result: " + strconv.Itoa(result.Code) +
 			" on command: " + string(command.ToBytes()))
-		resultJSON := buildJSONResponse(result.Code, Response{})
+		resultJSON := buildJSONResponse(result.Code, SettlementLineHistoryResponse{})
 		fmt.Println(string(resultJSON))
 		return
 	}
 	if result.Code == ENGINE_NO_EQUIVALENT {
 		logger.Info("Node hasn't equivalent for command: " + string(command.ToBytes()))
-		resultJSON := buildJSONResponse(result.Code, Response{})
+		resultJSON := buildJSONResponse(result.Code, SettlementLineHistoryResponse{})
 		fmt.Println(string(resultJSON))
 		return
 	}
@@ -121,7 +184,7 @@ func (handler *NodesHandler) trustLinesHistoryResult(command *Command) {
 	if len(result.Tokens) == 0 {
 		logger.Error("Node return invalid result tokens size on command: " +
 			string(command.ToBytes()))
-		resultJSON := buildJSONResponse(ENGINE_UNEXPECTED_ERROR, Response{})
+		resultJSON := buildJSONResponse(ENGINE_UNEXPECTED_ERROR, SettlementLineHistoryResponse{})
 		fmt.Println(string(resultJSON))
 		return
 	}
@@ -130,20 +193,20 @@ func (handler *NodesHandler) trustLinesHistoryResult(command *Command) {
 	if err != nil {
 		logger.Error("Node return invalid token on command: " + string(command.ToBytes()) +
 			". Details: " + err.Error())
-		resultJSON := buildJSONResponse(ENGINE_UNEXPECTED_ERROR, Response{})
+		resultJSON := buildJSONResponse(ENGINE_UNEXPECTED_ERROR, SettlementLineHistoryResponse{})
 		fmt.Println(string(resultJSON))
 		return
 	}
 
 	if recordsCount == 0 {
-		resultJSON := buildJSONResponse(OK, Response{Count: recordsCount})
+		resultJSON := buildJSONResponse(OK, SettlementLineHistoryResponse{Count: recordsCount})
 		fmt.Println(string(resultJSON))
 		return
 	}
 
-	response := Response{Count: recordsCount}
+	response := SettlementLineHistoryResponse{Count: recordsCount}
 	for i := 0; i < recordsCount; i++ {
-		response.Records = append(response.Records, Record{
+		response.Records = append(response.Records, SettlementLineHistoryRecord{
 			TransactionUUID:           result.Tokens[i*5+1],
 			UnixTimestampMicroseconds: result.Tokens[i*5+2],
 			Contractor:                result.Tokens[i*5+3],
@@ -155,7 +218,7 @@ func (handler *NodesHandler) trustLinesHistoryResult(command *Command) {
 	fmt.Println(string(resultJSON))
 }
 
-func (handler *NodesHandler) TrustLinesHistory(w http.ResponseWriter, r *http.Request) {
+func (handler *NodesHandler) SettlementLinesHistory(w http.ResponseWriter, r *http.Request) {
 	url, err := preprocessRequest(r)
 	if err != nil {
 		logger.Error("Bad request: invalid security parameters: " + err.Error())
@@ -197,23 +260,10 @@ func (handler *NodesHandler) TrustLinesHistory(w http.ResponseWriter, r *http.Re
 	command := NewCommand(
 		"GET:history/trust-lines", offset, count, dateFromUnixTimestamp, dateToUnixTimestamp, equivalent)
 
-	type Record struct {
-		TransactionUUID           string `json:"transaction_uuid"`
-		UnixTimestampMicroseconds string `json:"unix_timestamp_microseconds"`
-		Contractor                string `json:"contractor"`
-		OperationDirection        string `json:"operation_direction"`
-		Amount                    string `json:"amount"`
-	}
-
-	type Response struct {
-		Count   int      `json:"count"`
-		Records []Record `json:"records"`
-	}
-
 	err = handler.node.SendCommand(command)
 	if err != nil {
 		logger.Error("Can't send command: " + string(command.ToBytes()) + " to node. Details: " + err.Error())
-		writeHTTPResponse(w, COMMAND_TRANSFERRING_ERROR, Response{})
+		writeHTTPResponse(w, COMMAND_TRANSFERRING_ERROR, SettlementLineHistoryResponse{})
 		return
 	}
 
@@ -221,26 +271,26 @@ func (handler *NodesHandler) TrustLinesHistory(w http.ResponseWriter, r *http.Re
 	if err != nil {
 		logger.Error("Node is inaccessible during processing command " +
 			string(command.ToBytes()) + ". Details: " + err.Error())
-		writeHTTPResponse(w, NODE_IS_INACCESSIBLE, Response{})
+		writeHTTPResponse(w, NODE_IS_INACCESSIBLE, SettlementLineHistoryResponse{})
 		return
 	}
 
 	if result.Code != OK && result.Code != ENGINE_NO_EQUIVALENT {
 		logger.Error("Node return wrong command result: " + strconv.Itoa(result.Code) +
 			" on command: " + string(command.ToBytes()))
-		writeHTTPResponse(w, result.Code, Response{})
+		writeHTTPResponse(w, result.Code, SettlementLineHistoryResponse{})
 		return
 	}
 	if result.Code == ENGINE_NO_EQUIVALENT {
 		logger.Info("Node hasn't equivalent for command: " + string(command.ToBytes()))
-		writeHTTPResponse(w, result.Code, Response{})
+		writeHTTPResponse(w, result.Code, SettlementLineHistoryResponse{})
 		return
 	}
 
 	if len(result.Tokens) == 0 {
 		logger.Error("Node return invalid result tokens size on command: " +
 			string(command.ToBytes()))
-		writeHTTPResponse(w, ENGINE_UNEXPECTED_ERROR, Response{})
+		writeHTTPResponse(w, ENGINE_UNEXPECTED_ERROR, SettlementLineHistoryResponse{})
 		return
 	}
 
@@ -248,18 +298,18 @@ func (handler *NodesHandler) TrustLinesHistory(w http.ResponseWriter, r *http.Re
 	if err != nil {
 		logger.Error("Node return invalid token on command: " + string(command.ToBytes()) +
 			". Details: " + err.Error())
-		writeHTTPResponse(w, ENGINE_UNEXPECTED_ERROR, Response{})
+		writeHTTPResponse(w, ENGINE_UNEXPECTED_ERROR, SettlementLineHistoryResponse{})
 		return
 	}
 
 	if recordsCount == 0 {
-		writeHTTPResponse(w, OK, Response{Count: recordsCount})
+		writeHTTPResponse(w, OK, SettlementLineHistoryResponse{Count: recordsCount})
 		return
 	}
 
-	response := Response{Count: recordsCount}
+	response := SettlementLineHistoryResponse{Count: recordsCount}
 	for i := 0; i < recordsCount; i++ {
-		response.Records = append(response.Records, Record{
+		response.Records = append(response.Records, SettlementLineHistoryRecord{
 			TransactionUUID:           result.Tokens[i*5+1],
 			UnixTimestampMicroseconds: result.Tokens[i*5+2],
 			Contractor:                result.Tokens[i*5+3],
@@ -304,7 +354,7 @@ func (handler *NodesHandler) paymentsHistory() {
 	if amountFromUnixTimestamp == "" {
 		amountFromUnixTimestamp = "null"
 	} else {
-		if !ValidateTrustLineAmount(amountFromUnixTimestamp) {
+		if !ValidateSettlementLineAmount(amountFromUnixTimestamp) {
 			logger.Error("Bad request: invalid amount-from parameter in history payments request")
 			fmt.Println("Bad request: invalid amount-from parameter")
 			return
@@ -315,7 +365,7 @@ func (handler *NodesHandler) paymentsHistory() {
 	if amountToUnixTimestamp == "" {
 		amountToUnixTimestamp = "null"
 	} else {
-		if !ValidateTrustLineAmount(amountToUnixTimestamp) {
+		if !ValidateSettlementLineAmount(amountToUnixTimestamp) {
 			logger.Error("Bad request: invalid amount-to parameter in history payments request")
 			fmt.Println("Bad request: invalid amount-to parameter")
 			return
@@ -330,25 +380,10 @@ func (handler *NodesHandler) paymentsHistory() {
 }
 
 func (handler *NodesHandler) paymentsHistoryResult(command *Command) {
-	type Record struct {
-		TransactionUUID           string `json:"transaction_uuid"`
-		UnixTimestampMicroseconds string `json:"unix_timestamp_microseconds"`
-		Contractor                string `json:"contractor"`
-		OperationDirection        string `json:"operation_direction"`
-		Amount                    string `json:"amount"`
-		BalanceAfterOperation     string `json:"balance_after_operation"`
-		Payload                   string `json:"payload"`
-	}
-
-	type Response struct {
-		Count   int      `json:"count"`
-		Records []Record `json:"records"`
-	}
-
 	err := handler.node.SendCommand(command)
 	if err != nil {
 		logger.Error("Can't send command: " + string(command.ToBytes()) + " to node. Details: " + err.Error())
-		resultJSON := buildJSONResponse(COMMAND_TRANSFERRING_ERROR, Response{})
+		resultJSON := buildJSONResponse(COMMAND_TRANSFERRING_ERROR, PaymentHistoryResponse{})
 		fmt.Println(string(resultJSON))
 		return
 	}
@@ -357,7 +392,7 @@ func (handler *NodesHandler) paymentsHistoryResult(command *Command) {
 	if err != nil {
 		logger.Error("Node is inaccessible during processing command: " + string(command.ToBytes()) +
 			" . Details: " + err.Error())
-		resultJSON := buildJSONResponse(NODE_IS_INACCESSIBLE, Response{})
+		resultJSON := buildJSONResponse(NODE_IS_INACCESSIBLE, PaymentHistoryResponse{})
 		fmt.Println(string(resultJSON))
 		return
 	}
@@ -365,20 +400,20 @@ func (handler *NodesHandler) paymentsHistoryResult(command *Command) {
 	if result.Code != OK && result.Code != ENGINE_NO_EQUIVALENT {
 		logger.Error("Node return wrong command result: " +
 			strconv.Itoa(result.Code) + " on command " + string(command.ToBytes()))
-		resultJSON := buildJSONResponse(result.Code, Response{})
+		resultJSON := buildJSONResponse(result.Code, PaymentHistoryResponse{})
 		fmt.Println(string(resultJSON))
 		return
 	}
 	if result.Code == ENGINE_NO_EQUIVALENT {
 		logger.Info("Node hasn't equivalent for command: " + string(command.ToBytes()))
-		resultJSON := buildJSONResponse(result.Code, Response{})
+		resultJSON := buildJSONResponse(result.Code, PaymentHistoryResponse{})
 		fmt.Println(string(resultJSON))
 		return
 	}
 
 	if len(result.Tokens) == 0 {
 		logger.Error("Node return invalid result tokens size on command: " + string(command.ToBytes()))
-		resultJSON := buildJSONResponse(ENGINE_UNEXPECTED_ERROR, Response{})
+		resultJSON := buildJSONResponse(ENGINE_UNEXPECTED_ERROR, PaymentHistoryResponse{})
 		fmt.Println(string(resultJSON))
 		return
 	}
@@ -386,20 +421,20 @@ func (handler *NodesHandler) paymentsHistoryResult(command *Command) {
 	recordsCount, err := strconv.Atoi(result.Tokens[0])
 	if err != nil {
 		logger.Error("Node return invalid token on command: " + string(command.ToBytes()) + ". Details: " + err.Error())
-		resultJSON := buildJSONResponse(ENGINE_UNEXPECTED_ERROR, Response{})
+		resultJSON := buildJSONResponse(ENGINE_UNEXPECTED_ERROR, PaymentHistoryResponse{})
 		fmt.Println(string(resultJSON))
 		return
 	}
 
 	if recordsCount == 0 {
-		resultJSON := buildJSONResponse(OK, Response{Count: recordsCount})
+		resultJSON := buildJSONResponse(OK, PaymentHistoryResponse{Count: recordsCount})
 		fmt.Println(string(resultJSON))
 		return
 	}
 
-	response := Response{Count: recordsCount}
+	response := PaymentHistoryResponse{Count: recordsCount}
 	for i := 0; i < recordsCount; i++ {
-		response.Records = append(response.Records, Record{
+		response.Records = append(response.Records, PaymentHistoryRecord{
 			TransactionUUID:           result.Tokens[i*7+1],
 			UnixTimestampMicroseconds: result.Tokens[i*7+2],
 			Contractor:                result.Tokens[i*7+3],
@@ -480,25 +515,10 @@ func (handler *NodesHandler) PaymentsHistory(w http.ResponseWriter, r *http.Requ
 		"GET:history/payments", offset, count, dateFromUnixTimestamp, dateToUnixTimestamp,
 		amountFromUnixTimestamp, amountToUnixTimestamp, commandUUID, operationUUID, equivalent)
 
-	type Record struct {
-		TransactionUUID           string `json:"transaction_uuid"`
-		UnixTimestampMicroseconds string `json:"unix_timestamp_microseconds"`
-		Contractor                string `json:"contractor"`
-		OperationDirection        string `json:"operation_direction"`
-		Amount                    string `json:"amount"`
-		BalanceAfterOperation     string `json:"balance_after_operation"`
-		Payload                   string `json:"payload"`
-	}
-
-	type Response struct {
-		Count   int      `json:"count"`
-		Records []Record `json:"records"`
-	}
-
 	err = handler.node.SendCommand(command)
 	if err != nil {
 		logger.Error("Can't send command: " + string(command.ToBytes()) + " to node. Details: " + err.Error())
-		writeHTTPResponse(w, COMMAND_TRANSFERRING_ERROR, Response{})
+		writeHTTPResponse(w, COMMAND_TRANSFERRING_ERROR, PaymentHistoryResponse{})
 		return
 	}
 
@@ -506,43 +526,43 @@ func (handler *NodesHandler) PaymentsHistory(w http.ResponseWriter, r *http.Requ
 	if err != nil {
 		logger.Error("Node is inaccessible during processing command: " + string(command.ToBytes()) +
 			" . Details: " + err.Error())
-		writeHTTPResponse(w, NODE_IS_INACCESSIBLE, Response{})
+		writeHTTPResponse(w, NODE_IS_INACCESSIBLE, PaymentHistoryResponse{})
 		return
 	}
 
 	if result.Code != OK && result.Code != ENGINE_NO_EQUIVALENT {
 		logger.Error("Node return wrong command result: " +
 			strconv.Itoa(result.Code) + " on command " + string(command.ToBytes()))
-		writeHTTPResponse(w, result.Code, Response{})
+		writeHTTPResponse(w, result.Code, PaymentHistoryResponse{})
 		return
 	}
 	if result.Code == ENGINE_NO_EQUIVALENT {
 		logger.Info("Node hasn't equivalent for command: " + string(command.ToBytes()))
-		writeHTTPResponse(w, result.Code, Response{})
+		writeHTTPResponse(w, result.Code, PaymentHistoryResponse{})
 		return
 	}
 
 	if len(result.Tokens) == 0 {
 		logger.Error("Node return invalid result tokens size on command: " + string(command.ToBytes()))
-		writeHTTPResponse(w, ENGINE_UNEXPECTED_ERROR, Response{})
+		writeHTTPResponse(w, ENGINE_UNEXPECTED_ERROR, PaymentHistoryResponse{})
 		return
 	}
 
 	recordsCount, err := strconv.Atoi(result.Tokens[0])
 	if err != nil {
 		logger.Error("Node return invalid token on command: " + string(command.ToBytes()) + ". Details: " + err.Error())
-		writeHTTPResponse(w, ENGINE_UNEXPECTED_ERROR, Response{})
+		writeHTTPResponse(w, ENGINE_UNEXPECTED_ERROR, PaymentHistoryResponse{})
 		return
 	}
 
 	if recordsCount == 0 {
-		writeHTTPResponse(w, OK, Response{Count: recordsCount})
+		writeHTTPResponse(w, OK, PaymentHistoryResponse{Count: recordsCount})
 		return
 	}
 
-	response := Response{Count: recordsCount}
+	response := PaymentHistoryResponse{Count: recordsCount}
 	for i := 0; i < recordsCount; i++ {
-		response.Records = append(response.Records, Record{
+		response.Records = append(response.Records, PaymentHistoryRecord{
 			TransactionUUID:           result.Tokens[i*7+1],
 			UnixTimestampMicroseconds: result.Tokens[i*7+2],
 			Contractor:                result.Tokens[i*7+3],
@@ -583,7 +603,7 @@ func (handler *NodesHandler) paymentsHistoryAllEquivalents() {
 	if amountFromUnixTimestamp == "" {
 		amountFromUnixTimestamp = "null"
 	} else {
-		if !ValidateTrustLineAmount(amountFromUnixTimestamp) {
+		if !ValidateSettlementLineAmount(amountFromUnixTimestamp) {
 			logger.Error("Bad request: invalid amount-from parameter in history-all payments request")
 			fmt.Println("Bad request: invalid amount-from parameter")
 			return
@@ -594,7 +614,7 @@ func (handler *NodesHandler) paymentsHistoryAllEquivalents() {
 	if amountToUnixTimestamp == "" {
 		amountToUnixTimestamp = "null"
 	} else {
-		if !ValidateTrustLineAmount(amountToUnixTimestamp) {
+		if !ValidateSettlementLineAmount(amountToUnixTimestamp) {
 			logger.Error("Bad request: invalid amount-to parameter in history-all payments request")
 			fmt.Println("Bad request: invalid amount-to parameter")
 			return
@@ -609,26 +629,10 @@ func (handler *NodesHandler) paymentsHistoryAllEquivalents() {
 }
 
 func (handler *NodesHandler) paymentsHistoryAllEquivalentsResult(command *Command) {
-	type Record struct {
-		Equivalent                string `json:"equivalent"`
-		TransactionUUID           string `json:"transaction_uuid"`
-		UnixTimestampMicroseconds string `json:"unix_timestamp_microseconds"`
-		Contractor                string `json:"contractor"`
-		OperationDirection        string `json:"operation_direction"`
-		Amount                    string `json:"amount"`
-		BalanceAfterOperation     string `json:"balance_after_operation"`
-		Payload                   string `json:"payload"`
-	}
-
-	type Response struct {
-		Count   int      `json:"count"`
-		Records []Record `json:"records"`
-	}
-
 	err := handler.node.SendCommand(command)
 	if err != nil {
 		logger.Error("Can't send command: " + string(command.ToBytes()) + " to node. Details: " + err.Error())
-		resultJSON := buildJSONResponse(COMMAND_TRANSFERRING_ERROR, Response{})
+		resultJSON := buildJSONResponse(COMMAND_TRANSFERRING_ERROR, PaymentAllEquivalentsHistoryResponse{})
 		fmt.Println(string(resultJSON))
 		return
 	}
@@ -637,7 +641,7 @@ func (handler *NodesHandler) paymentsHistoryAllEquivalentsResult(command *Comman
 	if err != nil {
 		logger.Error("Node is inaccessible during processing command: " + string(command.ToBytes()) +
 			" . Details: " + err.Error())
-		resultJSON := buildJSONResponse(NODE_IS_INACCESSIBLE, Response{})
+		resultJSON := buildJSONResponse(NODE_IS_INACCESSIBLE, PaymentAllEquivalentsHistoryResponse{})
 		fmt.Println(string(resultJSON))
 		return
 	}
@@ -645,14 +649,14 @@ func (handler *NodesHandler) paymentsHistoryAllEquivalentsResult(command *Comman
 	if result.Code != OK {
 		logger.Error("Node return wrong command result: " +
 			strconv.Itoa(result.Code) + " on command " + string(command.ToBytes()))
-		resultJSON := buildJSONResponse(result.Code, Response{})
+		resultJSON := buildJSONResponse(result.Code, PaymentAllEquivalentsHistoryResponse{})
 		fmt.Println(string(resultJSON))
 		return
 	}
 
 	if len(result.Tokens) == 0 {
 		logger.Error("Node return invalid result tokens size on command: " + string(command.ToBytes()))
-		resultJSON := buildJSONResponse(ENGINE_UNEXPECTED_ERROR, Response{})
+		resultJSON := buildJSONResponse(ENGINE_UNEXPECTED_ERROR, PaymentAllEquivalentsHistoryResponse{})
 		fmt.Println(string(resultJSON))
 		return
 	}
@@ -660,20 +664,20 @@ func (handler *NodesHandler) paymentsHistoryAllEquivalentsResult(command *Comman
 	recordsCount, err := strconv.Atoi(result.Tokens[0])
 	if err != nil {
 		logger.Error("Node return invalid token on command: " + string(command.ToBytes()) + ". Details: " + err.Error())
-		resultJSON := buildJSONResponse(ENGINE_UNEXPECTED_ERROR, Response{})
+		resultJSON := buildJSONResponse(ENGINE_UNEXPECTED_ERROR, PaymentAllEquivalentsHistoryResponse{})
 		fmt.Println(string(resultJSON))
 		return
 	}
 
 	if recordsCount == 0 {
-		resultJSON := buildJSONResponse(OK, Response{Count: recordsCount})
+		resultJSON := buildJSONResponse(OK, PaymentAllEquivalentsHistoryResponse{Count: recordsCount})
 		fmt.Println(string(resultJSON))
 		return
 	}
 
-	response := Response{Count: recordsCount}
+	response := PaymentAllEquivalentsHistoryResponse{Count: recordsCount}
 	for i := 0; i < recordsCount; i++ {
-		response.Records = append(response.Records, Record{
+		response.Records = append(response.Records, PaymentAllEquivalentsHistoryRecord{
 			Equivalent:                result.Tokens[i*8+1],
 			TransactionUUID:           result.Tokens[i*8+2],
 			UnixTimestampMicroseconds: result.Tokens[i*8+3],
@@ -742,26 +746,10 @@ func (handler *NodesHandler) PaymentsHistoryAllEquivalents(w http.ResponseWriter
 		"GET:history/payments/all", offset, count, dateFromUnixTimestamp, dateToUnixTimestamp,
 		amountFromUnixTimestamp, amountToUnixTimestamp, commandUUID)
 
-	type Record struct {
-		Equivalent                string `json:"equivalent"`
-		TransactionUUID           string `json:"transaction_uuid"`
-		UnixTimestampMicroseconds string `json:"unix_timestamp_microseconds"`
-		Contractor                string `json:"contractor"`
-		OperationDirection        string `json:"operation_direction"`
-		Amount                    string `json:"amount"`
-		BalanceAfterOperation     string `json:"balance_after_operation"`
-		Payload                   string `json:"payload"`
-	}
-
-	type Response struct {
-		Count   int      `json:"count"`
-		Records []Record `json:"records"`
-	}
-
 	err = handler.node.SendCommand(command)
 	if err != nil {
 		logger.Error("Can't send command: " + string(command.ToBytes()) + " to node. Details: " + err.Error())
-		writeHTTPResponse(w, COMMAND_TRANSFERRING_ERROR, Response{})
+		writeHTTPResponse(w, COMMAND_TRANSFERRING_ERROR, PaymentAllEquivalentsHistoryResponse{})
 		return
 	}
 
@@ -769,38 +757,38 @@ func (handler *NodesHandler) PaymentsHistoryAllEquivalents(w http.ResponseWriter
 	if err != nil {
 		logger.Error("Node is inaccessible during processing command: " + string(command.ToBytes()) +
 			" . Details: " + err.Error())
-		writeHTTPResponse(w, NODE_IS_INACCESSIBLE, Response{})
+		writeHTTPResponse(w, NODE_IS_INACCESSIBLE, PaymentAllEquivalentsHistoryResponse{})
 		return
 	}
 
 	if result.Code != OK {
 		logger.Error("Node return wrong command result: " +
 			strconv.Itoa(result.Code) + " on command " + string(command.ToBytes()))
-		writeHTTPResponse(w, result.Code, Response{})
+		writeHTTPResponse(w, result.Code, PaymentAllEquivalentsHistoryResponse{})
 		return
 	}
 
 	if len(result.Tokens) == 0 {
 		logger.Error("Node return invalid result tokens size on command: " + string(command.ToBytes()))
-		writeHTTPResponse(w, ENGINE_UNEXPECTED_ERROR, Response{})
+		writeHTTPResponse(w, ENGINE_UNEXPECTED_ERROR, PaymentAllEquivalentsHistoryResponse{})
 		return
 	}
 
 	recordsCount, err := strconv.Atoi(result.Tokens[0])
 	if err != nil {
 		logger.Error("Node return invalid token on command: " + string(command.ToBytes()) + ". Details: " + err.Error())
-		writeHTTPResponse(w, ENGINE_UNEXPECTED_ERROR, Response{})
+		writeHTTPResponse(w, ENGINE_UNEXPECTED_ERROR, PaymentAllEquivalentsHistoryResponse{})
 		return
 	}
 
 	if recordsCount == 0 {
-		writeHTTPResponse(w, OK, Response{Count: recordsCount})
+		writeHTTPResponse(w, OK, PaymentAllEquivalentsHistoryResponse{Count: recordsCount})
 		return
 	}
 
-	response := Response{Count: recordsCount}
+	response := PaymentAllEquivalentsHistoryResponse{Count: recordsCount}
 	for i := 0; i < recordsCount; i++ {
-		response.Records = append(response.Records, Record{
+		response.Records = append(response.Records, PaymentAllEquivalentsHistoryRecord{
 			Equivalent:                result.Tokens[i*8+1],
 			TransactionUUID:           result.Tokens[i*8+2],
 			UnixTimestampMicroseconds: result.Tokens[i*8+3],
@@ -859,25 +847,10 @@ func (handler *NodesHandler) contractorOperationsHistory() {
 }
 
 func (handler *NodesHandler) contractorOperationsHistoryResult(command *Command) {
-	type Record struct {
-		RecordType                string `json:"record_type"`
-		TransactionUUID           string `json:"transaction_uuid"`
-		UnixTimestampMicroseconds string `json:"unix_timestamp_microseconds"`
-		OperationDirection        string `json:"operation_direction"`
-		Amount                    string `json:"amount"`
-		BalanceAfterOperation     string `json:"balance_after_operation"`
-		Payload                   string `json:"payload"`
-	}
-
-	type Response struct {
-		Count   int      `json:"count"`
-		Records []Record `json:"records"`
-	}
-
 	err := handler.node.SendCommand(command)
 	if err != nil {
 		logger.Error("Can't send command: " + string(command.ToBytes()) + " to node. Details: " + err.Error())
-		resultJSON := buildJSONResponse(COMMAND_TRANSFERRING_ERROR, Response{})
+		resultJSON := buildJSONResponse(COMMAND_TRANSFERRING_ERROR, ContractorOperationsHistoryResponse{})
 		fmt.Println(string(resultJSON))
 		return
 	}
@@ -887,7 +860,7 @@ func (handler *NodesHandler) contractorOperationsHistoryResult(command *Command)
 		// Remote node is inaccessible
 		logger.Error("Node is inaccessible during processing command: " +
 			string(command.ToBytes()) + ". Details: " + err.Error())
-		resultJSON := buildJSONResponse(NODE_IS_INACCESSIBLE, Response{})
+		resultJSON := buildJSONResponse(NODE_IS_INACCESSIBLE, ContractorOperationsHistoryResponse{})
 		fmt.Println(string(resultJSON))
 		return
 	}
@@ -895,20 +868,20 @@ func (handler *NodesHandler) contractorOperationsHistoryResult(command *Command)
 	if result.Code != OK && result.Code != ENGINE_NO_EQUIVALENT {
 		logger.Error("Node return wrong command result: " + strconv.Itoa(result.Code) +
 			" on command: " + string(command.ToBytes()))
-		resultJSON := buildJSONResponse(result.Code, Response{})
+		resultJSON := buildJSONResponse(result.Code, ContractorOperationsHistoryResponse{})
 		fmt.Println(string(resultJSON))
 		return
 	}
 	if result.Code == ENGINE_NO_EQUIVALENT {
 		logger.Info("Node hasn't equivalent for command: " + string(command.ToBytes()))
-		resultJSON := buildJSONResponse(result.Code, Response{})
+		resultJSON := buildJSONResponse(result.Code, ContractorOperationsHistoryResponse{})
 		fmt.Println(string(resultJSON))
 		return
 	}
 
 	if len(result.Tokens) == 0 {
 		logger.Error("Node return invalid result tokens size on command: " + string(command.ToBytes()))
-		resultJSON := buildJSONResponse(ENGINE_UNEXPECTED_ERROR, Response{})
+		resultJSON := buildJSONResponse(ENGINE_UNEXPECTED_ERROR, ContractorOperationsHistoryResponse{})
 		fmt.Println(string(resultJSON))
 		return
 	}
@@ -917,22 +890,22 @@ func (handler *NodesHandler) contractorOperationsHistoryResult(command *Command)
 	if err != nil {
 		logger.Error("Node return invalid token on command" + string(command.ToBytes()) +
 			". Details: " + err.Error())
-		resultJSON := buildJSONResponse(ENGINE_UNEXPECTED_ERROR, Response{})
+		resultJSON := buildJSONResponse(ENGINE_UNEXPECTED_ERROR, ContractorOperationsHistoryResponse{})
 		fmt.Println(string(resultJSON))
 		return
 	}
 
 	if recordsCount == 0 {
-		resultJSON := buildJSONResponse(OK, Response{Count: recordsCount})
+		resultJSON := buildJSONResponse(OK, ContractorOperationsHistoryResponse{Count: recordsCount})
 		fmt.Println(string(resultJSON))
 		return
 	}
 
-	response := Response{Count: recordsCount}
+	response := ContractorOperationsHistoryResponse{Count: recordsCount}
 	tokenIdx := 1
 	for i := 0; i < recordsCount; i++ {
 		if result.Tokens[tokenIdx] == "payment" {
-			response.Records = append(response.Records, Record{
+			response.Records = append(response.Records, ContractorOperationHistoryRecord{
 				RecordType:                result.Tokens[tokenIdx],
 				TransactionUUID:           result.Tokens[tokenIdx+1],
 				UnixTimestampMicroseconds: result.Tokens[tokenIdx+2],
@@ -943,7 +916,7 @@ func (handler *NodesHandler) contractorOperationsHistoryResult(command *Command)
 			})
 			tokenIdx += 7
 		} else if result.Tokens[tokenIdx] == "trustline" {
-			response.Records = append(response.Records, Record{
+			response.Records = append(response.Records, ContractorOperationHistoryRecord{
 				RecordType:                result.Tokens[tokenIdx],
 				TransactionUUID:           result.Tokens[tokenIdx+1],
 				UnixTimestampMicroseconds: result.Tokens[tokenIdx+2],
@@ -1012,25 +985,10 @@ func (handler *NodesHandler) HistoryWithContractor(w http.ResponseWriter, r *htt
 	contractorAddresses = append(contractorAddresses, []string{equivalent}...)
 	command := NewCommand(contractorAddresses...)
 
-	type Record struct {
-		RecordType                string `json:"record_type"`
-		TransactionUUID           string `json:"transaction_uuid"`
-		UnixTimestampMicroseconds string `json:"unix_timestamp_microseconds"`
-		OperationDirection        string `json:"operation_direction"`
-		Amount                    string `json:"amount"`
-		BalanceAfterOperation     string `json:"balance_after_operation"`
-		Payload                   string `json:"payload"`
-	}
-
-	type Response struct {
-		Count   int      `json:"count"`
-		Records []Record `json:"records"`
-	}
-
 	err = handler.node.SendCommand(command)
 	if err != nil {
 		logger.Error("Can't send command: " + string(command.ToBytes()) + " to node. Details: " + err.Error())
-		writeHTTPResponse(w, COMMAND_TRANSFERRING_ERROR, Response{})
+		writeHTTPResponse(w, COMMAND_TRANSFERRING_ERROR, ContractorOperationsHistoryResponse{})
 		return
 	}
 
@@ -1039,25 +997,25 @@ func (handler *NodesHandler) HistoryWithContractor(w http.ResponseWriter, r *htt
 		// Remote node is inaccessible
 		logger.Error("Node is inaccessible during processing command: " +
 			string(command.ToBytes()) + ". Details: " + err.Error())
-		writeHTTPResponse(w, NODE_IS_INACCESSIBLE, Response{})
+		writeHTTPResponse(w, NODE_IS_INACCESSIBLE, ContractorOperationsHistoryResponse{})
 		return
 	}
 
 	if result.Code != OK && result.Code != ENGINE_NO_EQUIVALENT {
 		logger.Error("Node return wrong command result: " + strconv.Itoa(result.Code) +
 			" on command: " + string(command.ToBytes()))
-		writeHTTPResponse(w, result.Code, Response{})
+		writeHTTPResponse(w, result.Code, ContractorOperationsHistoryResponse{})
 		return
 	}
 	if result.Code == ENGINE_NO_EQUIVALENT {
 		logger.Info("Node hasn't equivalent for command: " + string(command.ToBytes()))
-		writeHTTPResponse(w, result.Code, Response{})
+		writeHTTPResponse(w, result.Code, ContractorOperationsHistoryResponse{})
 		return
 	}
 
 	if len(result.Tokens) == 0 {
 		logger.Error("Node return invalid result tokens size on command: " + string(command.ToBytes()))
-		writeHTTPResponse(w, ENGINE_UNEXPECTED_ERROR, Response{})
+		writeHTTPResponse(w, ENGINE_UNEXPECTED_ERROR, ContractorOperationsHistoryResponse{})
 		return
 	}
 
@@ -1065,20 +1023,20 @@ func (handler *NodesHandler) HistoryWithContractor(w http.ResponseWriter, r *htt
 	if err != nil {
 		logger.Error("Node return invalid token on command" + string(command.ToBytes()) +
 			". Details: " + err.Error())
-		writeHTTPResponse(w, ENGINE_UNEXPECTED_ERROR, Response{})
+		writeHTTPResponse(w, ENGINE_UNEXPECTED_ERROR, ContractorOperationsHistoryResponse{})
 		return
 	}
 
 	if recordsCount == 0 {
-		writeHTTPResponse(w, OK, Response{Count: recordsCount})
+		writeHTTPResponse(w, OK, ContractorOperationsHistoryResponse{Count: recordsCount})
 		return
 	}
 
-	response := Response{Count: recordsCount}
+	response := ContractorOperationsHistoryResponse{Count: recordsCount}
 	tokenIdx := 1
 	for i := 0; i < recordsCount; i++ {
 		if result.Tokens[tokenIdx] == "payment" {
-			response.Records = append(response.Records, Record{
+			response.Records = append(response.Records, ContractorOperationHistoryRecord{
 				RecordType:                result.Tokens[tokenIdx],
 				TransactionUUID:           result.Tokens[tokenIdx+1],
 				UnixTimestampMicroseconds: result.Tokens[tokenIdx+2],
@@ -1089,7 +1047,7 @@ func (handler *NodesHandler) HistoryWithContractor(w http.ResponseWriter, r *htt
 			})
 			tokenIdx += 7
 		} else if result.Tokens[tokenIdx] == "trustline" {
-			response.Records = append(response.Records, Record{
+			response.Records = append(response.Records, ContractorOperationHistoryRecord{
 				RecordType:                result.Tokens[tokenIdx],
 				TransactionUUID:           result.Tokens[tokenIdx+1],
 				UnixTimestampMicroseconds: result.Tokens[tokenIdx+2],
@@ -1138,7 +1096,7 @@ func (handler *NodesHandler) additionalHistory() {
 	if amountFromUnixTimestamp == "" {
 		amountFromUnixTimestamp = "null"
 	} else {
-		if !ValidateTrustLineAmount(amountFromUnixTimestamp) {
+		if !ValidateSettlementLineAmount(amountFromUnixTimestamp) {
 			logger.Error("Bad request: invalid amount-from parameter in history additional request")
 			fmt.Println("Bad request: invalid amount-from parameter")
 			return
@@ -1149,7 +1107,7 @@ func (handler *NodesHandler) additionalHistory() {
 	if amountToUnixTimestamp == "" {
 		amountToUnixTimestamp = "null"
 	} else {
-		if !ValidateTrustLineAmount(amountToUnixTimestamp) {
+		if !ValidateSettlementLineAmount(amountToUnixTimestamp) {
 			logger.Error("Bad request: invalid amount-to parameter in history additional request")
 			fmt.Println("Bad request: invalid amount-to parameter")
 			return
@@ -1164,22 +1122,10 @@ func (handler *NodesHandler) additionalHistory() {
 }
 
 func (handler *NodesHandler) additionalHistoryResult(command *Command) {
-	type Record struct {
-		TransactionUUID           string `json:"transaction_uuid"`
-		UnixTimestampMicroseconds string `json:"unix_timestamp_microseconds"`
-		OperationDirection        string `json:"operation_direction"`
-		Amount                    string `json:"amount"`
-	}
-
-	type Response struct {
-		Count   int      `json:"count"`
-		Records []Record `json:"records"`
-	}
-
 	err := handler.node.SendCommand(command)
 	if err != nil {
 		logger.Error("Can't send command: " + string(command.ToBytes()) + " to node. Details: " + err.Error())
-		resultJSON := buildJSONResponse(COMMAND_TRANSFERRING_ERROR, Response{})
+		resultJSON := buildJSONResponse(COMMAND_TRANSFERRING_ERROR, AdditionalPaymentHistoryResponse{})
 		fmt.Println(string(resultJSON))
 		return
 	}
@@ -1190,7 +1136,7 @@ func (handler *NodesHandler) additionalHistoryResult(command *Command) {
 		// Remote node is inaccessible
 		logger.Error("Node is inaccessible during processing command: " + string(command.ToBytes()) +
 			". Details: " + err.Error())
-		resultJSON := buildJSONResponse(NODE_IS_INACCESSIBLE, Response{})
+		resultJSON := buildJSONResponse(NODE_IS_INACCESSIBLE, AdditionalPaymentHistoryResponse{})
 		fmt.Println(string(resultJSON))
 		return
 	}
@@ -1198,20 +1144,20 @@ func (handler *NodesHandler) additionalHistoryResult(command *Command) {
 	if result.Code != OK && result.Code != ENGINE_NO_EQUIVALENT {
 		logger.Error("Node return wrong command result: " + strconv.Itoa(result.Code) +
 			" on command: " + string(command.ToBytes()))
-		resultJSON := buildJSONResponse(result.Code, Response{})
+		resultJSON := buildJSONResponse(result.Code, AdditionalPaymentHistoryResponse{})
 		fmt.Println(string(resultJSON))
 		return
 	}
 	if result.Code == ENGINE_NO_EQUIVALENT {
 		logger.Info("Node hasn't equivalent for command: " + string(command.ToBytes()))
-		resultJSON := buildJSONResponse(result.Code, Response{})
+		resultJSON := buildJSONResponse(result.Code, AdditionalPaymentHistoryResponse{})
 		fmt.Println(string(resultJSON))
 		return
 	}
 
 	if len(result.Tokens) == 0 {
 		logger.Error("Node return invalid result tokens size on command: " + string(command.ToBytes()))
-		resultJSON := buildJSONResponse(ENGINE_UNEXPECTED_ERROR, Response{})
+		resultJSON := buildJSONResponse(ENGINE_UNEXPECTED_ERROR, AdditionalPaymentHistoryResponse{})
 		fmt.Println(string(resultJSON))
 		return
 	}
@@ -1220,21 +1166,21 @@ func (handler *NodesHandler) additionalHistoryResult(command *Command) {
 	if err != nil {
 		logger.Error("Node return invalid token on command " + string(command.ToBytes()) +
 			". Details: " + err.Error())
-		resultJSON := buildJSONResponse(ENGINE_UNEXPECTED_ERROR, Response{})
+		resultJSON := buildJSONResponse(ENGINE_UNEXPECTED_ERROR, AdditionalPaymentHistoryResponse{})
 		fmt.Println(string(resultJSON))
 		return
 	}
 
 	if recordsCount == 0 {
-		resultJSON := buildJSONResponse(OK, Response{Count: recordsCount})
+		resultJSON := buildJSONResponse(OK, AdditionalPaymentHistoryResponse{Count: recordsCount})
 		fmt.Println(string(resultJSON))
 		return
 	}
 
-	response := Response{Count: recordsCount}
+	response := AdditionalPaymentHistoryResponse{Count: recordsCount}
 	tokenIdx := 1
 	for i := 0; i < recordsCount; i++ {
-		response.Records = append(response.Records, Record{
+		response.Records = append(response.Records, AdditionalPaymentHistoryRecord{
 			TransactionUUID:           result.Tokens[tokenIdx],
 			UnixTimestampMicroseconds: result.Tokens[tokenIdx+1],
 			OperationDirection:        result.Tokens[tokenIdx+2],
@@ -1301,22 +1247,10 @@ func (handler *NodesHandler) PaymentsAdditionalHistory(w http.ResponseWriter, r 
 		"GET:history/payments/additional", offset, count, dateFromUnixTimestamp, dateToUnixTimestamp,
 		amountFromUnixTimestamp, amountToUnixTimestamp, equivalent)
 
-	type Record struct {
-		TransactionUUID           string `json:"transaction_uuid"`
-		UnixTimestampMicroseconds string `json:"unix_timestamp_microseconds"`
-		OperationDirection        string `json:"operation_direction"`
-		Amount                    string `json:"amount"`
-	}
-
-	type Response struct {
-		Count   int      `json:"count"`
-		Records []Record `json:"records"`
-	}
-
 	err = handler.node.SendCommand(command)
 	if err != nil {
 		logger.Error("Can't send command: " + string(command.ToBytes()) + " to node. Details: " + err.Error())
-		writeHTTPResponse(w, COMMAND_TRANSFERRING_ERROR, Response{})
+		writeHTTPResponse(w, COMMAND_TRANSFERRING_ERROR, AdditionalPaymentHistoryResponse{})
 		return
 	}
 
@@ -1325,25 +1259,25 @@ func (handler *NodesHandler) PaymentsAdditionalHistory(w http.ResponseWriter, r 
 		// Remote node is inaccessible
 		logger.Error("Node is inaccessible during processing command: " + string(command.ToBytes()) +
 			". Details: " + err.Error())
-		writeHTTPResponse(w, NODE_IS_INACCESSIBLE, Response{})
+		writeHTTPResponse(w, NODE_IS_INACCESSIBLE, AdditionalPaymentHistoryResponse{})
 		return
 	}
 
 	if result.Code != OK && result.Code != ENGINE_NO_EQUIVALENT {
 		logger.Error("Node return wrong command result: " + strconv.Itoa(result.Code) +
 			" on command: " + string(command.ToBytes()))
-		writeHTTPResponse(w, result.Code, Response{})
+		writeHTTPResponse(w, result.Code, AdditionalPaymentHistoryResponse{})
 		return
 	}
 	if result.Code == ENGINE_NO_EQUIVALENT {
 		logger.Info("Node hasn't equivalent for command: " + string(command.ToBytes()))
-		writeHTTPResponse(w, result.Code, Response{})
+		writeHTTPResponse(w, result.Code, AdditionalPaymentHistoryResponse{})
 		return
 	}
 
 	if len(result.Tokens) == 0 {
 		logger.Error("Node return invalid result tokens size on command: " + string(command.ToBytes()))
-		writeHTTPResponse(w, ENGINE_UNEXPECTED_ERROR, Response{})
+		writeHTTPResponse(w, ENGINE_UNEXPECTED_ERROR, AdditionalPaymentHistoryResponse{})
 		return
 	}
 
@@ -1351,19 +1285,19 @@ func (handler *NodesHandler) PaymentsAdditionalHistory(w http.ResponseWriter, r 
 	if err != nil {
 		logger.Error("Node return invalid token on command " + string(command.ToBytes()) +
 			". Details: " + err.Error())
-		writeHTTPResponse(w, ENGINE_UNEXPECTED_ERROR, Response{})
+		writeHTTPResponse(w, ENGINE_UNEXPECTED_ERROR, AdditionalPaymentHistoryResponse{})
 		return
 	}
 
 	if recordsCount == 0 {
-		writeHTTPResponse(w, OK, Response{Count: recordsCount})
+		writeHTTPResponse(w, OK, AdditionalPaymentHistoryResponse{Count: recordsCount})
 		return
 	}
 
-	response := Response{Count: recordsCount}
+	response := AdditionalPaymentHistoryResponse{Count: recordsCount}
 	tokenIdx := 1
 	for i := 0; i < recordsCount; i++ {
-		response.Records = append(response.Records, Record{
+		response.Records = append(response.Records, AdditionalPaymentHistoryRecord{
 			TransactionUUID:           result.Tokens[tokenIdx],
 			UnixTimestampMicroseconds: result.Tokens[tokenIdx+1],
 			OperationDirection:        result.Tokens[tokenIdx+2],

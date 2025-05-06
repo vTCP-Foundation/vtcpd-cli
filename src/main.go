@@ -33,7 +33,7 @@ var (
 	auditNumber    = kingpin.Flag("audit-number", "Number for audit.").Default("").String()
 	incomingAmount = kingpin.Flag("incoming-amount", "Incoming trust amount.").Default("").String()
 	outgoingAmount = kingpin.Flag("outgoing-amount", "Outgoing trust amount.").Default("").String()
-	balance        = kingpin.Flag("balance", "Trust line balance.").Default("").String()
+	balance        = kingpin.Flag("balance", "Settlement line balance.").Default("").String()
 )
 
 func main() {
@@ -73,8 +73,8 @@ func main() {
 	handler.CryptoKey = *cryptoKey
 	handler.Payload = *payload
 	handler.AuditNumber = *auditNumber
-	handler.IncomingAmount = *incomingAmount
-	handler.OutgoingAmount = *outgoingAmount
+	handler.MaxNegativeBalance = *incomingAmount
+	handler.MaxPositiveBalance = *outgoingAmount
 	handler.Balance = *balance
 
 	if *command == "start" {
@@ -197,14 +197,14 @@ func main() {
 		}
 		nodesHandler.Channels()
 
-	} else if *command == "trust-lines" {
+	} else if *command == "settlement-lines" {
 		err = nodesHandler.StartNodeForCommunication()
 		if err != nil {
 			logger.Error("Node is not running. Details: " + err.Error())
 			fmt.Println("Node is not running. Details: " + err.Error())
 			os.Exit(1)
 		}
-		nodesHandler.TrustLines()
+		nodesHandler.SettlementLines()
 
 	} else if *command == "max-flow" {
 		err = nodesHandler.StartNodeForCommunication()

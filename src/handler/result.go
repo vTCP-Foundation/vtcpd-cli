@@ -5,7 +5,7 @@ import (
 	"strconv"
 	"strings"
 
-	uuid "github.com/satori/go.uuid"
+	"github.com/google/uuid"
 )
 
 type Result struct {
@@ -27,10 +27,10 @@ func ResultFromRawInput(body []byte) *Result {
 	}
 
 	uuidPart := body[:UUID_HEX_LENGTH]
-	identifier, err := uuid.FromString(string(uuidPart))
+	identifier, err := uuid.Parse(string(uuidPart))
 	if err != nil {
 		return &Result{
-			UUID:  uuid.FromStringOrNil("00000000-0000-0000-0000-000000000000"),
+			UUID:  uuid.Nil,
 			Error: errors.New("can't parse result UUID"),
 		}
 	}

@@ -6,10 +6,40 @@ import (
 	"strconv"
 	"strings"
 
+	"github.com/google/uuid"
 	"github.com/gorilla/mux"
-	uuid "github.com/satori/go.uuid"
 	"github.com/vTCP-Foundation/vtcpd-cli/src/logger"
 )
+
+// --- Global structs for payments ---
+
+type MaxFlowRecord struct {
+	ContractorAddressType string `json:"address_type"`
+	ContractorAddress     string `json:"contractor_address"`
+	MaxAmount             string `json:"max_amount"`
+}
+
+// --- Global API responses for payments ---
+
+type MaxFlowResponse struct {
+	Count   int             `json:"count"`
+	Records []MaxFlowRecord `json:"records"`
+}
+
+type MaxFlowPartialResponse struct {
+	State   int             `json:"state"`
+	Count   int             `json:"count"`
+	Records []MaxFlowRecord `json:"records"`
+}
+
+type PaymentResponse struct {
+	TransactionUUID string `json:"transaction_uuid"`
+}
+
+type GetTransactionByCommandUUIDResponse struct {
+	Count           int    `json:"count"`
+	TransactionUUID string `json:"transaction_uuid"`
+}
 
 var (
 	PAYMENT_OPERATION_TIMEOUT uint16 = 60
@@ -66,21 +96,10 @@ func (handler *NodesHandler) maxFlowFully() {
 }
 
 func (handler *NodesHandler) maxFlowGetResult(command *Command) {
-	type Record struct {
-		ContractorAddressType string `json:"address_type"`
-		ContractorAddress     string `json:"contractor_address"`
-		MaxAmount             string `json:"max_amount"`
-	}
-
-	type Response struct {
-		Count   int      `json:"count"`
-		Records []Record `json:"records"`
-	}
-
 	err := handler.node.SendCommand(command)
 	if err != nil {
 		logger.Error("Can't send command: " + string(command.ToBytes()) + " to node. Details: " + err.Error())
-		resultJSON := buildJSONResponse(COMMAND_TRANSFERRING_ERROR, Response{})
+		resultJSON := buildJSONResponse(COMMAND_TRANSFERRING_ERROR, MaxFlowResponse{})
 		fmt.Println(string(resultJSON))
 		return
 	}
@@ -89,7 +108,7 @@ func (handler *NodesHandler) maxFlowGetResult(command *Command) {
 	if err != nil {
 		logger.Error("Node is inaccessible during processing command: " +
 			string(command.ToBytes()) + ". Details: " + err.Error())
-		resultJSON := buildJSONResponse(NODE_IS_INACCESSIBLE, Response{})
+		resultJSON := buildJSONResponse(NODE_IS_INACCESSIBLE, MaxFlowResponse{})
 		fmt.Println(string(resultJSON))
 		return
 	}
@@ -97,20 +116,20 @@ func (handler *NodesHandler) maxFlowGetResult(command *Command) {
 	if result.Code != OK && result.Code != ENGINE_NO_EQUIVALENT {
 		logger.Error("Node return wrong command result: " + strconv.Itoa(result.Code) +
 			" on command: " + string(command.ToBytes()))
-		resultJSON := buildJSONResponse(result.Code, Response{})
+		resultJSON := buildJSONResponse(result.Code, MaxFlowResponse{})
 		fmt.Println(string(resultJSON))
 		return
 	}
 	if result.Code == ENGINE_NO_EQUIVALENT {
 		logger.Info("Node hasn't equivalent for command: " + string(command.ToBytes()))
-		resultJSON := buildJSONResponse(result.Code, Response{})
+		resultJSON := buildJSONResponse(result.Code, MaxFlowResponse{})
 		fmt.Println(string(resultJSON))
 		return
 	}
 
 	if len(result.Tokens) == 0 {
 		logger.Error("Node return invalid result tokens size on command: " + string(command.ToBytes()))
-		resultJSON := buildJSONResponse(ENGINE_UNEXPECTED_ERROR, Response{})
+		resultJSON := buildJSONResponse(ENGINE_UNEXPECTED_ERROR, MaxFlowResponse{})
 		fmt.Println(string(resultJSON))
 		return
 	}
@@ -119,20 +138,20 @@ func (handler *NodesHandler) maxFlowGetResult(command *Command) {
 	if err != nil {
 		logger.Error("Node return invalid token on command: " + string(command.ToBytes()) +
 			". Details: " + err.Error())
-		resultJSON := buildJSONResponse(ENGINE_UNEXPECTED_ERROR, Response{})
+		resultJSON := buildJSONResponse(ENGINE_UNEXPECTED_ERROR, MaxFlowResponse{})
 		fmt.Println(string(resultJSON))
 		return
 	}
 
 	if contractorsCount == 0 {
-		resultJSON := buildJSONResponse(OK, Response{Count: 0})
+		resultJSON := buildJSONResponse(OK, MaxFlowResponse{Count: 0})
 		fmt.Println(string(resultJSON))
 		return
 	}
 
-	response := Response{Count: contractorsCount}
+	response := MaxFlowResponse{Count: contractorsCount}
 	for i := 0; i < contractorsCount; i++ {
-		response.Records = append(response.Records, Record{
+		response.Records = append(response.Records, MaxFlowRecord{
 			ContractorAddressType: result.Tokens[i*3+1],
 			ContractorAddress:     result.Tokens[i*3+2],
 			MaxAmount:             result.Tokens[i*3+3],
@@ -181,21 +200,10 @@ func (handler *NodesHandler) BatchMaxFullyTransaction(w http.ResponseWriter, r *
 	contractorAddresses = append(contractorAddresses, []string{equivalent}...)
 	command := NewCommand(contractorAddresses...)
 
-	type Record struct {
-		ContractorAddressType string `json:"address_type"`
-		ContractorAddress     string `json:"contractor_address"`
-		MaxAmount             string `json:"max_amount"`
-	}
-
-	type Response struct {
-		Count   int      `json:"count"`
-		Records []Record `json:"records"`
-	}
-
 	err = handler.node.SendCommand(command)
 	if err != nil {
 		logger.Error("Can't send command: " + string(command.ToBytes()) + " to node. Details: " + err.Error())
-		writeHTTPResponse(w, COMMAND_TRANSFERRING_ERROR, Response{})
+		writeHTTPResponse(w, COMMAND_TRANSFERRING_ERROR, MaxFlowResponse{})
 		return
 	}
 
@@ -206,25 +214,25 @@ func (handler *NodesHandler) BatchMaxFullyTransaction(w http.ResponseWriter, r *
 	if err != nil {
 		logger.Error("Node is inaccessible during processing command: " +
 			string(command.ToBytes()) + ". Details: " + err.Error())
-		writeHTTPResponse(w, NODE_IS_INACCESSIBLE, Response{})
+		writeHTTPResponse(w, NODE_IS_INACCESSIBLE, MaxFlowResponse{})
 		return
 	}
 
 	if result.Code != OK && result.Code != ENGINE_NO_EQUIVALENT {
 		logger.Error("Node return wrong command result: " + strconv.Itoa(result.Code) +
 			" on command: " + string(command.ToBytes()))
-		writeHTTPResponse(w, result.Code, Response{})
+		writeHTTPResponse(w, result.Code, MaxFlowResponse{})
 		return
 	}
 	if result.Code == ENGINE_NO_EQUIVALENT {
 		logger.Info("Node hasn't equivalent for command: " + string(command.ToBytes()))
-		writeHTTPResponse(w, result.Code, Response{})
+		writeHTTPResponse(w, result.Code, MaxFlowResponse{})
 		return
 	}
 
 	if len(result.Tokens) == 0 {
 		logger.Error("Node return invalid result tokens size on command: " + string(command.ToBytes()))
-		writeHTTPResponse(w, ENGINE_UNEXPECTED_ERROR, Response{})
+		writeHTTPResponse(w, ENGINE_UNEXPECTED_ERROR, MaxFlowResponse{})
 		return
 	}
 
@@ -232,18 +240,18 @@ func (handler *NodesHandler) BatchMaxFullyTransaction(w http.ResponseWriter, r *
 	if err != nil {
 		logger.Error("Node return invalid token on command: " + string(command.ToBytes()) +
 			". Details: " + err.Error())
-		writeHTTPResponse(w, ENGINE_UNEXPECTED_ERROR, Response{})
+		writeHTTPResponse(w, ENGINE_UNEXPECTED_ERROR, MaxFlowResponse{})
 		return
 	}
 
 	if contractorsCount == 0 {
-		writeHTTPResponse(w, OK, Response{Count: 0})
+		writeHTTPResponse(w, OK, MaxFlowResponse{Count: 0})
 		return
 	}
 
-	response := Response{Count: contractorsCount}
+	response := MaxFlowResponse{Count: contractorsCount}
 	for i := 0; i < contractorsCount; i++ {
-		response.Records = append(response.Records, Record{
+		response.Records = append(response.Records, MaxFlowRecord{
 			ContractorAddressType: result.Tokens[i*3+1],
 			ContractorAddress:     result.Tokens[i*3+2],
 			MaxAmount:             result.Tokens[i*3+3],
@@ -285,23 +293,10 @@ func (handler *NodesHandler) maxFlowPartly() {
 }
 
 func (handler *NodesHandler) maxFlowPartlyGetResult(command *Command) {
-
-	type Record struct {
-		ContractorAddressType string `json:"address_type"`
-		ContractorAddress     string `json:"contractor_address"`
-		MaxAmount             string `json:"max_amount"`
-	}
-
-	type Response struct {
-		State   int      `json:"state"`
-		Count   int      `json:"count"`
-		Records []Record `json:"records"`
-	}
-
 	err := handler.node.SendCommand(command)
 	if err != nil {
 		logger.Error("Can't send command: " + string(command.ToBytes()) + " to node. Details: " + err.Error())
-		resultJSON := buildJSONResponse(COMMAND_TRANSFERRING_ERROR, Response{})
+		resultJSON := buildJSONResponse(COMMAND_TRANSFERRING_ERROR, MaxFlowPartialResponse{})
 		fmt.Println(string(resultJSON))
 		return
 	}
@@ -310,7 +305,7 @@ func (handler *NodesHandler) maxFlowPartlyGetResult(command *Command) {
 	if err != nil {
 		logger.Error("Node is inaccessible during processing command: " +
 			string(command.ToBytes()) + ". Details: " + err.Error())
-		resultJSON := buildJSONResponse(NODE_IS_INACCESSIBLE, Response{})
+		resultJSON := buildJSONResponse(NODE_IS_INACCESSIBLE, MaxFlowPartialResponse{})
 		fmt.Println(string(resultJSON))
 		return
 	}
@@ -318,20 +313,20 @@ func (handler *NodesHandler) maxFlowPartlyGetResult(command *Command) {
 	if result.Code != OK && result.Code != ENGINE_NO_EQUIVALENT {
 		logger.Error("Node return wrong command result: " + strconv.Itoa(result.Code) +
 			" on command: " + string(command.ToBytes()))
-		resultJSON := buildJSONResponse(result.Code, Response{})
+		resultJSON := buildJSONResponse(result.Code, MaxFlowPartialResponse{})
 		fmt.Println(string(resultJSON))
 		return
 	}
 	if result.Code == ENGINE_NO_EQUIVALENT {
 		logger.Info("Node hasn't equivalent for command: " + string(command.ToBytes()))
-		resultJSON := buildJSONResponse(result.Code, Response{})
+		resultJSON := buildJSONResponse(result.Code, MaxFlowPartialResponse{})
 		fmt.Println(string(resultJSON))
 		return
 	}
 
 	if len(result.Tokens) == 0 {
 		logger.Error("Node return invalid result tokens size on command: " + string(command.ToBytes()))
-		resultJSON := buildJSONResponse(ENGINE_UNEXPECTED_ERROR, Response{})
+		resultJSON := buildJSONResponse(ENGINE_UNEXPECTED_ERROR, MaxFlowPartialResponse{})
 		fmt.Println(string(resultJSON))
 		return
 	}
@@ -340,7 +335,7 @@ func (handler *NodesHandler) maxFlowPartlyGetResult(command *Command) {
 	if err != nil {
 		logger.Error("Node return invalid stateResult on command: " + string(command.ToBytes()) +
 			". Details: " + err.Error())
-		resultJSON := buildJSONResponse(ENGINE_UNEXPECTED_ERROR, Response{})
+		resultJSON := buildJSONResponse(ENGINE_UNEXPECTED_ERROR, MaxFlowPartialResponse{})
 		fmt.Println(string(resultJSON))
 		return
 	}
@@ -349,21 +344,22 @@ func (handler *NodesHandler) maxFlowPartlyGetResult(command *Command) {
 	if err != nil {
 		logger.Error("Node return invalid contractorsCount on command: " + string(command.ToBytes()) +
 			". Details: " + err.Error())
-		resultJSON := buildJSONResponse(ENGINE_UNEXPECTED_ERROR, Response{})
+		resultJSON := buildJSONResponse(ENGINE_UNEXPECTED_ERROR, MaxFlowPartialResponse{})
 		fmt.Println(string(resultJSON))
 		return
 	}
 
 	if contractorsCount == 0 {
-		resultJSON := buildJSONResponse(OK, Response{State: stateResult, Count: 0})
+		resultJSON := buildJSONResponse(OK, MaxFlowPartialResponse{State: stateResult, Count: 0})
 		fmt.Println(string(resultJSON))
 		return
 	}
 
-	response := Response{State: stateResult,
+	response := MaxFlowPartialResponse{
+		State: stateResult,
 		Count: contractorsCount}
 	for i := 0; i < contractorsCount; i++ {
-		response.Records = append(response.Records, Record{
+		response.Records = append(response.Records, MaxFlowRecord{
 			ContractorAddressType: result.Tokens[i*3+2],
 			ContractorAddress:     result.Tokens[i*3+3],
 			MaxAmount:             result.Tokens[i*3+4],
@@ -379,19 +375,6 @@ func (handler *NodesHandler) maxFlowPartlyGetResult(command *Command) {
 }
 
 func (handler *NodesHandler) maxFlowPartlyStepTwoGetResult(command *Command) {
-
-	type Record struct {
-		ContractorAddressType string `json:"address_type"`
-		ContractorAddress     string `json:"contractor_address"`
-		MaxAmount             string `json:"max_amount"`
-	}
-
-	type Response struct {
-		State   int      `json:"state"`
-		Count   int      `json:"count"`
-		Records []Record `json:"records"`
-	}
-
 	handler.node.WaitCommand(command)
 
 	// Command processing.
@@ -401,7 +384,7 @@ func (handler *NodesHandler) maxFlowPartlyStepTwoGetResult(command *Command) {
 	if err != nil {
 		logger.Error("Node is inaccessible during processing command 2: " + string(command.ToBytes()) +
 			". Details: " + err.Error())
-		resultJSON := buildJSONResponse(NODE_IS_INACCESSIBLE, Response{})
+		resultJSON := buildJSONResponse(NODE_IS_INACCESSIBLE, MaxFlowPartialResponse{})
 		fmt.Println(string(resultJSON))
 		return
 	}
@@ -409,14 +392,14 @@ func (handler *NodesHandler) maxFlowPartlyStepTwoGetResult(command *Command) {
 	if result.Code != OK {
 		logger.Error("Node return wrong command result: " + strconv.Itoa(result.Code) +
 			" on command 2: " + string(command.ToBytes()))
-		resultJSON := buildJSONResponse(result.Code, Response{})
+		resultJSON := buildJSONResponse(result.Code, MaxFlowPartialResponse{})
 		fmt.Println(string(resultJSON))
 		return
 	}
 
 	if len(result.Tokens) == 0 {
 		logger.Error("Node return invalid result tokens size on command 2: " + string(command.ToBytes()))
-		resultJSON := buildJSONResponse(ENGINE_UNEXPECTED_ERROR, Response{})
+		resultJSON := buildJSONResponse(ENGINE_UNEXPECTED_ERROR, MaxFlowPartialResponse{})
 		fmt.Println(string(resultJSON))
 		return
 	}
@@ -424,7 +407,7 @@ func (handler *NodesHandler) maxFlowPartlyStepTwoGetResult(command *Command) {
 	stateResult, err := strconv.Atoi(result.Tokens[0])
 	if err != nil {
 		logger.Error("Node return invalid stateResult on command 2: " + string(command.ToBytes()) + ". Details: " + err.Error())
-		resultJSON := buildJSONResponse(ENGINE_UNEXPECTED_ERROR, Response{})
+		resultJSON := buildJSONResponse(ENGINE_UNEXPECTED_ERROR, MaxFlowPartialResponse{})
 		fmt.Println(string(resultJSON))
 		return
 	}
@@ -432,21 +415,22 @@ func (handler *NodesHandler) maxFlowPartlyStepTwoGetResult(command *Command) {
 	contractorsCount, err := strconv.Atoi(result.Tokens[1])
 	if err != nil {
 		logger.Error("Node return invalid contractorsCount on command 2: " + string(command.ToBytes()) + ". Details: " + err.Error())
-		resultJSON := buildJSONResponse(ENGINE_UNEXPECTED_ERROR, Response{})
+		resultJSON := buildJSONResponse(ENGINE_UNEXPECTED_ERROR, MaxFlowPartialResponse{})
 		fmt.Println(string(resultJSON))
 		return
 	}
 
 	if contractorsCount == 0 {
-		resultJSON := buildJSONResponse(OK, Response{State: stateResult, Count: 0})
+		resultJSON := buildJSONResponse(OK, MaxFlowPartialResponse{State: stateResult, Count: 0})
 		fmt.Println(string(resultJSON))
 		return
 	}
 
-	response := Response{State: stateResult,
+	response := MaxFlowPartialResponse{
+		State: stateResult,
 		Count: contractorsCount}
 	for i := 0; i < contractorsCount; i++ {
-		response.Records = append(response.Records, Record{
+		response.Records = append(response.Records, MaxFlowRecord{
 			ContractorAddressType: result.Tokens[i*3+2],
 			ContractorAddress:     result.Tokens[i*3+3],
 			MaxAmount:             result.Tokens[i*3+4],
@@ -468,7 +452,7 @@ func (handler *NodesHandler) Payment() {
 		return
 	}
 
-	if !ValidateTrustLineAmount(Amount) {
+	if !ValidateSettlementLineAmount(Amount) {
 		logger.Error("Bad request: invalid amount parameter in payment request")
 		fmt.Println("Bad request: invalid amount parameter")
 		return
@@ -503,14 +487,10 @@ func (handler *NodesHandler) Payment() {
 }
 
 func (handler *NodesHandler) paymentResult(command *Command) {
-	type Response struct {
-		TransactionUUID string `json:"transaction_uuid"`
-	}
-
 	err := handler.node.SendCommand(command)
 	if err != nil {
 		logger.Error("Can't send command: " + string(command.ToBytes()) + " to node. Details: " + err.Error())
-		resultJSON := buildJSONResponse(COMMAND_TRANSFERRING_ERROR, Response{})
+		resultJSON := buildJSONResponse(COMMAND_TRANSFERRING_ERROR, PaymentResponse{})
 		fmt.Println(string(resultJSON))
 		return
 	}
@@ -519,7 +499,7 @@ func (handler *NodesHandler) paymentResult(command *Command) {
 	if err != nil {
 		logger.Error("Node is inaccessible during processing command: " +
 			string(command.ToBytes()) + ". Details: " + err.Error())
-		resultJSON := buildJSONResponse(NODE_IS_INACCESSIBLE, Response{})
+		resultJSON := buildJSONResponse(NODE_IS_INACCESSIBLE, PaymentResponse{})
 		fmt.Println(string(resultJSON))
 		return
 	}
@@ -527,25 +507,25 @@ func (handler *NodesHandler) paymentResult(command *Command) {
 	if result.Code != CREATED && result.Code != ENGINE_NO_EQUIVALENT {
 		logger.Error("Node return wrong command result: " + strconv.Itoa(result.Code) +
 			" on command: " + string(command.ToBytes()))
-		resultJSON := buildJSONResponse(result.Code, Response{})
+		resultJSON := buildJSONResponse(result.Code, PaymentResponse{})
 		fmt.Println(string(resultJSON))
 		return
 	}
 	if result.Code == ENGINE_NO_EQUIVALENT {
 		logger.Info("Node hasn't equivalent for command: " + string(command.ToBytes()))
-		resultJSON := buildJSONResponse(result.Code, Response{})
+		resultJSON := buildJSONResponse(result.Code, PaymentResponse{})
 		fmt.Println(string(resultJSON))
 		return
 	}
 
 	if len(result.Tokens) == 0 {
 		logger.Error("Node return invalid result tokens size on command: " + string(command.ToBytes()))
-		resultJSON := buildJSONResponse(ENGINE_UNEXPECTED_ERROR, Response{})
+		resultJSON := buildJSONResponse(ENGINE_UNEXPECTED_ERROR, PaymentResponse{})
 		fmt.Println(string(resultJSON))
 		return
 	}
 
-	resultJSON := buildJSONResponse(OK, Response{TransactionUUID: result.Tokens[0]})
+	resultJSON := buildJSONResponse(OK, PaymentResponse{TransactionUUID: result.Tokens[0]})
 	fmt.Println(string(resultJSON))
 }
 
@@ -584,7 +564,7 @@ func (handler *NodesHandler) CreateTransaction(w http.ResponseWriter, r *http.Re
 	}
 
 	amount := r.FormValue("amount")
-	if !ValidateTrustLineAmount(amount) {
+	if !ValidateSettlementLineAmount(amount) {
 		logger.Error("Bad request: invalid amount parameter: " + url)
 		w.WriteHeader(BAD_REQUEST)
 		return
@@ -595,7 +575,7 @@ func (handler *NodesHandler) CreateTransaction(w http.ResponseWriter, r *http.Re
 	transactionUUIDStr := r.FormValue("transaction_uuid")
 	var transactionUUID uuid.UUID
 	if transactionUUIDStr != "" {
-		transactionUUID, err = uuid.FromString(transactionUUIDStr)
+		transactionUUID, err = uuid.Parse(transactionUUIDStr)
 		if err != nil {
 			logger.Error("Bad request: invalid transaction_uuid parameter: " + url)
 			w.WriteHeader(BAD_REQUEST)
@@ -619,14 +599,10 @@ func (handler *NodesHandler) CreateTransaction(w http.ResponseWriter, r *http.Re
 		command = NewCommandWithUUID(transactionUUID, contractorAddresses...)
 	}
 
-	type Response struct {
-		TransactionUUID string `json:"transaction_uuid"`
-	}
-
 	err = handler.node.SendCommand(command)
 	if err != nil {
 		logger.Error("Can't send command: " + string(command.ToBytes()) + " to node. Details: " + err.Error())
-		writeHTTPResponse(w, COMMAND_TRANSFERRING_ERROR, Response{})
+		writeHTTPResponse(w, COMMAND_TRANSFERRING_ERROR, PaymentResponse{})
 		return
 	}
 
@@ -634,29 +610,29 @@ func (handler *NodesHandler) CreateTransaction(w http.ResponseWriter, r *http.Re
 	if err != nil {
 		logger.Error("Node is inaccessible during processing command: " +
 			string(command.ToBytes()) + ". Details: " + err.Error())
-		writeHTTPResponse(w, NODE_IS_INACCESSIBLE, Response{})
+		writeHTTPResponse(w, NODE_IS_INACCESSIBLE, PaymentResponse{})
 		return
 	}
 
 	if result.Code != CREATED && result.Code != ENGINE_NO_EQUIVALENT {
 		logger.Error("Node return wrong command result: " + strconv.Itoa(result.Code) +
 			" on command: " + string(command.ToBytes()))
-		writeHTTPResponse(w, result.Code, Response{})
+		writeHTTPResponse(w, result.Code, PaymentResponse{})
 		return
 	}
 	if result.Code == ENGINE_NO_EQUIVALENT {
 		logger.Info("Node hasn't equivalent for command: " + string(command.ToBytes()))
-		writeHTTPResponse(w, result.Code, Response{})
+		writeHTTPResponse(w, result.Code, PaymentResponse{})
 		return
 	}
 
 	if len(result.Tokens) == 0 {
 		logger.Error("Node return invalid result tokens size on command: " + string(command.ToBytes()))
-		writeHTTPResponse(w, ENGINE_UNEXPECTED_ERROR, Response{})
+		writeHTTPResponse(w, ENGINE_UNEXPECTED_ERROR, PaymentResponse{})
 		return
 	}
 
-	writeHTTPResponse(w, OK, Response{TransactionUUID: result.Tokens[0]})
+	writeHTTPResponse(w, OK, PaymentResponse{TransactionUUID: result.Tokens[0]})
 }
 
 func (handler *NodesHandler) GetTransactionByCommandUUID(w http.ResponseWriter, r *http.Request) {
@@ -676,15 +652,10 @@ func (handler *NodesHandler) GetTransactionByCommandUUID(w http.ResponseWriter, 
 
 	command := NewCommand("GET:transaction/command-uuid", requestedCommandUUID)
 
-	type Response struct {
-		Count           int    `json:"count"`
-		TransactionUUID string `json:"transaction_uuid"`
-	}
-
 	err = handler.node.SendCommand(command)
 	if err != nil {
 		logger.Error("Can't send command: " + string(command.ToBytes()) + ". Details: " + err.Error())
-		writeHTTPResponse(w, COMMAND_TRANSFERRING_ERROR, Response{})
+		writeHTTPResponse(w, COMMAND_TRANSFERRING_ERROR, GetTransactionByCommandUUIDResponse{})
 		return
 	}
 
@@ -692,42 +663,42 @@ func (handler *NodesHandler) GetTransactionByCommandUUID(w http.ResponseWriter, 
 	if err != nil {
 		logger.Error("Node is inaccessible during processing command: " +
 			string(command.ToBytes()) + ". Details: " + err.Error())
-		writeHTTPResponse(w, NODE_IS_INACCESSIBLE, Response{})
+		writeHTTPResponse(w, NODE_IS_INACCESSIBLE, GetTransactionByCommandUUIDResponse{})
 		return
 	}
 
 	if result.Code != OK {
 		logger.Error("Node return wrong command result: " + strconv.Itoa(result.Code) +
 			" on command: " + string(command.ToBytes()))
-		writeHTTPResponse(w, result.Code, Response{})
+		writeHTTPResponse(w, result.Code, GetTransactionByCommandUUIDResponse{})
 		return
 	}
 
 	if len(result.Tokens) == 0 {
 		logger.Error("Node return invalid result tokens size on command: " + string(command.ToBytes()))
-		writeHTTPResponse(w, ENGINE_UNEXPECTED_ERROR, Response{})
+		writeHTTPResponse(w, ENGINE_UNEXPECTED_ERROR, GetTransactionByCommandUUIDResponse{})
 		return
 	}
 
 	count, err := strconv.Atoi(result.Tokens[0])
 	if err != nil {
 		logger.Error("Node return invalid token on command: " + string(command.ToBytes()) + ". Details: " + err.Error())
-		writeHTTPResponse(w, ENGINE_UNEXPECTED_ERROR, Response{})
+		writeHTTPResponse(w, ENGINE_UNEXPECTED_ERROR, GetTransactionByCommandUUIDResponse{})
 		return
 	}
 
 	if count == 0 {
-		writeHTTPResponse(w, OK, Response{Count: 0})
+		writeHTTPResponse(w, OK, GetTransactionByCommandUUIDResponse{Count: 0})
 		return
 	}
 
 	if count == 1 {
-		writeHTTPResponse(w, OK, Response{
+		writeHTTPResponse(w, OK, GetTransactionByCommandUUIDResponse{
 			Count:           1,
 			TransactionUUID: result.Tokens[1]})
 		return
 	}
 
 	logger.Error("Node return invalid token `count` on command: " + string(command.ToBytes()))
-	writeHTTPResponse(w, ENGINE_UNEXPECTED_ERROR, Response{})
+	writeHTTPResponse(w, ENGINE_UNEXPECTED_ERROR, GetTransactionByCommandUUIDResponse{})
 }

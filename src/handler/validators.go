@@ -5,14 +5,14 @@ import (
 	"strconv"
 	"strings"
 
-	uuid "github.com/satori/go.uuid"
+	"github.com/google/uuid"
 )
 
 var (
 	bigZero = big.NewInt(0)
 )
 
-func ValidateTrustLineAmount(amount string) bool {
+func ValidateSettlementLineAmount(amount string) bool {
 	if amount == "" {
 		return false
 	}
@@ -55,6 +55,6 @@ func ValidateInt(value string) bool {
 }
 
 func validateUUID(identifier string) bool {
-	_, err := uuid.FromString(identifier)
+	_, err := uuid.Parse(identifier)
 	return err == nil
 }
