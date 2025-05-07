@@ -4,13 +4,9 @@ import (
 	"bufio"
 	"encoding/json"
 	"errors"
-	"io"
-	"net"
-	"net/http"
 	"os"
 	"path"
 	"strconv"
-	"strings"
 	"syscall"
 
 	"github.com/vTCP-Foundation/vtcpd-cli/internal/conf"
@@ -53,19 +49,19 @@ var (
 	Balance                   = ""
 )
 
-type NodesHandler struct {
+type NodeHandler struct {
 	// Stores node instances
-	node *Node
+	Node *Node
 }
 
-func InitNodesHandler() (*NodesHandler, error) {
-	nodesHandler := &NodesHandler{
-		node: NewNode(),
+func InitNodeHandler() (*NodeHandler, error) {
+	nodeHandler := &NodeHandler{
+		Node: NewNode(),
 	}
-	return nodesHandler, nil
+	return nodeHandler, nil
 }
 
-func (handler *NodesHandler) RestoreNode() error {
+func (nh *NodeHandler) RestoreNode() error {
 	ioDirPath := conf.Params.Handler.NodeDirPath
 
 	_, err := os.Stat(ioDirPath)
@@ -73,21 +69,21 @@ func (handler *NodesHandler) RestoreNode() error {
 		return wrap("Can't restore node, there is no node folder ", err)
 	}
 
-	err = handler.ensureNodeConfigurationIsPresent()
+	err = nh.ensureNodeConfigurationIsPresent()
 	if err != nil {
 		return wrap("Can't restore node, there is no config file", err)
 	}
 
-	handler.node = NewNode()
+	nh.Node = NewNode()
 
-	if _, err := handler.node.Start(); err != nil {
+	if _, err := nh.Node.Start(); err != nil {
 		return wrap("Can't start node ", err)
 	}
 
 	return nil
 }
 
-func (handler *NodesHandler) StartNodeForCommunication() error {
+func (nh *NodeHandler) StartNodeForCommunication() error {
 	_, err := os.Stat(conf.Params.Handler.NodeDirPath)
 	if err != nil {
 		return wrap("Can't check node, there is no node folder ", err)
@@ -106,15 +102,15 @@ func (handler *NodesHandler) StartNodeForCommunication() error {
 		return errors.New("can't find node process")
 	}
 
-	handler.node = NewNode()
+	nh.Node = NewNode()
 
-	if _, _, err := handler.node.StartCommunication(); err != nil {
+	if _, _, err := nh.Node.StartCommunication(); err != nil {
 		return wrap("Can't start node ", err)
 	}
 	return nil
 }
 
-func (handler *NodesHandler) RestoreNodeWithCommunication() error {
+func (nh *NodeHandler) RestoreNodeWithCommunication() error {
 	ioDirPath := conf.Params.Handler.NodeDirPath
 
 	_, err := os.Stat(ioDirPath)
@@ -122,24 +118,24 @@ func (handler *NodesHandler) RestoreNodeWithCommunication() error {
 		return wrap("Can't restore node, there is no node folder ", err)
 	}
 
-	err = handler.ensureNodeConfigurationIsPresent()
+	err = nh.ensureNodeConfigurationIsPresent()
 	if err != nil {
 		return wrap("Can't restore node, there is no config file", err)
 	}
 
-	handler.node = NewNode()
+	nh.Node = NewNode()
 
-	process, err := handler.node.Start()
+	process, err := nh.Node.Start()
 	if err != nil {
 		return wrap("Can't start node ", err)
 	}
 
-	commandsControlEventsChanel, resultsControlEventsChanel, err := handler.node.StartCommunication()
+	commandsControlEventsChanel, resultsControlEventsChanel, err := nh.Node.StartCommunication()
 	if err != nil {
 		return wrap("Can't start communication with node ", err)
 	}
 
-	go handler.node.BeginMonitorInternalProcessCrashes(
+	go nh.Node.BeginMonitorInternalProcessCrashes(
 		process,
 		commandsControlEventsChanel,
 		resultsControlEventsChanel)
@@ -147,17 +143,15 @@ func (handler *NodesHandler) RestoreNodeWithCommunication() error {
 	return nil
 }
 
-func (handler *NodesHandler) StopNodeCommunication() error {
-	// Nodes map changes must be sequential,
-	// otherwise - there will be a non-zero probability of memory corruption.
-	err := handler.node.StopCommunication()
+func (nh *NodeHandler) StopNodeCommunication() error {
+	err := nh.Node.StopCommunication()
 	if err != nil {
 		return wrap("can't stop node communication", err)
 	}
 	return nil
 }
 
-func (handler *NodesHandler) CheckNodeRunning() (bool, error) {
+func (nh *NodeHandler) CheckNodeRunning() (bool, error) {
 	_, err := os.Stat(conf.Params.Handler.NodeDirPath)
 	if err != nil {
 		return false, wrap("Can't check node, there is no node folder ", err)
@@ -176,7 +170,7 @@ func (handler *NodesHandler) CheckNodeRunning() (bool, error) {
 }
 
 // Creates configuration file for the node.
-func (handler *NodesHandler) ensureNodeConfigurationIsPresent() error {
+func (nh *NodeHandler) ensureNodeConfigurationIsPresent() error {
 	// No automatic node configuration should be done.
 	// Original node config must be preserved.
 	// Only checking if configuration is present.
@@ -187,11 +181,11 @@ func (handler *NodesHandler) ensureNodeConfigurationIsPresent() error {
 	return nil
 }
 
-func (handler *NodesHandler) IfNodeWaitForResult() bool {
-	return len(handler.node.results) > 0
+func (nh *NodeHandler) IfNodeWaitForResult() bool {
+	return len(nh.Node.results) > 0
 }
 
-func (handler *NodesHandler) StopNode() error {
+func (nh *NodeHandler) StopNode() error {
 
 	nodePID, err := getProcessPID(path.Join(conf.Params.Handler.NodeDirPath, "process.pid"))
 	if err != nil {
@@ -203,7 +197,7 @@ func (handler *NodesHandler) StopNode() error {
 		return wrap("There is no node process with PID "+strconv.Itoa(int(nodePID)), err)
 	}
 
-	handler.node.shouldNotBeRestarted = true
+	nh.Node.shouldNotBeRestarted = true
 
 	err = process.Kill()
 	if err != nil {
@@ -248,95 +242,6 @@ func buildJSONResponse(status int, data interface{}) []byte {
 		return nil
 	}
 	return js
-}
-
-func writeHTTPResponse(w http.ResponseWriter, statusCode int, data interface{}) {
-	w.WriteHeader(statusCode)
-	writeJSONResponse(data, w)
-}
-
-func writeJSONResponse(data interface{}, w http.ResponseWriter) {
-	type Response struct {
-		Data interface{} `json:"data"`
-	}
-
-	response := Response{Data: data}
-	js, err := json.Marshal(response)
-	if err != nil {
-		logger.Error("Can't marshall data. Details are: " + err.Error())
-		writeServerError("JSON forming error", w)
-		return
-	}
-
-	w.Header().Set("Content-Type", "application/json")
-	w.Write(js)
-}
-
-func writeServerError(message string, w http.ResponseWriter) {
-	w.WriteHeader(SERVER_ERROR)
-	w.Header().Set("Content-Type", "application/json")
-
-	content := make(map[string]string)
-	content["error"] = message
-
-	js, _ := json.Marshal(content)
-	w.Write(js)
-}
-
-func preprocessRequest(r *http.Request) (string, error) {
-	url := ""
-	if r.Method == "GET" {
-		url = r.Method + ": " + r.URL.String()
-	} else {
-		bodyBytes, _ := io.ReadAll(r.Body)
-		url = r.Method + ": " + r.URL.String() + "{ " + string(bodyBytes) + "}"
-	}
-	logger.Info(url)
-	requesterIP := getRealAddr(r)
-	logger.Info("Requester IP: " + requesterIP)
-	if len(conf.Params.Security.AllowableIPs) > 0 {
-		ipIsAllow := false
-		for _, allowableIP := range conf.Params.Security.AllowableIPs {
-			if allowableIP == requesterIP {
-				ipIsAllow = true
-				break
-			}
-		}
-		if !ipIsAllow {
-			return url, errors.New("IP " + requesterIP + " is not allow")
-		}
-	}
-	apiKey := r.Header.Get("api-key")
-	if conf.Params.Security.ApiKey != "" {
-		if apiKey != conf.Params.Security.ApiKey {
-			return url, errors.New("Invalid api-key " + apiKey)
-		}
-	}
-	return url, nil
-}
-
-func getRealAddr(r *http.Request) string {
-	remoteIP := ""
-	// the default is the originating ip. but we try to find better options because this is almost
-	// never the right IP
-	if parts := strings.Split(r.RemoteAddr, ":"); len(parts) == 2 {
-		remoteIP = parts[0]
-	}
-	// If we have a forwarded-for header, take the address from there
-	if xff := strings.Trim(r.Header.Get("X-Forwarded-For"), ","); len(xff) > 0 {
-		addrs := strings.Split(xff, ",")
-		lastFwd := addrs[len(addrs)-1]
-		if ip := net.ParseIP(lastFwd); ip != nil {
-			remoteIP = ip.String()
-		}
-		// parse X-Real-Ip header
-	} else if xri := r.Header.Get("X-Real-Ip"); len(xri) > 0 {
-		if ip := net.ParseIP(xri); ip != nil {
-			remoteIP = ip.String()
-		}
-	}
-
-	return remoteIP
 }
 
 // Shortcut method for the errors wrapping.

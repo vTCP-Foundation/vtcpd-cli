@@ -67,7 +67,7 @@ func main() {
 	cmd_handler.MaxPositiveBalance = *maxPositiveBalance
 	cmd_handler.Balance = *balance
 
-	cmdHandler, err := cmd_handler.NewCommandHandler()
+	cmdHandler, err := cmd_handler.NewCommandHandlerTes()
 	if err != nil {
 		logger.Error("Can't initialise node handler. Details: " + err.Error())
 		os.Exit(-1)

@@ -14,17 +14,27 @@ type HandlerSettings struct {
 	HTTPInterfacePort        uint16 `json:"http_port"`
 }
 
+type TestHandlerSettings struct {
+	HTTPInterfaceHost string `json:"http_host"`
+	HTTPInterfacePort uint16 `json:"http_port"`
+}
+
 type SecuritySettings struct {
 	ApiKey       string   `json:"api_key"`
 	AllowableIPs []string `json:"allowable_ips"`
 }
 
 type Settings struct {
-	Handler  HandlerSettings  `json:"handler"`
-	Security SecuritySettings `json:"security"`
+	Handler     HandlerSettings     `json:"handler"`
+	Security    SecuritySettings    `json:"security"`
+	TestHandler TestHandlerSettings `json:"test_handler"`
 }
 
 func (s HandlerSettings) HTTPInterface() string {
+	return s.HTTPInterfaceHost + ":" + strconv.Itoa(int(s.HTTPInterfacePort))
+}
+
+func (s TestHandlerSettings) HTTPInterface() string {
 	return s.HTTPInterfaceHost + ":" + strconv.Itoa(int(s.HTTPInterfacePort))
 }
 

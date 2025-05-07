@@ -54,7 +54,7 @@ func ValidateInt(value string) bool {
 	return true
 }
 
-func validateUUID(identifier string) bool {
+func ValidateUUID(identifier string) bool {
 	_, err := uuid.Parse(identifier)
 	return err == nil
 }
