@@ -1,0 +1,15 @@
+handler:
+  node_path: "/path/to/node"
+  executable_path: "/path/to/executable"
+  http_host: "localhost"
+  http_port: 8080
+
+security:
+  api_key: "your-api-key"
+  allowable_ips:
+    - "127.0.0.1"
+    - "192.168.1.1"
+
+test_handler:
+  http_host: "localhost"
+  http_port: 8081

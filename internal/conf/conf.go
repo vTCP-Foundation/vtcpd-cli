@@ -1,33 +1,33 @@
 package conf
 
 import (
-	"encoding/json"
-	"errors"
-	"os"
+	"fmt"
 	"strconv"
+
+	"github.com/spf13/viper"
 )
 
 type HandlerSettings struct {
-	NodeDirPath              string `json:"node_path"`
-	ClientExecutableFullPath string `json:"executable_path"`
-	HTTPInterfaceHost        string `json:"http_host"`
-	HTTPInterfacePort        uint16 `json:"http_port"`
+	NodeDirPath              string `mapstructure:"node_path"`
+	ClientExecutableFullPath string `mapstructure:"executable_path"`
+	HTTPInterfaceHost        string `mapstructure:"http_host"`
+	HTTPInterfacePort        uint16 `mapstructure:"http_port"`
 }
 
 type TestHandlerSettings struct {
-	HTTPInterfaceHost string `json:"http_host"`
-	HTTPInterfacePort uint16 `json:"http_port"`
+	HTTPInterfaceHost string `mapstructure:"http_host"`
+	HTTPInterfacePort uint16 `mapstructure:"http_port"`
 }
 
 type SecuritySettings struct {
-	ApiKey       string   `json:"api_key"`
-	AllowableIPs []string `json:"allowable_ips"`
+	ApiKey       string   `mapstructure:"api_key"`
+	AllowableIPs []string `mapstructure:"allowable_ips"`
 }
 
 type Settings struct {
-	Handler     HandlerSettings     `json:"handler"`
-	Security    SecuritySettings    `json:"security"`
-	TestHandler TestHandlerSettings `json:"test_handler"`
+	Handler     HandlerSettings     `mapstructure:"handler"`
+	Security    SecuritySettings    `mapstructure:"security"`
+	TestHandler TestHandlerSettings `mapstructure:"test_handler"`
 }
 
 func (s HandlerSettings) HTTPInterface() string {
@@ -43,15 +43,17 @@ var (
 )
 
 func LoadSettings() error {
-	// Reading configuration file
-	bytes, err := os.ReadFile("conf.json")
-	if err != nil {
-		return errors.New("Can't read configuration. Details: " + err.Error())
+	v := viper.New()
+	v.SetConfigName("conf") // configuration file without extension
+	v.SetConfigType("yaml") // configuration type
+	v.AddConfigPath(".")    // path to the configuration file
+
+	if err := v.ReadInConfig(); err != nil {
+		return fmt.Errorf("failed to read config file: %w", err)
 	}
 
-	err = json.Unmarshal(bytes, &Params)
-	if err != nil {
-		return errors.New("Can't read configuration. Details: " + err.Error())
+	if err := v.Unmarshal(&Params); err != nil {
+		return fmt.Errorf("failed to unmarshal config: %w", err)
 	}
 
 	return nil
