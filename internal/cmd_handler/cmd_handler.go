@@ -81,7 +81,7 @@ func (h *CommandHandler) HandleHTTP() error {
 	}
 	routesHandler := routes.NewRoutesHandler(h.nodeHandler)
 	router := server.InitNodeHandlerServer(routesHandler)
-	return http.ListenAndServe(conf.Params.Handler.HTTPInterface(), router)
+	return http.ListenAndServe(conf.Params.HTTP.HTTPInterface(), router)
 }
 
 func (h *CommandHandler) HandleStartHTTP() error {
@@ -103,5 +103,5 @@ func (h *CommandHandler) HandleStartHTTP() error {
 	}
 	routesHandler := routes.NewRoutesHandler(h.nodeHandler)
 	router := server.InitNodeHandlerServer(routesHandler)
-	return http.ListenAndServe(conf.Params.Handler.HTTPInterface(), router)
+	return http.ListenAndServe(conf.Params.HTTP.HTTPInterface(), router)
 }

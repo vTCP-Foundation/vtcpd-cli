@@ -1,0 +1,17 @@
+workdir: "/path/to/node"
+vtcpd_path: "/path/to/executable"
+http: 
+  host: "localhost"
+  port: 8080
+
+# optional. necessary in testing mode, when testing build was made
+http_testing:
+  host: "localhost"
+  port: 8081
+
+# optional. check http requests
+security:
+  api_key: "your-api-key"
+  allowable_ips:
+    - "127.0.0.1"
+    - "192.168.1.1"

@@ -4,44 +4,8 @@ import (
 	"fmt"
 	"strconv"
 
+	"github.com/vTCP-Foundation/vtcpd-cli/internal/common"
 	"github.com/vTCP-Foundation/vtcpd-cli/internal/logger"
-)
-
-// --- Global structs for payments ---
-
-type MaxFlowRecord struct {
-	ContractorAddressType string `json:"address_type"`
-	ContractorAddress     string `json:"contractor_address"`
-	MaxAmount             string `json:"max_amount"`
-}
-
-// --- Global API responses for payments ---
-
-type MaxFlowResponse struct {
-	Count   int             `json:"count"`
-	Records []MaxFlowRecord `json:"records"`
-}
-
-type MaxFlowPartialResponse struct {
-	State   int             `json:"state"`
-	Count   int             `json:"count"`
-	Records []MaxFlowRecord `json:"records"`
-}
-
-type PaymentResponse struct {
-	TransactionUUID string `json:"transaction_uuid"`
-}
-
-type GetTransactionByCommandUUIDResponse struct {
-	Count           int    `json:"count"`
-	TransactionUUID string `json:"transaction_uuid"`
-}
-
-var (
-	PAYMENT_OPERATION_TIMEOUT uint16 = 60
-	MAX_FLOW_FIRST_TIMEOUT    uint16 = 30
-	MAX_FLOW_FULLY_TIMEOUT    uint16 = 60
-	COMMAND_UUID_TIMEOUT      uint16 = 20
 )
 
 func (handler *NodeHandler) MaxFlow() {
@@ -66,7 +30,7 @@ func (handler *NodeHandler) maxFlowFully() {
 		return
 	}
 
-	if !ValidateInt(Equivalent) {
+	if !common.ValidateInt(Equivalent) {
 		logger.Error("Bad request: invalid equivalent parameter in max-flow request")
 		fmt.Println("Bad request: invalid equivalent parameter")
 		return
@@ -74,7 +38,7 @@ func (handler *NodeHandler) maxFlowFully() {
 
 	var addresses []string
 	for idx := range len(Addresses) {
-		addressType, address := ValidateAddress(Addresses[idx])
+		addressType, address := common.ValidateAddress(Addresses[idx])
 		if addressType == "" {
 			logger.Error("Bad request: invalid address parameter in max-flow request")
 			fmt.Println("Bad request: invalid address parameter")
@@ -95,16 +59,16 @@ func (handler *NodeHandler) maxFlowGetResult(command *Command) {
 	err := handler.Node.SendCommand(command)
 	if err != nil {
 		logger.Error("Can't send command: " + string(command.ToBytes()) + " to node. Details: " + err.Error())
-		resultJSON := buildJSONResponse(COMMAND_TRANSFERRING_ERROR, MaxFlowResponse{})
+		resultJSON := buildJSONResponse(COMMAND_TRANSFERRING_ERROR, common.MaxFlowResponse{})
 		fmt.Println(string(resultJSON))
 		return
 	}
 
-	result, err := handler.Node.GetResult(command, MAX_FLOW_FULLY_TIMEOUT)
+	result, err := handler.Node.GetResult(command, common.MAX_FLOW_FULLY_TIMEOUT)
 	if err != nil {
 		logger.Error("Node is inaccessible during processing command: " +
 			string(command.ToBytes()) + ". Details: " + err.Error())
-		resultJSON := buildJSONResponse(NODE_IS_INACCESSIBLE, MaxFlowResponse{})
+		resultJSON := buildJSONResponse(NODE_IS_INACCESSIBLE, common.MaxFlowResponse{})
 		fmt.Println(string(resultJSON))
 		return
 	}
@@ -112,20 +76,20 @@ func (handler *NodeHandler) maxFlowGetResult(command *Command) {
 	if result.Code != OK && result.Code != ENGINE_NO_EQUIVALENT {
 		logger.Error("Node return wrong command result: " + strconv.Itoa(result.Code) +
 			" on command: " + string(command.ToBytes()))
-		resultJSON := buildJSONResponse(result.Code, MaxFlowResponse{})
+		resultJSON := buildJSONResponse(result.Code, common.MaxFlowResponse{})
 		fmt.Println(string(resultJSON))
 		return
 	}
 	if result.Code == ENGINE_NO_EQUIVALENT {
 		logger.Info("Node hasn't equivalent for command: " + string(command.ToBytes()))
-		resultJSON := buildJSONResponse(result.Code, MaxFlowResponse{})
+		resultJSON := buildJSONResponse(result.Code, common.MaxFlowResponse{})
 		fmt.Println(string(resultJSON))
 		return
 	}
 
 	if len(result.Tokens) == 0 {
 		logger.Error("Node return invalid result tokens size on command: " + string(command.ToBytes()))
-		resultJSON := buildJSONResponse(ENGINE_UNEXPECTED_ERROR, MaxFlowResponse{})
+		resultJSON := buildJSONResponse(ENGINE_UNEXPECTED_ERROR, common.MaxFlowResponse{})
 		fmt.Println(string(resultJSON))
 		return
 	}
@@ -134,20 +98,20 @@ func (handler *NodeHandler) maxFlowGetResult(command *Command) {
 	if err != nil {
 		logger.Error("Node return invalid token on command: " + string(command.ToBytes()) +
 			". Details: " + err.Error())
-		resultJSON := buildJSONResponse(ENGINE_UNEXPECTED_ERROR, MaxFlowResponse{})
+		resultJSON := buildJSONResponse(ENGINE_UNEXPECTED_ERROR, common.MaxFlowResponse{})
 		fmt.Println(string(resultJSON))
 		return
 	}
 
 	if contractorsCount == 0 {
-		resultJSON := buildJSONResponse(OK, MaxFlowResponse{Count: 0})
+		resultJSON := buildJSONResponse(OK, common.MaxFlowResponse{Count: 0})
 		fmt.Println(string(resultJSON))
 		return
 	}
 
-	response := MaxFlowResponse{Count: contractorsCount}
+	response := common.MaxFlowResponse{Count: contractorsCount}
 	for i := range contractorsCount {
-		response.Records = append(response.Records, MaxFlowRecord{
+		response.Records = append(response.Records, common.MaxFlowRecord{
 			ContractorAddressType: result.Tokens[i*3+1],
 			ContractorAddress:     result.Tokens[i*3+2],
 			MaxAmount:             result.Tokens[i*3+3],
@@ -164,7 +128,7 @@ func (handler *NodeHandler) maxFlowPartly() {
 		return
 	}
 
-	if !ValidateInt(Equivalent) {
+	if !common.ValidateInt(Equivalent) {
 		logger.Error("Bad request: invalid equivalent parameter in max-flow partly request")
 		fmt.Println("Bad request: invalid equivalent parameter")
 		return
@@ -172,7 +136,7 @@ func (handler *NodeHandler) maxFlowPartly() {
 
 	var addresses []string
 	for idx := range len(Addresses) {
-		addressType, address := ValidateAddress(Addresses[idx])
+		addressType, address := common.ValidateAddress(Addresses[idx])
 		if addressType == "" {
 			logger.Error("Bad request: invalid address parameter in max-flow partly request")
 			fmt.Println("Bad request: invalid address parameter")
@@ -193,16 +157,16 @@ func (handler *NodeHandler) maxFlowPartlyGetResult(command *Command) {
 	err := handler.Node.SendCommand(command)
 	if err != nil {
 		logger.Error("Can't send command: " + string(command.ToBytes()) + " to node. Details: " + err.Error())
-		resultJSON := buildJSONResponse(COMMAND_TRANSFERRING_ERROR, MaxFlowPartialResponse{})
+		resultJSON := buildJSONResponse(COMMAND_TRANSFERRING_ERROR, common.MaxFlowPartialResponse{})
 		fmt.Println(string(resultJSON))
 		return
 	}
 
-	result, err := handler.Node.GetResult(command, MAX_FLOW_FIRST_TIMEOUT)
+	result, err := handler.Node.GetResult(command, common.MAX_FLOW_FIRST_TIMEOUT)
 	if err != nil {
 		logger.Error("Node is inaccessible during processing command: " +
 			string(command.ToBytes()) + ". Details: " + err.Error())
-		resultJSON := buildJSONResponse(NODE_IS_INACCESSIBLE, MaxFlowPartialResponse{})
+		resultJSON := buildJSONResponse(NODE_IS_INACCESSIBLE, common.MaxFlowPartialResponse{})
 		fmt.Println(string(resultJSON))
 		return
 	}
@@ -210,20 +174,20 @@ func (handler *NodeHandler) maxFlowPartlyGetResult(command *Command) {
 	if result.Code != OK && result.Code != ENGINE_NO_EQUIVALENT {
 		logger.Error("Node return wrong command result: " + strconv.Itoa(result.Code) +
 			" on command: " + string(command.ToBytes()))
-		resultJSON := buildJSONResponse(result.Code, MaxFlowPartialResponse{})
+		resultJSON := buildJSONResponse(result.Code, common.MaxFlowPartialResponse{})
 		fmt.Println(string(resultJSON))
 		return
 	}
 	if result.Code == ENGINE_NO_EQUIVALENT {
 		logger.Info("Node hasn't equivalent for command: " + string(command.ToBytes()))
-		resultJSON := buildJSONResponse(result.Code, MaxFlowPartialResponse{})
+		resultJSON := buildJSONResponse(result.Code, common.MaxFlowPartialResponse{})
 		fmt.Println(string(resultJSON))
 		return
 	}
 
 	if len(result.Tokens) == 0 {
 		logger.Error("Node return invalid result tokens size on command: " + string(command.ToBytes()))
-		resultJSON := buildJSONResponse(ENGINE_UNEXPECTED_ERROR, MaxFlowPartialResponse{})
+		resultJSON := buildJSONResponse(ENGINE_UNEXPECTED_ERROR, common.MaxFlowPartialResponse{})
 		fmt.Println(string(resultJSON))
 		return
 	}
@@ -232,7 +196,7 @@ func (handler *NodeHandler) maxFlowPartlyGetResult(command *Command) {
 	if err != nil {
 		logger.Error("Node return invalid stateResult on command: " + string(command.ToBytes()) +
 			". Details: " + err.Error())
-		resultJSON := buildJSONResponse(ENGINE_UNEXPECTED_ERROR, MaxFlowPartialResponse{})
+		resultJSON := buildJSONResponse(ENGINE_UNEXPECTED_ERROR, common.MaxFlowPartialResponse{})
 		fmt.Println(string(resultJSON))
 		return
 	}
@@ -241,22 +205,22 @@ func (handler *NodeHandler) maxFlowPartlyGetResult(command *Command) {
 	if err != nil {
 		logger.Error("Node return invalid contractorsCount on command: " + string(command.ToBytes()) +
 			". Details: " + err.Error())
-		resultJSON := buildJSONResponse(ENGINE_UNEXPECTED_ERROR, MaxFlowPartialResponse{})
+		resultJSON := buildJSONResponse(ENGINE_UNEXPECTED_ERROR, common.MaxFlowPartialResponse{})
 		fmt.Println(string(resultJSON))
 		return
 	}
 
 	if contractorsCount == 0 {
-		resultJSON := buildJSONResponse(OK, MaxFlowPartialResponse{State: stateResult, Count: 0})
+		resultJSON := buildJSONResponse(OK, common.MaxFlowPartialResponse{State: stateResult, Count: 0})
 		fmt.Println(string(resultJSON))
 		return
 	}
 
-	response := MaxFlowPartialResponse{
+	response := common.MaxFlowPartialResponse{
 		State: stateResult,
 		Count: contractorsCount}
 	for i := range contractorsCount {
-		response.Records = append(response.Records, MaxFlowRecord{
+		response.Records = append(response.Records, common.MaxFlowRecord{
 			ContractorAddressType: result.Tokens[i*3+2],
 			ContractorAddress:     result.Tokens[i*3+3],
 			MaxAmount:             result.Tokens[i*3+4],
@@ -277,11 +241,11 @@ func (handler *NodeHandler) maxFlowPartlyStepTwoGetResult(command *Command) {
 	// Command processing.
 	// This command may execute relatively slow.
 	// Timeout is set to little bit greater value to be able to handle this.
-	result, err := handler.Node.GetResult(command, MAX_FLOW_FULLY_TIMEOUT)
+	result, err := handler.Node.GetResult(command, common.MAX_FLOW_FULLY_TIMEOUT)
 	if err != nil {
 		logger.Error("Node is inaccessible during processing command 2: " + string(command.ToBytes()) +
 			". Details: " + err.Error())
-		resultJSON := buildJSONResponse(NODE_IS_INACCESSIBLE, MaxFlowPartialResponse{})
+		resultJSON := buildJSONResponse(NODE_IS_INACCESSIBLE, common.MaxFlowPartialResponse{})
 		fmt.Println(string(resultJSON))
 		return
 	}
@@ -289,14 +253,14 @@ func (handler *NodeHandler) maxFlowPartlyStepTwoGetResult(command *Command) {
 	if result.Code != OK {
 		logger.Error("Node return wrong command result: " + strconv.Itoa(result.Code) +
 			" on command 2: " + string(command.ToBytes()))
-		resultJSON := buildJSONResponse(result.Code, MaxFlowPartialResponse{})
+		resultJSON := buildJSONResponse(result.Code, common.MaxFlowPartialResponse{})
 		fmt.Println(string(resultJSON))
 		return
 	}
 
 	if len(result.Tokens) == 0 {
 		logger.Error("Node return invalid result tokens size on command 2: " + string(command.ToBytes()))
-		resultJSON := buildJSONResponse(ENGINE_UNEXPECTED_ERROR, MaxFlowPartialResponse{})
+		resultJSON := buildJSONResponse(ENGINE_UNEXPECTED_ERROR, common.MaxFlowPartialResponse{})
 		fmt.Println(string(resultJSON))
 		return
 	}
@@ -304,7 +268,7 @@ func (handler *NodeHandler) maxFlowPartlyStepTwoGetResult(command *Command) {
 	stateResult, err := strconv.Atoi(result.Tokens[0])
 	if err != nil {
 		logger.Error("Node return invalid stateResult on command 2: " + string(command.ToBytes()) + ". Details: " + err.Error())
-		resultJSON := buildJSONResponse(ENGINE_UNEXPECTED_ERROR, MaxFlowPartialResponse{})
+		resultJSON := buildJSONResponse(ENGINE_UNEXPECTED_ERROR, common.MaxFlowPartialResponse{})
 		fmt.Println(string(resultJSON))
 		return
 	}
@@ -312,22 +276,22 @@ func (handler *NodeHandler) maxFlowPartlyStepTwoGetResult(command *Command) {
 	contractorsCount, err := strconv.Atoi(result.Tokens[1])
 	if err != nil {
 		logger.Error("Node return invalid contractorsCount on command 2: " + string(command.ToBytes()) + ". Details: " + err.Error())
-		resultJSON := buildJSONResponse(ENGINE_UNEXPECTED_ERROR, MaxFlowPartialResponse{})
+		resultJSON := buildJSONResponse(ENGINE_UNEXPECTED_ERROR, common.MaxFlowPartialResponse{})
 		fmt.Println(string(resultJSON))
 		return
 	}
 
 	if contractorsCount == 0 {
-		resultJSON := buildJSONResponse(OK, MaxFlowPartialResponse{State: stateResult, Count: 0})
+		resultJSON := buildJSONResponse(OK, common.MaxFlowPartialResponse{State: stateResult, Count: 0})
 		fmt.Println(string(resultJSON))
 		return
 	}
 
-	response := MaxFlowPartialResponse{
+	response := common.MaxFlowPartialResponse{
 		State: stateResult,
 		Count: contractorsCount}
 	for i := range contractorsCount {
-		response.Records = append(response.Records, MaxFlowRecord{
+		response.Records = append(response.Records, common.MaxFlowRecord{
 			ContractorAddressType: result.Tokens[i*3+2],
 			ContractorAddress:     result.Tokens[i*3+3],
 			MaxAmount:             result.Tokens[i*3+4],
@@ -349,13 +313,13 @@ func (handler *NodeHandler) Payment() {
 		return
 	}
 
-	if !ValidateSettlementLineAmount(Amount) {
+	if !common.ValidateSettlementLineAmount(Amount) {
 		logger.Error("Bad request: invalid amount parameter in payment request")
 		fmt.Println("Bad request: invalid amount parameter")
 		return
 	}
 
-	if !ValidateInt(Equivalent) {
+	if !common.ValidateInt(Equivalent) {
 		logger.Error("Bad request: invalid equivalent parameter in payment request")
 		fmt.Println("Bad request: invalid equivalent parameter")
 		return
@@ -363,7 +327,7 @@ func (handler *NodeHandler) Payment() {
 
 	var addresses []string
 	for idx := range len(Addresses) {
-		addressType, address := ValidateAddress(Addresses[idx])
+		addressType, address := common.ValidateAddress(Addresses[idx])
 		if addressType == "" {
 			logger.Error("Bad request: invalid address parameter in payment request")
 			fmt.Println("Bad request: invalid address parameter")
@@ -387,16 +351,16 @@ func (handler *NodeHandler) paymentResult(command *Command) {
 	err := handler.Node.SendCommand(command)
 	if err != nil {
 		logger.Error("Can't send command: " + string(command.ToBytes()) + " to node. Details: " + err.Error())
-		resultJSON := buildJSONResponse(COMMAND_TRANSFERRING_ERROR, PaymentResponse{})
+		resultJSON := buildJSONResponse(COMMAND_TRANSFERRING_ERROR, common.PaymentResponse{})
 		fmt.Println(string(resultJSON))
 		return
 	}
 
-	result, err := handler.Node.GetResult(command, PAYMENT_OPERATION_TIMEOUT)
+	result, err := handler.Node.GetResult(command, common.PAYMENT_OPERATION_TIMEOUT)
 	if err != nil {
 		logger.Error("Node is inaccessible during processing command: " +
 			string(command.ToBytes()) + ". Details: " + err.Error())
-		resultJSON := buildJSONResponse(NODE_IS_INACCESSIBLE, PaymentResponse{})
+		resultJSON := buildJSONResponse(NODE_IS_INACCESSIBLE, common.PaymentResponse{})
 		fmt.Println(string(resultJSON))
 		return
 	}
@@ -404,24 +368,24 @@ func (handler *NodeHandler) paymentResult(command *Command) {
 	if result.Code != CREATED && result.Code != ENGINE_NO_EQUIVALENT {
 		logger.Error("Node return wrong command result: " + strconv.Itoa(result.Code) +
 			" on command: " + string(command.ToBytes()))
-		resultJSON := buildJSONResponse(result.Code, PaymentResponse{})
+		resultJSON := buildJSONResponse(result.Code, common.PaymentResponse{})
 		fmt.Println(string(resultJSON))
 		return
 	}
 	if result.Code == ENGINE_NO_EQUIVALENT {
 		logger.Info("Node hasn't equivalent for command: " + string(command.ToBytes()))
-		resultJSON := buildJSONResponse(result.Code, PaymentResponse{})
+		resultJSON := buildJSONResponse(result.Code, common.PaymentResponse{})
 		fmt.Println(string(resultJSON))
 		return
 	}
 
 	if len(result.Tokens) == 0 {
 		logger.Error("Node return invalid result tokens size on command: " + string(command.ToBytes()))
-		resultJSON := buildJSONResponse(ENGINE_UNEXPECTED_ERROR, PaymentResponse{})
+		resultJSON := buildJSONResponse(ENGINE_UNEXPECTED_ERROR, common.PaymentResponse{})
 		fmt.Println(string(resultJSON))
 		return
 	}
 
-	resultJSON := buildJSONResponse(OK, PaymentResponse{TransactionUUID: result.Tokens[0]})
+	resultJSON := buildJSONResponse(OK, common.PaymentResponse{TransactionUUID: result.Tokens[0]})
 	fmt.Println(string(resultJSON))
 }

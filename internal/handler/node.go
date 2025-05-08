@@ -52,8 +52,8 @@ func (node *Node) Start() (*exec.Cmd, error) {
 	// In case if this attempt fails - the error must be returned imminently.
 
 	// Starting child process.
-	process := exec.Command(conf.Params.Handler.ClientExecutableFullPath)
-	process.Dir = path.Join(conf.Params.Handler.NodeDirPath)
+	process := exec.Command(conf.Params.VTCPDPath)
+	process.Dir = path.Join(conf.Params.WorkDir)
 
 	err := process.Start()
 	if err != nil {
@@ -72,7 +72,7 @@ func (node *Node) StartCommunication() (chan *goroutineControlEvent, chan *gorou
 	commandsControlEventsChanel := make(chan *goroutineControlEvent, 1)
 	commandsGoroutineErrorsChanel := make(chan error, 1)
 	go node.beginTransferCommands(
-		path.Join(conf.Params.Handler.NodeDirPath),
+		path.Join(conf.Params.WorkDir),
 		CHILD_PROCESS_SPAWN_TIMEOUT_SECONDS,
 		commandsControlEventsChanel,
 		commandsGoroutineErrorsChanel)
@@ -80,7 +80,7 @@ func (node *Node) StartCommunication() (chan *goroutineControlEvent, chan *gorou
 	resultsControlEventsChanel := make(chan *goroutineControlEvent, 1)
 	resultsGoroutinesErrorsChanel := make(chan error, 1)
 	go node.beginReceiveResults(
-		path.Join(conf.Params.Handler.NodeDirPath),
+		path.Join(conf.Params.WorkDir),
 		CHILD_PROCESS_SPAWN_TIMEOUT_SECONDS,
 		resultsControlEventsChanel,
 		resultsGoroutinesErrorsChanel)

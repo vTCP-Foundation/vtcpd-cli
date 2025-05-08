@@ -82,14 +82,14 @@ func (h *CommandHandlerTesting) HandleHTTP() error {
 	go func() {
 		routesHandlerTesting := routes.NewRoutesHandler(h.nodeHandler)
 		routerTesting := server.InitTestNodeHandlerServer(routesHandlerTesting)
-		err = http.ListenAndServe(conf.Params.TestHandler.HTTPInterface(), routerTesting)
+		err = http.ListenAndServe(conf.Params.HTTPTesting.HTTPInterface(), routerTesting)
 		if err != nil {
 			os.Exit(1)
 		}
 	}()
 	routesHandler := routes.NewRoutesHandler(h.nodeHandler)
 	router := server.InitNodeHandlerServer(routesHandler)
-	return http.ListenAndServe(conf.Params.Handler.HTTPInterface(), router)
+	return http.ListenAndServe(conf.Params.HTTP.HTTPInterface(), router)
 }
 
 func (h *CommandHandlerTesting) HandleStartHTTP() error {
@@ -112,12 +112,12 @@ func (h *CommandHandlerTesting) HandleStartHTTP() error {
 	go func() {
 		routesHandlerTesting := routes.NewRoutesHandler(h.nodeHandler)
 		routerTesting := server.InitTestNodeHandlerServer(routesHandlerTesting)
-		err = http.ListenAndServe(conf.Params.TestHandler.HTTPInterface(), routerTesting)
+		err = http.ListenAndServe(conf.Params.HTTPTesting.HTTPInterface(), routerTesting)
 		if err != nil {
 			os.Exit(1)
 		}
 	}()
 	routesHandler := routes.NewRoutesHandler(h.nodeHandler)
 	router := server.InitNodeHandlerServer(routesHandler)
-	return http.ListenAndServe(conf.Params.Handler.HTTPInterface(), router)
+	return http.ListenAndServe(conf.Params.HTTP.HTTPInterface(), router)
 }

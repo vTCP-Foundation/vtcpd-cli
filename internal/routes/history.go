@@ -6,87 +6,9 @@ import (
 	"strings"
 
 	"github.com/gorilla/mux"
+	"github.com/vTCP-Foundation/vtcpd-cli/internal/common"
 	"github.com/vTCP-Foundation/vtcpd-cli/internal/handler"
 	"github.com/vTCP-Foundation/vtcpd-cli/internal/logger"
-)
-
-// --- Global structs for history ---
-
-type SettlementLineHistoryRecord struct {
-	TransactionUUID           string `json:"transaction_uuid"`
-	UnixTimestampMicroseconds string `json:"unix_timestamp_microseconds"`
-	Contractor                string `json:"contractor"`
-	OperationDirection        string `json:"operation_direction"`
-	Amount                    string `json:"amount"`
-}
-
-type PaymentHistoryRecord struct {
-	TransactionUUID           string `json:"transaction_uuid"`
-	UnixTimestampMicroseconds string `json:"unix_timestamp_microseconds"`
-	Contractor                string `json:"contractor"`
-	OperationDirection        string `json:"operation_direction"`
-	Amount                    string `json:"amount"`
-	BalanceAfterOperation     string `json:"balance_after_operation"`
-	Payload                   string `json:"payload"`
-}
-
-type PaymentAllEquivalentsHistoryRecord struct {
-	Equivalent                string `json:"equivalent"`
-	TransactionUUID           string `json:"transaction_uuid"`
-	UnixTimestampMicroseconds string `json:"unix_timestamp_microseconds"`
-	Contractor                string `json:"contractor"`
-	OperationDirection        string `json:"operation_direction"`
-	Amount                    string `json:"amount"`
-	BalanceAfterOperation     string `json:"balance_after_operation"`
-	Payload                   string `json:"payload"`
-}
-
-type ContractorOperationHistoryRecord struct {
-	RecordType                string `json:"record_type"` // "payment" or "trustline"
-	TransactionUUID           string `json:"transaction_uuid"`
-	UnixTimestampMicroseconds string `json:"unix_timestamp_microseconds"`
-	OperationDirection        string `json:"operation_direction"`
-	Amount                    string `json:"amount"`
-	BalanceAfterOperation     string `json:"balance_after_operation"` // Can be "0" для trustline
-	Payload                   string `json:"payload"`                 // Can be "" для trustline
-}
-
-type AdditionalPaymentHistoryRecord struct {
-	TransactionUUID           string `json:"transaction_uuid"`
-	UnixTimestampMicroseconds string `json:"unix_timestamp_microseconds"`
-	OperationDirection        string `json:"operation_direction"`
-	Amount                    string `json:"amount"`
-}
-
-// --- Global API responses for history ---
-
-type SettlementLineHistoryResponse struct {
-	Count   int                           `json:"count"`
-	Records []SettlementLineHistoryRecord `json:"records"`
-}
-
-type PaymentHistoryResponse struct {
-	Count   int                    `json:"count"`
-	Records []PaymentHistoryRecord `json:"records"`
-}
-
-type PaymentAllEquivalentsHistoryResponse struct {
-	Count   int                                  `json:"count"`
-	Records []PaymentAllEquivalentsHistoryRecord `json:"records"`
-}
-
-type ContractorOperationsHistoryResponse struct {
-	Count   int                                `json:"count"`
-	Records []ContractorOperationHistoryRecord `json:"records"`
-}
-
-type AdditionalPaymentHistoryResponse struct {
-	Count   int                              `json:"count"`
-	Records []AdditionalPaymentHistoryRecord `json:"records"`
-}
-
-var (
-	HISTORY_RESULT_TIMEOUT uint16 = 20 // seconds
 )
 
 func (router *RoutesHandler) SettlementLinesHistory(w http.ResponseWriter, r *http.Request) {
@@ -98,14 +20,14 @@ func (router *RoutesHandler) SettlementLinesHistory(w http.ResponseWriter, r *ht
 	}
 
 	offset, isParamPresent := mux.Vars(r)["offset"]
-	if !isParamPresent || !handler.ValidateInt(offset) {
+	if !isParamPresent || !common.ValidateInt(offset) {
 		logger.Error("Bad request: invalid offset parameter: " + url)
 		w.WriteHeader(BAD_REQUEST)
 		return
 	}
 
 	count, isParamPresent := mux.Vars(r)["count"]
-	if !isParamPresent || !handler.ValidateInt(count) {
+	if !isParamPresent || !common.ValidateInt(count) {
 		logger.Error("Bad request: invalid count parameter: " + url)
 		w.WriteHeader(BAD_REQUEST)
 		return
@@ -134,34 +56,34 @@ func (router *RoutesHandler) SettlementLinesHistory(w http.ResponseWriter, r *ht
 	err = router.nodeHandler.Node.SendCommand(command)
 	if err != nil {
 		logger.Error("Can't send command: " + string(command.ToBytes()) + " to node. Details: " + err.Error())
-		writeHTTPResponse(w, COMMAND_TRANSFERRING_ERROR, SettlementLineHistoryResponse{})
+		writeHTTPResponse(w, COMMAND_TRANSFERRING_ERROR, common.SettlementLineHistoryResponse{})
 		return
 	}
 
-	result, err := router.nodeHandler.Node.GetResult(command, HISTORY_RESULT_TIMEOUT)
+	result, err := router.nodeHandler.Node.GetResult(command, common.HISTORY_RESULT_TIMEOUT)
 	if err != nil {
 		logger.Error("Node is inaccessible during processing command " +
 			string(command.ToBytes()) + ". Details: " + err.Error())
-		writeHTTPResponse(w, NODE_IS_INACCESSIBLE, SettlementLineHistoryResponse{})
+		writeHTTPResponse(w, NODE_IS_INACCESSIBLE, common.SettlementLineHistoryResponse{})
 		return
 	}
 
 	if result.Code != OK && result.Code != ENGINE_NO_EQUIVALENT {
 		logger.Error("Node return wrong command result: " + strconv.Itoa(result.Code) +
 			" on command: " + string(command.ToBytes()))
-		writeHTTPResponse(w, result.Code, SettlementLineHistoryResponse{})
+		writeHTTPResponse(w, result.Code, common.SettlementLineHistoryResponse{})
 		return
 	}
 	if result.Code == ENGINE_NO_EQUIVALENT {
 		logger.Info("Node hasn't equivalent for command: " + string(command.ToBytes()))
-		writeHTTPResponse(w, result.Code, SettlementLineHistoryResponse{})
+		writeHTTPResponse(w, result.Code, common.SettlementLineHistoryResponse{})
 		return
 	}
 
 	if len(result.Tokens) == 0 {
 		logger.Error("Node return invalid result tokens size on command: " +
 			string(command.ToBytes()))
-		writeHTTPResponse(w, ENGINE_UNEXPECTED_ERROR, SettlementLineHistoryResponse{})
+		writeHTTPResponse(w, ENGINE_UNEXPECTED_ERROR, common.SettlementLineHistoryResponse{})
 		return
 	}
 
@@ -169,18 +91,18 @@ func (router *RoutesHandler) SettlementLinesHistory(w http.ResponseWriter, r *ht
 	if err != nil {
 		logger.Error("Node return invalid token on command: " + string(command.ToBytes()) +
 			". Details: " + err.Error())
-		writeHTTPResponse(w, ENGINE_UNEXPECTED_ERROR, SettlementLineHistoryResponse{})
+		writeHTTPResponse(w, ENGINE_UNEXPECTED_ERROR, common.SettlementLineHistoryResponse{})
 		return
 	}
 
 	if recordsCount == 0 {
-		writeHTTPResponse(w, OK, SettlementLineHistoryResponse{Count: recordsCount})
+		writeHTTPResponse(w, OK, common.SettlementLineHistoryResponse{Count: recordsCount})
 		return
 	}
 
-	response := SettlementLineHistoryResponse{Count: recordsCount}
+	response := common.SettlementLineHistoryResponse{Count: recordsCount}
 	for i := range recordsCount {
-		response.Records = append(response.Records, SettlementLineHistoryRecord{
+		response.Records = append(response.Records, common.SettlementLineHistoryRecord{
 			TransactionUUID:           result.Tokens[i*5+1],
 			UnixTimestampMicroseconds: result.Tokens[i*5+2],
 			Contractor:                result.Tokens[i*5+3],
@@ -200,14 +122,14 @@ func (router *RoutesHandler) PaymentsHistory(w http.ResponseWriter, r *http.Requ
 	}
 
 	offset, isParamPresent := mux.Vars(r)["offset"]
-	if !isParamPresent || !handler.ValidateInt(offset) {
+	if !isParamPresent || !common.ValidateInt(offset) {
 		logger.Error("Bad request: invalid offset parameter: " + url)
 		w.WriteHeader(BAD_REQUEST)
 		return
 	}
 
 	count, isParamPresent := mux.Vars(r)["count"]
-	if !isParamPresent || !handler.ValidateInt(count) {
+	if !isParamPresent || !common.ValidateInt(count) {
 		logger.Error("Bad request: invalid count parameter: " + url)
 		w.WriteHeader(BAD_REQUEST)
 		return
@@ -261,51 +183,51 @@ func (router *RoutesHandler) PaymentsHistory(w http.ResponseWriter, r *http.Requ
 	err = router.nodeHandler.Node.SendCommand(command)
 	if err != nil {
 		logger.Error("Can't send command: " + string(command.ToBytes()) + " to node. Details: " + err.Error())
-		writeHTTPResponse(w, COMMAND_TRANSFERRING_ERROR, PaymentHistoryResponse{})
+		writeHTTPResponse(w, COMMAND_TRANSFERRING_ERROR, common.PaymentHistoryResponse{})
 		return
 	}
 
-	result, err := router.nodeHandler.Node.GetResult(command, HISTORY_RESULT_TIMEOUT)
+	result, err := router.nodeHandler.Node.GetResult(command, common.HISTORY_RESULT_TIMEOUT)
 	if err != nil {
 		logger.Error("Node is inaccessible during processing command: " + string(command.ToBytes()) +
 			" . Details: " + err.Error())
-		writeHTTPResponse(w, NODE_IS_INACCESSIBLE, PaymentHistoryResponse{})
+		writeHTTPResponse(w, NODE_IS_INACCESSIBLE, common.PaymentHistoryResponse{})
 		return
 	}
 
 	if result.Code != OK && result.Code != ENGINE_NO_EQUIVALENT {
 		logger.Error("Node return wrong command result: " +
 			strconv.Itoa(result.Code) + " on command " + string(command.ToBytes()))
-		writeHTTPResponse(w, result.Code, PaymentHistoryResponse{})
+		writeHTTPResponse(w, result.Code, common.PaymentHistoryResponse{})
 		return
 	}
 	if result.Code == ENGINE_NO_EQUIVALENT {
 		logger.Info("Node hasn't equivalent for command: " + string(command.ToBytes()))
-		writeHTTPResponse(w, result.Code, PaymentHistoryResponse{})
+		writeHTTPResponse(w, result.Code, common.PaymentHistoryResponse{})
 		return
 	}
 
 	if len(result.Tokens) == 0 {
 		logger.Error("Node return invalid result tokens size on command: " + string(command.ToBytes()))
-		writeHTTPResponse(w, ENGINE_UNEXPECTED_ERROR, PaymentHistoryResponse{})
+		writeHTTPResponse(w, ENGINE_UNEXPECTED_ERROR, common.PaymentHistoryResponse{})
 		return
 	}
 
 	recordsCount, err := strconv.Atoi(result.Tokens[0])
 	if err != nil {
 		logger.Error("Node return invalid token on command: " + string(command.ToBytes()) + ". Details: " + err.Error())
-		writeHTTPResponse(w, ENGINE_UNEXPECTED_ERROR, PaymentHistoryResponse{})
+		writeHTTPResponse(w, ENGINE_UNEXPECTED_ERROR, common.PaymentHistoryResponse{})
 		return
 	}
 
 	if recordsCount == 0 {
-		writeHTTPResponse(w, OK, PaymentHistoryResponse{Count: recordsCount})
+		writeHTTPResponse(w, OK, common.PaymentHistoryResponse{Count: recordsCount})
 		return
 	}
 
-	response := PaymentHistoryResponse{Count: recordsCount}
+	response := common.PaymentHistoryResponse{Count: recordsCount}
 	for i := range recordsCount {
-		response.Records = append(response.Records, PaymentHistoryRecord{
+		response.Records = append(response.Records, common.PaymentHistoryRecord{
 			TransactionUUID:           result.Tokens[i*7+1],
 			UnixTimestampMicroseconds: result.Tokens[i*7+2],
 			Contractor:                result.Tokens[i*7+3],
@@ -327,14 +249,14 @@ func (router *RoutesHandler) PaymentsHistoryAllEquivalents(w http.ResponseWriter
 	}
 
 	offset, isParamPresent := mux.Vars(r)["offset"]
-	if !isParamPresent || !handler.ValidateInt(offset) {
+	if !isParamPresent || !common.ValidateInt(offset) {
 		logger.Error("Bad request: invalid offset parameter: " + url)
 		w.WriteHeader(BAD_REQUEST)
 		return
 	}
 
 	count, isParamPresent := mux.Vars(r)["count"]
-	if !isParamPresent || !handler.ValidateInt(count) {
+	if !isParamPresent || !common.ValidateInt(count) {
 		logger.Error("Bad request: invalid count parameter: " + url)
 		w.WriteHeader(BAD_REQUEST)
 		return
@@ -375,46 +297,46 @@ func (router *RoutesHandler) PaymentsHistoryAllEquivalents(w http.ResponseWriter
 	err = router.nodeHandler.Node.SendCommand(command)
 	if err != nil {
 		logger.Error("Can't send command: " + string(command.ToBytes()) + " to node. Details: " + err.Error())
-		writeHTTPResponse(w, COMMAND_TRANSFERRING_ERROR, PaymentAllEquivalentsHistoryResponse{})
+		writeHTTPResponse(w, COMMAND_TRANSFERRING_ERROR, common.PaymentAllEquivalentsHistoryResponse{})
 		return
 	}
 
-	result, err := router.nodeHandler.Node.GetResult(command, HISTORY_RESULT_TIMEOUT)
+	result, err := router.nodeHandler.Node.GetResult(command, common.HISTORY_RESULT_TIMEOUT)
 	if err != nil {
 		logger.Error("Node is inaccessible during processing command: " + string(command.ToBytes()) +
 			" . Details: " + err.Error())
-		writeHTTPResponse(w, NODE_IS_INACCESSIBLE, PaymentAllEquivalentsHistoryResponse{})
+		writeHTTPResponse(w, NODE_IS_INACCESSIBLE, common.PaymentAllEquivalentsHistoryResponse{})
 		return
 	}
 
 	if result.Code != OK {
 		logger.Error("Node return wrong command result: " +
 			strconv.Itoa(result.Code) + " on command " + string(command.ToBytes()))
-		writeHTTPResponse(w, result.Code, PaymentAllEquivalentsHistoryResponse{})
+		writeHTTPResponse(w, result.Code, common.PaymentAllEquivalentsHistoryResponse{})
 		return
 	}
 
 	if len(result.Tokens) == 0 {
 		logger.Error("Node return invalid result tokens size on command: " + string(command.ToBytes()))
-		writeHTTPResponse(w, ENGINE_UNEXPECTED_ERROR, PaymentAllEquivalentsHistoryResponse{})
+		writeHTTPResponse(w, ENGINE_UNEXPECTED_ERROR, common.PaymentAllEquivalentsHistoryResponse{})
 		return
 	}
 
 	recordsCount, err := strconv.Atoi(result.Tokens[0])
 	if err != nil {
 		logger.Error("Node return invalid token on command: " + string(command.ToBytes()) + ". Details: " + err.Error())
-		writeHTTPResponse(w, ENGINE_UNEXPECTED_ERROR, PaymentAllEquivalentsHistoryResponse{})
+		writeHTTPResponse(w, ENGINE_UNEXPECTED_ERROR, common.PaymentAllEquivalentsHistoryResponse{})
 		return
 	}
 
 	if recordsCount == 0 {
-		writeHTTPResponse(w, OK, PaymentAllEquivalentsHistoryResponse{Count: recordsCount})
+		writeHTTPResponse(w, OK, common.PaymentAllEquivalentsHistoryResponse{Count: recordsCount})
 		return
 	}
 
-	response := PaymentAllEquivalentsHistoryResponse{Count: recordsCount}
+	response := common.PaymentAllEquivalentsHistoryResponse{Count: recordsCount}
 	for i := range recordsCount {
-		response.Records = append(response.Records, PaymentAllEquivalentsHistoryRecord{
+		response.Records = append(response.Records, common.PaymentAllEquivalentsHistoryRecord{
 			Equivalent:                result.Tokens[i*8+1],
 			TransactionUUID:           result.Tokens[i*8+2],
 			UnixTimestampMicroseconds: result.Tokens[i*8+3],
@@ -437,14 +359,14 @@ func (router *RoutesHandler) HistoryWithContractor(w http.ResponseWriter, r *htt
 	}
 
 	offset, isParamPresent := mux.Vars(r)["offset"]
-	if !isParamPresent || !handler.ValidateInt(offset) {
+	if !isParamPresent || !common.ValidateInt(offset) {
 		logger.Error("Bad request: invalid offset parameter: " + url)
 		w.WriteHeader(BAD_REQUEST)
 		return
 	}
 
 	count, isParamPresent := mux.Vars(r)["count"]
-	if !isParamPresent || !handler.ValidateInt(count) {
+	if !isParamPresent || !common.ValidateInt(count) {
 		logger.Error("Bad request: invalid count parameter: " + url)
 		w.WriteHeader(BAD_REQUEST)
 		return
@@ -484,34 +406,34 @@ func (router *RoutesHandler) HistoryWithContractor(w http.ResponseWriter, r *htt
 	err = router.nodeHandler.Node.SendCommand(command)
 	if err != nil {
 		logger.Error("Can't send command: " + string(command.ToBytes()) + " to node. Details: " + err.Error())
-		writeHTTPResponse(w, COMMAND_TRANSFERRING_ERROR, ContractorOperationsHistoryResponse{})
+		writeHTTPResponse(w, COMMAND_TRANSFERRING_ERROR, common.ContractorOperationsHistoryResponse{})
 		return
 	}
 
-	result, err := router.nodeHandler.Node.GetResult(command, HISTORY_RESULT_TIMEOUT)
+	result, err := router.nodeHandler.Node.GetResult(command, common.HISTORY_RESULT_TIMEOUT)
 	if err != nil {
 		// Remote node is inaccessible
 		logger.Error("Node is inaccessible during processing command: " +
 			string(command.ToBytes()) + ". Details: " + err.Error())
-		writeHTTPResponse(w, NODE_IS_INACCESSIBLE, ContractorOperationsHistoryResponse{})
+		writeHTTPResponse(w, NODE_IS_INACCESSIBLE, common.ContractorOperationsHistoryResponse{})
 		return
 	}
 
 	if result.Code != OK && result.Code != ENGINE_NO_EQUIVALENT {
 		logger.Error("Node return wrong command result: " + strconv.Itoa(result.Code) +
 			" on command: " + string(command.ToBytes()))
-		writeHTTPResponse(w, result.Code, ContractorOperationsHistoryResponse{})
+		writeHTTPResponse(w, result.Code, common.ContractorOperationsHistoryResponse{})
 		return
 	}
 	if result.Code == ENGINE_NO_EQUIVALENT {
 		logger.Info("Node hasn't equivalent for command: " + string(command.ToBytes()))
-		writeHTTPResponse(w, result.Code, ContractorOperationsHistoryResponse{})
+		writeHTTPResponse(w, result.Code, common.ContractorOperationsHistoryResponse{})
 		return
 	}
 
 	if len(result.Tokens) == 0 {
 		logger.Error("Node return invalid result tokens size on command: " + string(command.ToBytes()))
-		writeHTTPResponse(w, ENGINE_UNEXPECTED_ERROR, ContractorOperationsHistoryResponse{})
+		writeHTTPResponse(w, ENGINE_UNEXPECTED_ERROR, common.ContractorOperationsHistoryResponse{})
 		return
 	}
 
@@ -519,20 +441,20 @@ func (router *RoutesHandler) HistoryWithContractor(w http.ResponseWriter, r *htt
 	if err != nil {
 		logger.Error("Node return invalid token on command" + string(command.ToBytes()) +
 			". Details: " + err.Error())
-		writeHTTPResponse(w, ENGINE_UNEXPECTED_ERROR, ContractorOperationsHistoryResponse{})
+		writeHTTPResponse(w, ENGINE_UNEXPECTED_ERROR, common.ContractorOperationsHistoryResponse{})
 		return
 	}
 
 	if recordsCount == 0 {
-		writeHTTPResponse(w, OK, ContractorOperationsHistoryResponse{Count: recordsCount})
+		writeHTTPResponse(w, OK, common.ContractorOperationsHistoryResponse{Count: recordsCount})
 		return
 	}
 
-	response := ContractorOperationsHistoryResponse{Count: recordsCount}
+	response := common.ContractorOperationsHistoryResponse{Count: recordsCount}
 	tokenIdx := 1
 	for range recordsCount {
 		if result.Tokens[tokenIdx] == "payment" {
-			response.Records = append(response.Records, ContractorOperationHistoryRecord{
+			response.Records = append(response.Records, common.ContractorOperationHistoryRecord{
 				RecordType:                result.Tokens[tokenIdx],
 				TransactionUUID:           result.Tokens[tokenIdx+1],
 				UnixTimestampMicroseconds: result.Tokens[tokenIdx+2],
@@ -543,7 +465,7 @@ func (router *RoutesHandler) HistoryWithContractor(w http.ResponseWriter, r *htt
 			})
 			tokenIdx += 7
 		} else if result.Tokens[tokenIdx] == "trustline" {
-			response.Records = append(response.Records, ContractorOperationHistoryRecord{
+			response.Records = append(response.Records, common.ContractorOperationHistoryRecord{
 				RecordType:                result.Tokens[tokenIdx],
 				TransactionUUID:           result.Tokens[tokenIdx+1],
 				UnixTimestampMicroseconds: result.Tokens[tokenIdx+2],
@@ -567,14 +489,14 @@ func (router *RoutesHandler) PaymentsAdditionalHistory(w http.ResponseWriter, r 
 	}
 
 	offset, isParamPresent := mux.Vars(r)["offset"]
-	if !isParamPresent || !handler.ValidateInt(offset) {
+	if !isParamPresent || !common.ValidateInt(offset) {
 		logger.Error("Bad request: invalid offset parameter: " + url)
 		w.WriteHeader(BAD_REQUEST)
 		return
 	}
 
 	count, isParamPresent := mux.Vars(r)["count"]
-	if !isParamPresent || !handler.ValidateInt(count) {
+	if !isParamPresent || !common.ValidateInt(count) {
 		logger.Error("Bad request: invalid count parameter: " + url)
 		w.WriteHeader(BAD_REQUEST)
 		return
@@ -616,34 +538,34 @@ func (router *RoutesHandler) PaymentsAdditionalHistory(w http.ResponseWriter, r 
 	err = router.nodeHandler.Node.SendCommand(command)
 	if err != nil {
 		logger.Error("Can't send command: " + string(command.ToBytes()) + " to node. Details: " + err.Error())
-		writeHTTPResponse(w, COMMAND_TRANSFERRING_ERROR, AdditionalPaymentHistoryResponse{})
+		writeHTTPResponse(w, COMMAND_TRANSFERRING_ERROR, common.AdditionalPaymentHistoryResponse{})
 		return
 	}
 
-	result, err := router.nodeHandler.Node.GetResult(command, HISTORY_RESULT_TIMEOUT)
+	result, err := router.nodeHandler.Node.GetResult(command, common.HISTORY_RESULT_TIMEOUT)
 	if err != nil {
 		// Remote node is inaccessible
 		logger.Error("Node is inaccessible during processing command: " + string(command.ToBytes()) +
 			". Details: " + err.Error())
-		writeHTTPResponse(w, NODE_IS_INACCESSIBLE, AdditionalPaymentHistoryResponse{})
+		writeHTTPResponse(w, NODE_IS_INACCESSIBLE, common.AdditionalPaymentHistoryResponse{})
 		return
 	}
 
 	if result.Code != OK && result.Code != ENGINE_NO_EQUIVALENT {
 		logger.Error("Node return wrong command result: " + strconv.Itoa(result.Code) +
 			" on command: " + string(command.ToBytes()))
-		writeHTTPResponse(w, result.Code, AdditionalPaymentHistoryResponse{})
+		writeHTTPResponse(w, result.Code, common.AdditionalPaymentHistoryResponse{})
 		return
 	}
 	if result.Code == ENGINE_NO_EQUIVALENT {
 		logger.Info("Node hasn't equivalent for command: " + string(command.ToBytes()))
-		writeHTTPResponse(w, result.Code, AdditionalPaymentHistoryResponse{})
+		writeHTTPResponse(w, result.Code, common.AdditionalPaymentHistoryResponse{})
 		return
 	}
 
 	if len(result.Tokens) == 0 {
 		logger.Error("Node return invalid result tokens size on command: " + string(command.ToBytes()))
-		writeHTTPResponse(w, ENGINE_UNEXPECTED_ERROR, AdditionalPaymentHistoryResponse{})
+		writeHTTPResponse(w, ENGINE_UNEXPECTED_ERROR, common.AdditionalPaymentHistoryResponse{})
 		return
 	}
 
@@ -651,19 +573,19 @@ func (router *RoutesHandler) PaymentsAdditionalHistory(w http.ResponseWriter, r 
 	if err != nil {
 		logger.Error("Node return invalid token on command " + string(command.ToBytes()) +
 			". Details: " + err.Error())
-		writeHTTPResponse(w, ENGINE_UNEXPECTED_ERROR, AdditionalPaymentHistoryResponse{})
+		writeHTTPResponse(w, ENGINE_UNEXPECTED_ERROR, common.AdditionalPaymentHistoryResponse{})
 		return
 	}
 
 	if recordsCount == 0 {
-		writeHTTPResponse(w, OK, AdditionalPaymentHistoryResponse{Count: recordsCount})
+		writeHTTPResponse(w, OK, common.AdditionalPaymentHistoryResponse{Count: recordsCount})
 		return
 	}
 
-	response := AdditionalPaymentHistoryResponse{Count: recordsCount}
+	response := common.AdditionalPaymentHistoryResponse{Count: recordsCount}
 	tokenIdx := 1
 	for range recordsCount {
-		response.Records = append(response.Records, AdditionalPaymentHistoryRecord{
+		response.Records = append(response.Records, common.AdditionalPaymentHistoryRecord{
 			TransactionUUID:           result.Tokens[tokenIdx],
 			UnixTimestampMicroseconds: result.Tokens[tokenIdx+1],
 			OperationDirection:        result.Tokens[tokenIdx+2],

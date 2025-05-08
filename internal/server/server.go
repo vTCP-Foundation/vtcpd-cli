@@ -65,6 +65,6 @@ func InitNodeHandlerServer(r *routes.RoutesHandler) *mux.Router {
 	router.HandleFunc("/api/v1/ctrl/stop/", r.StopEverything).Methods("POST")
 
 	http.Handle("/", router)
-	logger.Info("Requests accepting started on " + conf.Params.Handler.HTTPInterface())
+	logger.Info("Requests accepting started on " + conf.Params.HTTP.HTTPInterface())
 	return router
 }

@@ -7,6 +7,7 @@ import (
 	"strings"
 
 	"github.com/gorilla/mux"
+	"github.com/vTCP-Foundation/vtcpd-cli/internal/common"
 	"github.com/vTCP-Foundation/vtcpd-cli/internal/handler"
 	"github.com/vTCP-Foundation/vtcpd-cli/internal/logger"
 )
@@ -33,14 +34,14 @@ func (router *RoutesHandler) SetTestingFlags(w http.ResponseWriter, r *http.Requ
 		err := router.nodeHandler.Node.SendCommand(command)
 		if err != nil {
 			logger.Error("Can't send command: " + string(command.ToBytes()) + " to node. Details: " + err.Error())
-			writeHTTPResponse(w, NODE_IS_INACCESSIBLE, ControlResponse{})
+			writeHTTPResponse(w, NODE_IS_INACCESSIBLE, common.ControlResponse{})
 			return
 		}
 		result, err := router.nodeHandler.Node.GetResult(command, INFLUENCE_RESULT_TIMEOUT)
 		if err != nil {
 			logger.Error("Node is inaccessible during processing command: " +
 				string(command.ToBytes()) + ". Details: " + err.Error())
-			writeHTTPResponse(w, NODE_IS_INACCESSIBLE, ControlResponse{})
+			writeHTTPResponse(w, NODE_IS_INACCESSIBLE, common.ControlResponse{})
 			return
 		}
 
@@ -49,7 +50,7 @@ func (router *RoutesHandler) SetTestingFlags(w http.ResponseWriter, r *http.Requ
 				" on command: " + string(command.ToBytes()))
 		}
 
-		writeHTTPResponse(w, result.Code, ControlResponse{})
+		writeHTTPResponse(w, result.Code, common.ControlResponse{})
 		return
 	}
 
@@ -61,14 +62,14 @@ func (router *RoutesHandler) SetTestingFlags(w http.ResponseWriter, r *http.Requ
 		err := router.nodeHandler.Node.SendCommand(command)
 		if err != nil {
 			logger.Error("Can't send command: " + string(command.ToBytes()) + " to node. Details: " + err.Error())
-			writeHTTPResponse(w, NODE_IS_INACCESSIBLE, ControlResponse{})
+			writeHTTPResponse(w, NODE_IS_INACCESSIBLE, common.ControlResponse{})
 			return
 		}
 		result, err := router.nodeHandler.Node.GetResult(command, INFLUENCE_RESULT_TIMEOUT)
 		if err != nil {
 			logger.Error("Node is inaccessible during processing command: " +
 				string(command.ToBytes()) + ". Details: " + err.Error())
-			writeHTTPResponse(w, NODE_IS_INACCESSIBLE, ControlResponse{})
+			writeHTTPResponse(w, NODE_IS_INACCESSIBLE, common.ControlResponse{})
 			return
 		}
 
@@ -77,7 +78,7 @@ func (router *RoutesHandler) SetTestingFlags(w http.ResponseWriter, r *http.Requ
 				" on command: " + string(command.ToBytes()))
 		}
 
-		writeHTTPResponse(w, result.Code, ControlResponse{})
+		writeHTTPResponse(w, result.Code, common.ControlResponse{})
 		return
 	}
 
@@ -87,14 +88,14 @@ func (router *RoutesHandler) SetTestingFlags(w http.ResponseWriter, r *http.Requ
 	err := router.nodeHandler.Node.SendCommand(command)
 	if err != nil {
 		logger.Error("Can't send command: " + string(command.ToBytes()) + " to node. Details: " + err.Error())
-		writeHTTPResponse(w, NODE_IS_INACCESSIBLE, ControlResponse{})
+		writeHTTPResponse(w, NODE_IS_INACCESSIBLE, common.ControlResponse{})
 		return
 	}
 	result, err := router.nodeHandler.Node.GetResult(command, INFLUENCE_RESULT_TIMEOUT)
 	if err != nil {
 		logger.Error("Node is inaccessible during processing command: " +
 			string(command.ToBytes()) + ". Details: " + err.Error())
-		writeHTTPResponse(w, NODE_IS_INACCESSIBLE, ControlResponse{})
+		writeHTTPResponse(w, NODE_IS_INACCESSIBLE, common.ControlResponse{})
 		return
 	}
 
@@ -103,7 +104,7 @@ func (router *RoutesHandler) SetTestingFlags(w http.ResponseWriter, r *http.Requ
 			" on command: " + string(command.ToBytes()))
 	}
 
-	writeHTTPResponse(w, result.Code, ControlResponse{})
+	writeHTTPResponse(w, result.Code, common.ControlResponse{})
 }
 
 func (router *RoutesHandler) SetSLInfluenceFlags(w http.ResponseWriter, r *http.Request) {
@@ -125,14 +126,14 @@ func (router *RoutesHandler) SetSLInfluenceFlags(w http.ResponseWriter, r *http.
 	err := router.nodeHandler.Node.SendCommand(command)
 	if err != nil {
 		logger.Error("Can't send command: " + string(command.ToBytes()) + " to node. Details: " + err.Error())
-		writeHTTPResponse(w, NODE_IS_INACCESSIBLE, ControlResponse{})
+		writeHTTPResponse(w, NODE_IS_INACCESSIBLE, common.ControlResponse{})
 		return
 	}
 	result, err := router.nodeHandler.Node.GetResult(command, INFLUENCE_RESULT_TIMEOUT)
 	if err != nil {
 		logger.Error("Node is inaccessible during processing command: " +
 			string(command.ToBytes()) + ". Details: " + err.Error())
-		writeHTTPResponse(w, NODE_IS_INACCESSIBLE, ControlResponse{})
+		writeHTTPResponse(w, NODE_IS_INACCESSIBLE, common.ControlResponse{})
 		return
 	}
 
@@ -141,7 +142,7 @@ func (router *RoutesHandler) SetSLInfluenceFlags(w http.ResponseWriter, r *http.
 			" on command: " + string(command.ToBytes()))
 	}
 
-	writeHTTPResponse(w, result.Code, ControlResponse{})
+	writeHTTPResponse(w, result.Code, common.ControlResponse{})
 }
 
 func (router *RoutesHandler) MakeNodeBusy(w http.ResponseWriter, r *http.Request) {
@@ -156,14 +157,14 @@ func (router *RoutesHandler) MakeNodeBusy(w http.ResponseWriter, r *http.Request
 	err := router.nodeHandler.Node.SendCommand(command)
 	if err != nil {
 		logger.Error("Can't send command: " + string(command.ToBytes()) + " to node. Details: " + err.Error())
-		writeHTTPResponse(w, NODE_IS_INACCESSIBLE, ControlResponse{})
+		writeHTTPResponse(w, NODE_IS_INACCESSIBLE, common.ControlResponse{})
 		return
 	}
 	result, err := router.nodeHandler.Node.GetResult(command, INFLUENCE_RESULT_TIMEOUT)
 	if err != nil {
 		logger.Error("Node is inaccessible during processing command: " +
 			string(command.ToBytes()) + ". Details: " + err.Error())
-		writeHTTPResponse(w, NODE_IS_INACCESSIBLE, ControlResponse{})
+		writeHTTPResponse(w, NODE_IS_INACCESSIBLE, common.ControlResponse{})
 		return
 	}
 
@@ -172,5 +173,5 @@ func (router *RoutesHandler) MakeNodeBusy(w http.ResponseWriter, r *http.Request
 			" on command: " + string(command.ToBytes()))
 	}
 
-	writeHTTPResponse(w, result.Code, ControlResponse{})
+	writeHTTPResponse(w, result.Code, common.ControlResponse{})
 }

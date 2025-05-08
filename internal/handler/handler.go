@@ -62,7 +62,7 @@ func InitNodeHandler() (*NodeHandler, error) {
 }
 
 func (nh *NodeHandler) RestoreNode() error {
-	ioDirPath := conf.Params.Handler.NodeDirPath
+	ioDirPath := conf.Params.WorkDir
 
 	_, err := os.Stat(ioDirPath)
 	if err != nil {
@@ -84,12 +84,12 @@ func (nh *NodeHandler) RestoreNode() error {
 }
 
 func (nh *NodeHandler) StartNodeForCommunication() error {
-	_, err := os.Stat(conf.Params.Handler.NodeDirPath)
+	_, err := os.Stat(conf.Params.WorkDir)
 	if err != nil {
 		return wrap("Can't check node, there is no node folder ", err)
 	}
 
-	nodePID, err := getProcessPID(path.Join(conf.Params.Handler.NodeDirPath, "process.pid"))
+	nodePID, err := getProcessPID(path.Join(conf.Params.WorkDir, "process.pid"))
 	if err != nil {
 		return wrap("can't read node PID", err)
 	}
@@ -111,7 +111,7 @@ func (nh *NodeHandler) StartNodeForCommunication() error {
 }
 
 func (nh *NodeHandler) RestoreNodeWithCommunication() error {
-	ioDirPath := conf.Params.Handler.NodeDirPath
+	ioDirPath := conf.Params.WorkDir
 
 	_, err := os.Stat(ioDirPath)
 	if err != nil {
@@ -152,12 +152,12 @@ func (nh *NodeHandler) StopNodeCommunication() error {
 }
 
 func (nh *NodeHandler) CheckNodeRunning() (bool, error) {
-	_, err := os.Stat(conf.Params.Handler.NodeDirPath)
+	_, err := os.Stat(conf.Params.WorkDir)
 	if err != nil {
 		return false, wrap("Can't check node, there is no node folder ", err)
 	}
 
-	nodePID, err := getProcessPID(path.Join(conf.Params.Handler.NodeDirPath, "process.pid"))
+	nodePID, err := getProcessPID(path.Join(conf.Params.WorkDir, "process.pid"))
 	if err != nil {
 		return false, wrap("Can't read node PID", err)
 	}
@@ -174,7 +174,7 @@ func (nh *NodeHandler) ensureNodeConfigurationIsPresent() error {
 	// No automatic node configuration should be done.
 	// Original node config must be preserved.
 	// Only checking if configuration is present.
-	if _, err := os.Stat(path.Join(conf.Params.Handler.NodeDirPath, "conf.json")); os.IsNotExist(err) {
+	if _, err := os.Stat(path.Join(conf.Params.WorkDir, "conf.json")); os.IsNotExist(err) {
 		return wrap("Node doesn't exists.", err)
 	}
 
@@ -187,7 +187,7 @@ func (nh *NodeHandler) IfNodeWaitForResult() bool {
 
 func (nh *NodeHandler) StopNode() error {
 
-	nodePID, err := getProcessPID(path.Join(conf.Params.Handler.NodeDirPath, "process.pid"))
+	nodePID, err := getProcessPID(path.Join(conf.Params.WorkDir, "process.pid"))
 	if err != nil {
 		return wrap("Can't read node PID", err)
 	}

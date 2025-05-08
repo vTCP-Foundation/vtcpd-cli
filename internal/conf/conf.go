@@ -7,16 +7,9 @@ import (
 	"github.com/spf13/viper"
 )
 
-type HandlerSettings struct {
-	NodeDirPath              string `mapstructure:"node_path"`
-	ClientExecutableFullPath string `mapstructure:"executable_path"`
-	HTTPInterfaceHost        string `mapstructure:"http_host"`
-	HTTPInterfacePort        uint16 `mapstructure:"http_port"`
-}
-
-type TestHandlerSettings struct {
-	HTTPInterfaceHost string `mapstructure:"http_host"`
-	HTTPInterfacePort uint16 `mapstructure:"http_port"`
+type HTTPSettings struct {
+	Host string `mapstructure:"host"`
+	Port uint16 `mapstructure:"port"`
 }
 
 type SecuritySettings struct {
@@ -25,17 +18,15 @@ type SecuritySettings struct {
 }
 
 type Settings struct {
-	Handler     HandlerSettings     `mapstructure:"handler"`
-	Security    SecuritySettings    `mapstructure:"security"`
-	TestHandler TestHandlerSettings `mapstructure:"test_handler"`
+	WorkDir     string           `mapstructure:"workdir"`
+	VTCPDPath   string           `mapstructure:"vtcpd_path"`
+	HTTP        HTTPSettings     `mapstructure:"http"`
+	HTTPTesting HTTPSettings     `mapstructure:"http_testing"`
+	Security    SecuritySettings `mapstructure:"security"`
 }
 
-func (s HandlerSettings) HTTPInterface() string {
-	return s.HTTPInterfaceHost + ":" + strconv.Itoa(int(s.HTTPInterfacePort))
-}
-
-func (s TestHandlerSettings) HTTPInterface() string {
-	return s.HTTPInterfaceHost + ":" + strconv.Itoa(int(s.HTTPInterfacePort))
+func (s HTTPSettings) HTTPInterface() string {
+	return s.Host + ":" + strconv.Itoa(int(s.Port))
 }
 
 var (

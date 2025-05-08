@@ -4,87 +4,9 @@ import (
 	"fmt"
 	"strconv"
 
+	"github.com/vTCP-Foundation/vtcpd-cli/internal/common"
 	"github.com/vTCP-Foundation/vtcpd-cli/internal/logger"
 )
-
-var (
-	SETTLEMENT_LINE_RESULT_TIMEOUT  uint16 = 20 // seconds
-	CONTRACTORS_RESULT_TIMEOUT      uint16 = 20
-	STATS_RESULT_TIMEOUT            uint16 = 20 // seconds
-	DEFAULT_SETTLEMENT_LINES_OFFSET        = "0"
-	DFEAULT_SETTLEMENT_LINES_COUNT         = "10000"
-)
-
-// --- Global structs ---
-
-type SettlementLineListItem struct {
-	ID                    string `json:"contractor_id"`
-	Contractor            string `json:"contractor"`
-	State                 string `json:"state"`
-	OwnKeysPresent        string `json:"own_keys_present"`
-	ContractorKeysPresent string `json:"contractor_keys_present"`
-	MaxNegativeBalance    string `json:"max_negative_balance"`
-	MaxPositiveBalance    string `json:"max_positive_balance"`
-	Balance               string `json:"balance"`
-}
-
-type SettlementLineDetail struct {
-	ID                    string `json:"id"` // todo : contractor_id
-	State                 string `json:"state"`
-	OwnKeysPresent        string `json:"own_keys_present"`
-	ContractorKeysPresent string `json:"contractor_keys_present"`
-	AuditNumber           string `json:"audit_number"`
-	MaxNegativeBalance    string `json:"max_negative_balance"`
-	MaxPositiveBalance    string `json:"max_positive_balance"`
-	Balance               string `json:"balance"`
-}
-
-type EquivalentStatistics struct {
-	Eq              string                   `json:"equivalent"`
-	Count           int                      `json:"count"`
-	SettlementLines []SettlementLineListItem `json:"settlement_lines"`
-}
-
-type ContractorInfo struct {
-	ContractorID        string `json:"contractor_id"`
-	ContractorAddresses string `json:"contractor_addresses"`
-}
-
-// --- Global API responses ---
-
-// ActionResponse used for operations that return only status
-type ActionResponse struct{}
-
-type SettlementLineListResponse struct {
-	Count           int                      `json:"count"`
-	SettlementLines []SettlementLineListItem `json:"settlement_lines"`
-}
-
-type SettlementLineDetailResponse struct {
-	SettlementLine SettlementLineDetail `json:"settlement_line"`
-}
-
-type AllEquivalentsResponse struct {
-	Count       int                    `json:"count"`
-	Equivalents []EquivalentStatistics `json:"equivalents"`
-}
-
-type ContractorsListResponse struct {
-	Count       int              `json:"count"`
-	Contractors []ContractorInfo `json:"contractors"`
-}
-
-type EquivalentsListResponse struct {
-	Count       int      `json:"count"`
-	Equivalents []string `json:"equivalents"`
-}
-
-type TotalBalanceResponse struct {
-	TotalMaxNegativeBalance string `json:"total_max_negative_balance"`
-	TotalNegativeBalance    string `json:"total_negative_balance"`
-	TotalMaxPositiveBalance string `json:"total_max_positive_balance"`
-	TotalPositiveBalance    string `json:"total_positive_balance"`
-}
 
 func (handler *NodeHandler) SettlementLines() {
 	if CommandType == "init" {
@@ -119,12 +41,12 @@ func (handler *NodeHandler) SettlementLines() {
 }
 
 func (handler *NodeHandler) initSettlementLine() {
-	if !ValidateInt(ContractorID) {
+	if !common.ValidateInt(ContractorID) {
 		logger.Error("Bad request: invalid contractorID parameter in open request")
 		fmt.Println("Bad request: invalid contractorID parameter")
 		return
 	}
-	if !ValidateInt(Equivalent) {
+	if !common.ValidateInt(Equivalent) {
 		logger.Error("Bad request: invalid equivalent parameter in open request")
 		fmt.Println("Bad request: invalid equivalent parameter")
 		return
@@ -136,17 +58,17 @@ func (handler *NodeHandler) initSettlementLine() {
 }
 
 func (handler *NodeHandler) setMaxPositiveBalance() {
-	if !ValidateInt(ContractorID) {
+	if !common.ValidateInt(ContractorID) {
 		logger.Error("Bad request: invalid contractorID parameter in set request")
 		fmt.Println("Bad request: invalid contractorID parameter")
 		return
 	}
-	if !ValidateSettlementLineAmount(Amount) {
+	if !common.ValidateSettlementLineAmount(Amount) {
 		logger.Error("Bad request: invalid amount parameter in set request")
 		fmt.Println("Bad request: invalid amount parameter")
 		return
 	}
-	if !ValidateInt(Equivalent) {
+	if !common.ValidateInt(Equivalent) {
 		logger.Error("Bad request: invalid equivalent parameter in set request")
 		fmt.Println("Bad request: invalid equivalent parameter")
 		return
@@ -158,12 +80,12 @@ func (handler *NodeHandler) setMaxPositiveBalance() {
 }
 
 func (handler *NodeHandler) zeroOutMaxNegativeBalance() {
-	if !ValidateInt(ContractorID) {
+	if !common.ValidateInt(ContractorID) {
 		logger.Error("Bad request: invalid contractorID parameter in close-incoming request")
 		fmt.Println("Bad request: invalid contractorID parameter")
 		return
 	}
-	if !ValidateInt(Equivalent) {
+	if !common.ValidateInt(Equivalent) {
 		logger.Error("Bad request: invalid equivalent parameter in close-incoming request")
 		fmt.Println("Bad request: invalid equivalent parameter")
 		return
@@ -175,12 +97,12 @@ func (handler *NodeHandler) zeroOutMaxNegativeBalance() {
 }
 
 func (handler *NodeHandler) shareKeysSettlementLine() {
-	if !ValidateInt(ContractorID) {
+	if !common.ValidateInt(ContractorID) {
 		logger.Error("Bad request: invalid contractorID parameter in share-keys request")
 		fmt.Println("Bad request: invalid contractorID parameter")
 		return
 	}
-	if !ValidateInt(Equivalent) {
+	if !common.ValidateInt(Equivalent) {
 		logger.Error("Bad request: invalid equivalent parameter in share-keys request")
 		fmt.Println("Bad request: invalid equivalent parameter")
 		return
@@ -192,12 +114,12 @@ func (handler *NodeHandler) shareKeysSettlementLine() {
 }
 
 func (handler *NodeHandler) deleteSettlementLine() {
-	if !ValidateInt(ContractorID) {
+	if !common.ValidateInt(ContractorID) {
 		logger.Error("Bad request: invalid contractorID parameter in delete request")
 		fmt.Println("Bad request: invalid contractorID parameter")
 		return
 	}
-	if !ValidateInt(Equivalent) {
+	if !common.ValidateInt(Equivalent) {
 		logger.Error("Bad request: invalid equivalent parameter in delete request")
 		fmt.Println("Bad request: invalid equivalent parameter")
 		return
@@ -209,30 +131,30 @@ func (handler *NodeHandler) deleteSettlementLine() {
 }
 
 func (handler *NodeHandler) resetSettlementLine() {
-	if !ValidateInt(ContractorID) {
+	if !common.ValidateInt(ContractorID) {
 		logger.Error("Bad request: invalid contractorID parameter in reset request")
 		fmt.Println("Bad request: invalid contractorID parameter")
 		return
 	}
-	if !ValidateInt(Equivalent) {
+	if !common.ValidateInt(Equivalent) {
 		logger.Error("Bad request: invalid equivalent parameter in reset request")
 		fmt.Println("Bad request: invalid equivalent parameter")
 		return
 	}
 
-	if !ValidateInt(AuditNumber) {
+	if !common.ValidateInt(AuditNumber) {
 		logger.Error("Bad request: invalid audit_number parameter in reset request")
 		fmt.Println("Bad request: invalid audit_number parameter")
 		return
 	}
 
-	if !ValidateSettlementLineAmount(MaxNegativeBalance) {
+	if !common.ValidateSettlementLineAmount(MaxNegativeBalance) {
 		logger.Error("Bad request: invalid max_negative_balance parameter in reset request")
 		fmt.Println("Bad request: invalid max_negative_balance parameter")
 		return
 	}
 
-	if !ValidateSettlementLineAmount(MaxPositiveBalance) {
+	if !common.ValidateSettlementLineAmount(MaxPositiveBalance) {
 		logger.Error("Bad request: invalid max_positive_balance parameterin reset request")
 		fmt.Println("Bad request: invalid max_positive_balance parameter")
 		return
@@ -255,16 +177,16 @@ func (handler *NodeHandler) actionSettlementLineGetResult(command *Command) {
 	err := handler.Node.SendCommand(command)
 	if err != nil {
 		logger.Error("Can't send command: " + string(command.ToBytes()) + " to node. Details: " + err.Error())
-		resultJSON := buildJSONResponse(COMMAND_TRANSFERRING_ERROR, ActionResponse{})
+		resultJSON := buildJSONResponse(COMMAND_TRANSFERRING_ERROR, common.ActionResponse{})
 		fmt.Println(string(resultJSON))
 		return
 	}
 
-	result, err := handler.Node.GetResult(command, SETTLEMENT_LINE_RESULT_TIMEOUT)
+	result, err := handler.Node.GetResult(command, common.SETTLEMENT_LINE_RESULT_TIMEOUT)
 	if err != nil {
 		logger.Error("Node is inaccessible during processing command: " +
 			string(command.ToBytes()) + ". Details: " + err.Error())
-		resultJSON := buildJSONResponse(NODE_IS_INACCESSIBLE, ActionResponse{})
+		resultJSON := buildJSONResponse(NODE_IS_INACCESSIBLE, common.ActionResponse{})
 		fmt.Println(string(resultJSON))
 		return
 	}
@@ -274,28 +196,28 @@ func (handler *NodeHandler) actionSettlementLineGetResult(command *Command) {
 			" on command: " + string(command.ToBytes()))
 	}
 
-	resultJSON := buildJSONResponse(result.Code, ActionResponse{})
+	resultJSON := buildJSONResponse(result.Code, common.ActionResponse{})
 	fmt.Println(string(resultJSON))
 }
 
 func (handler *NodeHandler) listSettlementLinesPortions() {
 	if Offset == "" {
-		Offset = DEFAULT_SETTLEMENT_LINES_OFFSET
-	} else if !ValidateInt(Offset) {
+		Offset = common.DEFAULT_SETTLEMENT_LINES_OFFSET
+	} else if !common.ValidateInt(Offset) {
 		logger.Error("Bad request: invalid offset parameter in get request")
 		fmt.Println("Bad request: invalid offset parameter")
 		return
 	}
 
 	if Count == "" {
-		Count = DFEAULT_SETTLEMENT_LINES_COUNT
-	} else if !ValidateInt(Count) {
+		Count = common.DFEAULT_SETTLEMENT_LINES_COUNT
+	} else if !common.ValidateInt(Count) {
 		logger.Error("Bad request: invalid count parameter in get request")
 		fmt.Println("Bad request: invalid count parameter")
 		return
 	}
 
-	if !ValidateInt(Equivalent) {
+	if !common.ValidateInt(Equivalent) {
 		logger.Error("Bad request: invalid equivalent parameter in get request")
 		fmt.Println("Bad request: invalid equivalent parameter")
 		return
@@ -310,16 +232,16 @@ func (handler *NodeHandler) listSettlementLinesResult(command *Command) {
 	err := handler.Node.SendCommand(command)
 	if err != nil {
 		logger.Error("Can't send command: " + string(command.ToBytes()) + " to node. Details: " + err.Error())
-		resultJSON := buildJSONResponse(COMMAND_TRANSFERRING_ERROR, SettlementLineListResponse{})
+		resultJSON := buildJSONResponse(COMMAND_TRANSFERRING_ERROR, common.SettlementLineListResponse{})
 		fmt.Println(string(resultJSON))
 		return
 	}
 
-	result, err := handler.Node.GetResult(command, SETTLEMENT_LINE_RESULT_TIMEOUT)
+	result, err := handler.Node.GetResult(command, common.SETTLEMENT_LINE_RESULT_TIMEOUT)
 	if err != nil {
 		logger.Error("Node is inaccessible during processing command: " +
 			string(command.ToBytes()) + ". Details: " + err.Error())
-		resultJSON := buildJSONResponse(NODE_IS_INACCESSIBLE, SettlementLineListResponse{})
+		resultJSON := buildJSONResponse(NODE_IS_INACCESSIBLE, common.SettlementLineListResponse{})
 		fmt.Println(string(resultJSON))
 		return
 	}
@@ -327,20 +249,20 @@ func (handler *NodeHandler) listSettlementLinesResult(command *Command) {
 	if result.Code != OK && result.Code != ENGINE_NO_EQUIVALENT {
 		logger.Error("Node returned wrong command result: " + strconv.Itoa(result.Code) +
 			" on command: " + string(command.ToBytes()))
-		resultJSON := buildJSONResponse(result.Code, SettlementLineListResponse{})
+		resultJSON := buildJSONResponse(result.Code, common.SettlementLineListResponse{})
 		fmt.Println(string(resultJSON))
 		return
 	}
 	if result.Code == ENGINE_NO_EQUIVALENT {
 		logger.Info("Node hasn't equivalent for command: " + string(command.ToBytes()))
-		resultJSON := buildJSONResponse(result.Code, SettlementLineListResponse{})
+		resultJSON := buildJSONResponse(result.Code, common.SettlementLineListResponse{})
 		fmt.Println(string(resultJSON))
 		return
 	}
 
 	if len(result.Tokens) == 0 {
 		logger.Error("Node returned invalid result tokens size on command: " + string(command.ToBytes()))
-		resultJSON := buildJSONResponse(ENGINE_UNEXPECTED_ERROR, SettlementLineListResponse{})
+		resultJSON := buildJSONResponse(ENGINE_UNEXPECTED_ERROR, common.SettlementLineListResponse{})
 		fmt.Println(string(resultJSON))
 		return
 	}
@@ -349,22 +271,22 @@ func (handler *NodeHandler) listSettlementLinesResult(command *Command) {
 	if err != nil {
 		logger.Error("Node returned invalid token on command: " +
 			string(command.ToBytes()) + ". Details: " + err.Error())
-		resultJSON := buildJSONResponse(ENGINE_UNEXPECTED_ERROR, SettlementLineListResponse{})
+		resultJSON := buildJSONResponse(ENGINE_UNEXPECTED_ERROR, common.SettlementLineListResponse{})
 		fmt.Println(string(resultJSON))
 		return
 	}
 
 	if contractorsCount == 0 {
-		resultJSON := buildJSONResponse(OK, SettlementLineListResponse{Count: contractorsCount})
+		resultJSON := buildJSONResponse(OK, common.SettlementLineListResponse{Count: contractorsCount})
 		fmt.Println(string(resultJSON))
 		return
 	}
 
-	response := SettlementLineListResponse{Count: contractorsCount}
-	response.SettlementLines = make([]SettlementLineListItem, 0, contractorsCount)
+	response := common.SettlementLineListResponse{Count: contractorsCount}
+	response.SettlementLines = make([]common.SettlementLineListItem, 0, contractorsCount)
 
 	for i := range contractorsCount {
-		response.SettlementLines = append(response.SettlementLines, SettlementLineListItem{
+		response.SettlementLines = append(response.SettlementLines, common.SettlementLineListItem{
 			ID:                    result.Tokens[i*8+1],
 			Contractor:            result.Tokens[i*8+2],
 			State:                 result.Tokens[i*8+3],
@@ -381,7 +303,7 @@ func (handler *NodeHandler) listSettlementLinesResult(command *Command) {
 
 func (handler *NodeHandler) listContractors() {
 
-	if !ValidateInt(Equivalent) {
+	if !common.ValidateInt(Equivalent) {
 		logger.Error("Bad request: invalid equivalent parameter in get-contractors request")
 		fmt.Println("Bad request: invalid equivalent parameter")
 		return
@@ -396,16 +318,16 @@ func (handler *NodeHandler) listContractorsResult(command *Command) {
 	err := handler.Node.SendCommand(command)
 	if err != nil {
 		logger.Error("Can't send command: " + string(command.ToBytes()) + " to node. Details: " + err.Error())
-		resultJSON := buildJSONResponse(COMMAND_TRANSFERRING_ERROR, ContractorsListResponse{})
+		resultJSON := buildJSONResponse(COMMAND_TRANSFERRING_ERROR, common.ContractorsListResponse{})
 		fmt.Println(string(resultJSON))
 		return
 	}
 
-	result, err := handler.Node.GetResult(command, CONTRACTORS_RESULT_TIMEOUT)
+	result, err := handler.Node.GetResult(command, common.CONTRACTORS_RESULT_TIMEOUT)
 	if err != nil {
 		logger.Error("Node is inaccessible during processing command: " +
 			string(command.ToBytes()) + ". Details: " + err.Error())
-		resultJSON := buildJSONResponse(NODE_IS_INACCESSIBLE, ContractorsListResponse{})
+		resultJSON := buildJSONResponse(NODE_IS_INACCESSIBLE, common.ContractorsListResponse{})
 		fmt.Println(string(resultJSON))
 		return
 	}
@@ -413,20 +335,20 @@ func (handler *NodeHandler) listContractorsResult(command *Command) {
 	if result.Code != OK && result.Code != ENGINE_NO_EQUIVALENT {
 		logger.Error("Node return wrong command result: " + strconv.Itoa(result.Code) +
 			" on command: " + string(command.ToBytes()))
-		resultJSON := buildJSONResponse(result.Code, ContractorsListResponse{})
+		resultJSON := buildJSONResponse(result.Code, common.ContractorsListResponse{})
 		fmt.Println(string(resultJSON))
 		return
 	}
 	if result.Code == ENGINE_NO_EQUIVALENT {
 		logger.Info("Node hasn't equivalent for command: " + string(command.ToBytes()))
-		resultJSON := buildJSONResponse(result.Code, ContractorsListResponse{})
+		resultJSON := buildJSONResponse(result.Code, common.ContractorsListResponse{})
 		fmt.Println(string(resultJSON))
 		return
 	}
 
 	if len(result.Tokens) == 0 {
 		logger.Error("Node return invalid result tokens size on command: " + string(command.ToBytes()))
-		resultJSON := buildJSONResponse(ENGINE_UNEXPECTED_ERROR, ContractorsListResponse{})
+		resultJSON := buildJSONResponse(ENGINE_UNEXPECTED_ERROR, common.ContractorsListResponse{})
 		fmt.Println(string(resultJSON))
 		return
 	}
@@ -435,20 +357,20 @@ func (handler *NodeHandler) listContractorsResult(command *Command) {
 	if err != nil {
 		logger.Error("Node return invalid token on command: " + string(command.ToBytes()) +
 			". Details: " + err.Error())
-		resultJSON := buildJSONResponse(ENGINE_UNEXPECTED_ERROR, ContractorsListResponse{})
+		resultJSON := buildJSONResponse(ENGINE_UNEXPECTED_ERROR, common.ContractorsListResponse{})
 		fmt.Println(string(resultJSON))
 		return
 	}
 
 	if contractorsCount == 0 {
-		resultJSON := buildJSONResponse(OK, ContractorsListResponse{Count: contractorsCount})
+		resultJSON := buildJSONResponse(OK, common.ContractorsListResponse{Count: contractorsCount})
 		fmt.Println(string(resultJSON))
 		return
 	}
 
-	response := ContractorsListResponse{Count: contractorsCount}
+	response := common.ContractorsListResponse{Count: contractorsCount}
 	for i := range contractorsCount {
-		response.Contractors = append(response.Contractors, ContractorInfo{
+		response.Contractors = append(response.Contractors, common.ContractorInfo{
 			ContractorID:        result.Tokens[i*2+1],
 			ContractorAddresses: result.Tokens[i*2+2],
 		})
@@ -459,12 +381,12 @@ func (handler *NodeHandler) listContractorsResult(command *Command) {
 }
 
 func (handler *NodeHandler) settlementLineByID() {
-	if !ValidateInt(ContractorID) {
+	if !common.ValidateInt(ContractorID) {
 		logger.Error("Bad request: invalid contractorID parameter in get-by-id request")
 		fmt.Println("Bad request: invalid contractorID parameter")
 		return
 	}
-	if !ValidateInt(Equivalent) {
+	if !common.ValidateInt(Equivalent) {
 		logger.Error("Bad request: invalid equivalent parameter in get-by-id request")
 		fmt.Println("Bad request: invalid equivalent parameter")
 		return
@@ -482,7 +404,7 @@ func (handler *NodeHandler) settlementLineByAddresses() {
 		return
 	}
 
-	if !ValidateInt(Equivalent) {
+	if !common.ValidateInt(Equivalent) {
 		logger.Error("Bad request: invalid equivalent parameter in get-by-addresses request")
 		fmt.Println("Bad request: invalid equivalent parameter")
 		return
@@ -490,7 +412,7 @@ func (handler *NodeHandler) settlementLineByAddresses() {
 
 	var addresses []string
 	for idx := range len(Addresses) {
-		addressType, address := ValidateAddress(Addresses[idx])
+		addressType, address := common.ValidateAddress(Addresses[idx])
 		if addressType == "" {
 			logger.Error("Bad request: invalid address parameter in get-by-addresses request")
 			fmt.Println("Bad request: invalid address parameter")
@@ -511,16 +433,16 @@ func (handler *NodeHandler) settlementLineGetResult(command *Command) {
 	err := handler.Node.SendCommand(command)
 	if err != nil {
 		logger.Error("Can't send command: " + string(command.ToBytes()) + " to node. Details: " + err.Error())
-		resultJSON := buildJSONResponse(COMMAND_TRANSFERRING_ERROR, SettlementLineDetailResponse{})
+		resultJSON := buildJSONResponse(COMMAND_TRANSFERRING_ERROR, common.SettlementLineDetailResponse{})
 		fmt.Println(string(resultJSON))
 		return
 	}
 
-	result, err := handler.Node.GetResult(command, SETTLEMENT_LINE_RESULT_TIMEOUT)
+	result, err := handler.Node.GetResult(command, common.SETTLEMENT_LINE_RESULT_TIMEOUT)
 	if err != nil {
 		logger.Error("Node is inaccessible during processing command: " +
 			string(command.ToBytes()) + ". Details: " + err.Error())
-		resultJSON := buildJSONResponse(NODE_IS_INACCESSIBLE, SettlementLineDetailResponse{})
+		resultJSON := buildJSONResponse(NODE_IS_INACCESSIBLE, common.SettlementLineDetailResponse{})
 		fmt.Println(string(resultJSON))
 		return
 	}
@@ -528,31 +450,31 @@ func (handler *NodeHandler) settlementLineGetResult(command *Command) {
 	if result.Code != OK && result.Code != ENGINE_NO_EQUIVALENT && result.Code != NODE_NOT_FOUND {
 		logger.Error("Node return wrong command result: " + strconv.Itoa(result.Code) +
 			" on command: " + string(command.ToBytes()))
-		resultJSON := buildJSONResponse(result.Code, SettlementLineDetailResponse{})
+		resultJSON := buildJSONResponse(result.Code, common.SettlementLineDetailResponse{})
 		fmt.Println(string(resultJSON))
 		return
 	}
 	if result.Code == ENGINE_NO_EQUIVALENT {
 		logger.Info("Node hasn't equivalent for command: " + string(command.ToBytes()))
-		resultJSON := buildJSONResponse(result.Code, SettlementLineDetailResponse{})
+		resultJSON := buildJSONResponse(result.Code, common.SettlementLineDetailResponse{})
 		fmt.Println(string(resultJSON))
 		return
 	}
 	if result.Code == NODE_NOT_FOUND {
 		logger.Info("Node hasn't TL with requested contractor for command " + string(command.ToBytes()))
-		resultJSON := buildJSONResponse(result.Code, SettlementLineDetailResponse{})
+		resultJSON := buildJSONResponse(result.Code, common.SettlementLineDetailResponse{})
 		fmt.Println(string(resultJSON))
 		return
 	}
 
 	if len(result.Tokens) < 4 {
 		logger.Error("Node return invalid result tokens size on command: " + string(command.ToBytes()))
-		resultJSON := buildJSONResponse(ENGINE_UNEXPECTED_ERROR, SettlementLineDetailResponse{})
+		resultJSON := buildJSONResponse(ENGINE_UNEXPECTED_ERROR, common.SettlementLineDetailResponse{})
 		fmt.Println(string(resultJSON))
 		return
 	}
 
-	response := SettlementLineDetailResponse{SettlementLine: SettlementLineDetail{
+	response := common.SettlementLineDetailResponse{SettlementLine: common.SettlementLineDetail{
 		ID:                    result.Tokens[0],
 		State:                 result.Tokens[1],
 		OwnKeysPresent:        result.Tokens[2],
@@ -577,16 +499,16 @@ func (handler *NodeHandler) listEquivalentsGetResult(command *Command) {
 	err := handler.Node.SendCommand(command)
 	if err != nil {
 		logger.Error("Can't send command: " + string(command.ToBytes()) + " to node. Details: " + err.Error())
-		resultJSON := buildJSONResponse(COMMAND_TRANSFERRING_ERROR, EquivalentsListResponse{})
+		resultJSON := buildJSONResponse(COMMAND_TRANSFERRING_ERROR, common.EquivalentsListResponse{})
 		fmt.Println(string(resultJSON))
 		return
 	}
 
-	result, err := handler.Node.GetResult(command, SETTLEMENT_LINE_RESULT_TIMEOUT)
+	result, err := handler.Node.GetResult(command, common.SETTLEMENT_LINE_RESULT_TIMEOUT)
 	if err != nil {
 		logger.Error("Node is inaccessible during processing command: " +
 			string(command.ToBytes()) + ". Details: " + err.Error())
-		resultJSON := buildJSONResponse(NODE_IS_INACCESSIBLE, EquivalentsListResponse{})
+		resultJSON := buildJSONResponse(NODE_IS_INACCESSIBLE, common.EquivalentsListResponse{})
 		fmt.Println(string(resultJSON))
 		return
 	}
@@ -594,14 +516,14 @@ func (handler *NodeHandler) listEquivalentsGetResult(command *Command) {
 	if result.Code != OK {
 		logger.Error("Node return wrong command result: " + strconv.Itoa(result.Code) +
 			" on command: " + string(command.ToBytes()))
-		resultJSON := buildJSONResponse(result.Code, EquivalentsListResponse{})
+		resultJSON := buildJSONResponse(result.Code, common.EquivalentsListResponse{})
 		fmt.Println(string(resultJSON))
 		return
 	}
 
 	if len(result.Tokens) == 0 {
 		logger.Error("Node return invalid result tokens size on command: " + string(command.ToBytes()))
-		resultJSON := buildJSONResponse(ENGINE_UNEXPECTED_ERROR, EquivalentsListResponse{})
+		resultJSON := buildJSONResponse(ENGINE_UNEXPECTED_ERROR, common.EquivalentsListResponse{})
 		fmt.Println(string(resultJSON))
 		return
 	}
@@ -610,18 +532,18 @@ func (handler *NodeHandler) listEquivalentsGetResult(command *Command) {
 	if err != nil {
 		logger.Error("Node return invalid token on command: " +
 			string(command.ToBytes()) + ". Details: " + err.Error())
-		resultJSON := buildJSONResponse(ENGINE_UNEXPECTED_ERROR, EquivalentsListResponse{})
+		resultJSON := buildJSONResponse(ENGINE_UNEXPECTED_ERROR, common.EquivalentsListResponse{})
 		fmt.Println(string(resultJSON))
 		return
 	}
 
 	if equivalentsCount == 0 {
-		resultJSON := buildJSONResponse(OK, EquivalentsListResponse{Count: equivalentsCount})
+		resultJSON := buildJSONResponse(OK, common.EquivalentsListResponse{Count: equivalentsCount})
 		fmt.Println(string(resultJSON))
 		return
 	}
 
-	response := EquivalentsListResponse{Count: equivalentsCount}
+	response := common.EquivalentsListResponse{Count: equivalentsCount}
 	for i := range equivalentsCount {
 		response.Equivalents = append(response.Equivalents, result.Tokens[i+1])
 	}
@@ -631,7 +553,7 @@ func (handler *NodeHandler) listEquivalentsGetResult(command *Command) {
 
 func (handler *NodeHandler) totalBalance() {
 
-	if !ValidateInt(Equivalent) {
+	if !common.ValidateInt(Equivalent) {
 		logger.Error("Bad request: invalid equivalent parameter in total-balance request")
 		fmt.Println("Bad request: invalid equivalent parameter")
 		return
@@ -647,16 +569,16 @@ func (handler *NodeHandler) totalBalanceGetResult(command *Command) {
 	err := handler.Node.SendCommand(command)
 	if err != nil {
 		logger.Error("Can't send command: " + string(command.ToBytes()) + " to node. Details: " + err.Error())
-		resultJSON := buildJSONResponse(COMMAND_TRANSFERRING_ERROR, TotalBalanceResponse{})
+		resultJSON := buildJSONResponse(COMMAND_TRANSFERRING_ERROR, common.TotalBalanceResponse{})
 		fmt.Println(string(resultJSON))
 		return
 	}
 
-	result, err := handler.Node.GetResult(command, STATS_RESULT_TIMEOUT)
+	result, err := handler.Node.GetResult(command, common.STATS_RESULT_TIMEOUT)
 	if err != nil {
 		logger.Error("Node is inaccessible during processing command: " + string(command.ToBytes()) +
 			". Details: " + err.Error())
-		resultJSON := buildJSONResponse(NODE_IS_INACCESSIBLE, TotalBalanceResponse{})
+		resultJSON := buildJSONResponse(NODE_IS_INACCESSIBLE, common.TotalBalanceResponse{})
 		fmt.Println(string(resultJSON))
 		return
 	}
@@ -664,24 +586,24 @@ func (handler *NodeHandler) totalBalanceGetResult(command *Command) {
 	if result.Code != OK && result.Code != ENGINE_NO_EQUIVALENT {
 		logger.Error("Node return wrong command result: " + strconv.Itoa(result.Code) +
 			" on command: " + string(command.ToBytes()))
-		resultJSON := buildJSONResponse(result.Code, TotalBalanceResponse{})
+		resultJSON := buildJSONResponse(result.Code, common.TotalBalanceResponse{})
 		fmt.Println(string(resultJSON))
 		return
 	}
 	if result.Code == ENGINE_NO_EQUIVALENT {
 		logger.Info("Node hasn't equivalent for command: " + string(command.ToBytes()))
-		resultJSON := buildJSONResponse(result.Code, TotalBalanceResponse{})
+		resultJSON := buildJSONResponse(result.Code, common.TotalBalanceResponse{})
 		fmt.Println(string(resultJSON))
 	}
 
 	if len(result.Tokens) < 4 {
 		logger.Error("Node return invalid result tokens size on command: " + string(command.ToBytes()))
-		resultJSON := buildJSONResponse(ENGINE_UNEXPECTED_ERROR, TotalBalanceResponse{})
+		resultJSON := buildJSONResponse(ENGINE_UNEXPECTED_ERROR, common.TotalBalanceResponse{})
 		fmt.Println(string(resultJSON))
 		return
 	}
 
-	response := TotalBalanceResponse{
+	response := common.TotalBalanceResponse{
 		TotalMaxNegativeBalance: result.Tokens[0],
 		TotalNegativeBalance:    result.Tokens[1],
 		TotalMaxPositiveBalance: result.Tokens[2],

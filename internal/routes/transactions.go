@@ -7,45 +7,9 @@ import (
 
 	"github.com/google/uuid"
 	"github.com/gorilla/mux"
+	"github.com/vTCP-Foundation/vtcpd-cli/internal/common"
 	"github.com/vTCP-Foundation/vtcpd-cli/internal/handler"
 	"github.com/vTCP-Foundation/vtcpd-cli/internal/logger"
-)
-
-// --- Global structs for payments ---
-
-type MaxFlowRecord struct {
-	ContractorAddressType string `json:"address_type"`
-	ContractorAddress     string `json:"contractor_address"`
-	MaxAmount             string `json:"max_amount"`
-}
-
-// --- Global API responses for payments ---
-
-type MaxFlowResponse struct {
-	Count   int             `json:"count"`
-	Records []MaxFlowRecord `json:"records"`
-}
-
-type MaxFlowPartialResponse struct {
-	State   int             `json:"state"`
-	Count   int             `json:"count"`
-	Records []MaxFlowRecord `json:"records"`
-}
-
-type PaymentResponse struct {
-	TransactionUUID string `json:"transaction_uuid"`
-}
-
-type GetTransactionByCommandUUIDResponse struct {
-	Count           int    `json:"count"`
-	TransactionUUID string `json:"transaction_uuid"`
-}
-
-var (
-	PAYMENT_OPERATION_TIMEOUT uint16 = 60
-	MAX_FLOW_FIRST_TIMEOUT    uint16 = 30
-	MAX_FLOW_FULLY_TIMEOUT    uint16 = 60
-	COMMAND_UUID_TIMEOUT      uint16 = 20
 )
 
 func (router *RoutesHandler) BatchMaxFullyTransaction(w http.ResponseWriter, r *http.Request) {
@@ -90,36 +54,36 @@ func (router *RoutesHandler) BatchMaxFullyTransaction(w http.ResponseWriter, r *
 	err = router.nodeHandler.Node.SendCommand(command)
 	if err != nil {
 		logger.Error("Can't send command: " + string(command.ToBytes()) + " to node. Details: " + err.Error())
-		writeHTTPResponse(w, COMMAND_TRANSFERRING_ERROR, MaxFlowResponse{})
+		writeHTTPResponse(w, COMMAND_TRANSFERRING_ERROR, common.MaxFlowResponse{})
 		return
 	}
 
 	// Command processing.
 	// This command may execute relatively slow.
 	// Timeout is set to little bit greater value to be able to handle this.
-	result, err := router.nodeHandler.Node.GetResult(command, MAX_FLOW_FULLY_TIMEOUT)
+	result, err := router.nodeHandler.Node.GetResult(command, common.MAX_FLOW_FULLY_TIMEOUT)
 	if err != nil {
 		logger.Error("Node is inaccessible during processing command: " +
 			string(command.ToBytes()) + ". Details: " + err.Error())
-		writeHTTPResponse(w, NODE_IS_INACCESSIBLE, MaxFlowResponse{})
+		writeHTTPResponse(w, NODE_IS_INACCESSIBLE, common.MaxFlowResponse{})
 		return
 	}
 
 	if result.Code != OK && result.Code != ENGINE_NO_EQUIVALENT {
 		logger.Error("Node return wrong command result: " + strconv.Itoa(result.Code) +
 			" on command: " + string(command.ToBytes()))
-		writeHTTPResponse(w, result.Code, MaxFlowResponse{})
+		writeHTTPResponse(w, result.Code, common.MaxFlowResponse{})
 		return
 	}
 	if result.Code == ENGINE_NO_EQUIVALENT {
 		logger.Info("Node hasn't equivalent for command: " + string(command.ToBytes()))
-		writeHTTPResponse(w, result.Code, MaxFlowResponse{})
+		writeHTTPResponse(w, result.Code, common.MaxFlowResponse{})
 		return
 	}
 
 	if len(result.Tokens) == 0 {
 		logger.Error("Node return invalid result tokens size on command: " + string(command.ToBytes()))
-		writeHTTPResponse(w, ENGINE_UNEXPECTED_ERROR, MaxFlowResponse{})
+		writeHTTPResponse(w, ENGINE_UNEXPECTED_ERROR, common.MaxFlowResponse{})
 		return
 	}
 
@@ -127,18 +91,18 @@ func (router *RoutesHandler) BatchMaxFullyTransaction(w http.ResponseWriter, r *
 	if err != nil {
 		logger.Error("Node return invalid token on command: " + string(command.ToBytes()) +
 			". Details: " + err.Error())
-		writeHTTPResponse(w, ENGINE_UNEXPECTED_ERROR, MaxFlowResponse{})
+		writeHTTPResponse(w, ENGINE_UNEXPECTED_ERROR, common.MaxFlowResponse{})
 		return
 	}
 
 	if contractorsCount == 0 {
-		writeHTTPResponse(w, OK, MaxFlowResponse{Count: 0})
+		writeHTTPResponse(w, OK, common.MaxFlowResponse{Count: 0})
 		return
 	}
 
-	response := MaxFlowResponse{Count: contractorsCount}
+	response := common.MaxFlowResponse{Count: contractorsCount}
 	for i := range contractorsCount {
-		response.Records = append(response.Records, MaxFlowRecord{
+		response.Records = append(response.Records, common.MaxFlowRecord{
 			ContractorAddressType: result.Tokens[i*3+1],
 			ContractorAddress:     result.Tokens[i*3+2],
 			MaxAmount:             result.Tokens[i*3+3],
@@ -182,7 +146,7 @@ func (router *RoutesHandler) CreateTransaction(w http.ResponseWriter, r *http.Re
 	}
 
 	amount := r.FormValue("amount")
-	if !handler.ValidateSettlementLineAmount(amount) {
+	if !common.ValidateSettlementLineAmount(amount) {
 		logger.Error("Bad request: invalid amount parameter: " + url)
 		w.WriteHeader(BAD_REQUEST)
 		return
@@ -220,37 +184,37 @@ func (router *RoutesHandler) CreateTransaction(w http.ResponseWriter, r *http.Re
 	err = router.nodeHandler.Node.SendCommand(command)
 	if err != nil {
 		logger.Error("Can't send command: " + string(command.ToBytes()) + " to node. Details: " + err.Error())
-		writeHTTPResponse(w, COMMAND_TRANSFERRING_ERROR, PaymentResponse{})
+		writeHTTPResponse(w, COMMAND_TRANSFERRING_ERROR, common.PaymentResponse{})
 		return
 	}
 
-	result, err := router.nodeHandler.Node.GetResult(command, PAYMENT_OPERATION_TIMEOUT)
+	result, err := router.nodeHandler.Node.GetResult(command, common.PAYMENT_OPERATION_TIMEOUT)
 	if err != nil {
 		logger.Error("Node is inaccessible during processing command: " +
 			string(command.ToBytes()) + ". Details: " + err.Error())
-		writeHTTPResponse(w, NODE_IS_INACCESSIBLE, PaymentResponse{})
+		writeHTTPResponse(w, NODE_IS_INACCESSIBLE, common.PaymentResponse{})
 		return
 	}
 
 	if result.Code != CREATED && result.Code != ENGINE_NO_EQUIVALENT {
 		logger.Error("Node return wrong command result: " + strconv.Itoa(result.Code) +
 			" on command: " + string(command.ToBytes()))
-		writeHTTPResponse(w, result.Code, PaymentResponse{})
+		writeHTTPResponse(w, result.Code, common.PaymentResponse{})
 		return
 	}
 	if result.Code == ENGINE_NO_EQUIVALENT {
 		logger.Info("Node hasn't equivalent for command: " + string(command.ToBytes()))
-		writeHTTPResponse(w, result.Code, PaymentResponse{})
+		writeHTTPResponse(w, result.Code, common.PaymentResponse{})
 		return
 	}
 
 	if len(result.Tokens) == 0 {
 		logger.Error("Node return invalid result tokens size on command: " + string(command.ToBytes()))
-		writeHTTPResponse(w, ENGINE_UNEXPECTED_ERROR, PaymentResponse{})
+		writeHTTPResponse(w, ENGINE_UNEXPECTED_ERROR, common.PaymentResponse{})
 		return
 	}
 
-	writeHTTPResponse(w, OK, PaymentResponse{TransactionUUID: result.Tokens[0]})
+	writeHTTPResponse(w, OK, common.PaymentResponse{TransactionUUID: result.Tokens[0]})
 }
 
 func (router *RoutesHandler) GetTransactionByCommandUUID(w http.ResponseWriter, r *http.Request) {
@@ -262,7 +226,7 @@ func (router *RoutesHandler) GetTransactionByCommandUUID(w http.ResponseWriter, 
 	}
 
 	requestedCommandUUID := mux.Vars(r)["command_uuid"]
-	if !handler.ValidateUUID(requestedCommandUUID) {
+	if !common.ValidateUUID(requestedCommandUUID) {
 		logger.Error("Bad request: invalid command_uuid parameter: " + url)
 		w.WriteHeader(BAD_REQUEST)
 		return
@@ -273,50 +237,50 @@ func (router *RoutesHandler) GetTransactionByCommandUUID(w http.ResponseWriter, 
 	err = router.nodeHandler.Node.SendCommand(command)
 	if err != nil {
 		logger.Error("Can't send command: " + string(command.ToBytes()) + ". Details: " + err.Error())
-		writeHTTPResponse(w, COMMAND_TRANSFERRING_ERROR, GetTransactionByCommandUUIDResponse{})
+		writeHTTPResponse(w, COMMAND_TRANSFERRING_ERROR, common.GetTransactionByCommandUUIDResponse{})
 		return
 	}
 
-	result, err := router.nodeHandler.Node.GetResult(command, COMMAND_UUID_TIMEOUT)
+	result, err := router.nodeHandler.Node.GetResult(command, common.COMMAND_UUID_TIMEOUT)
 	if err != nil {
 		logger.Error("Node is inaccessible during processing command: " +
 			string(command.ToBytes()) + ". Details: " + err.Error())
-		writeHTTPResponse(w, NODE_IS_INACCESSIBLE, GetTransactionByCommandUUIDResponse{})
+		writeHTTPResponse(w, NODE_IS_INACCESSIBLE, common.GetTransactionByCommandUUIDResponse{})
 		return
 	}
 
 	if result.Code != OK {
 		logger.Error("Node return wrong command result: " + strconv.Itoa(result.Code) +
 			" on command: " + string(command.ToBytes()))
-		writeHTTPResponse(w, result.Code, GetTransactionByCommandUUIDResponse{})
+		writeHTTPResponse(w, result.Code, common.GetTransactionByCommandUUIDResponse{})
 		return
 	}
 
 	if len(result.Tokens) == 0 {
 		logger.Error("Node return invalid result tokens size on command: " + string(command.ToBytes()))
-		writeHTTPResponse(w, ENGINE_UNEXPECTED_ERROR, GetTransactionByCommandUUIDResponse{})
+		writeHTTPResponse(w, ENGINE_UNEXPECTED_ERROR, common.GetTransactionByCommandUUIDResponse{})
 		return
 	}
 
 	count, err := strconv.Atoi(result.Tokens[0])
 	if err != nil {
 		logger.Error("Node return invalid token on command: " + string(command.ToBytes()) + ". Details: " + err.Error())
-		writeHTTPResponse(w, ENGINE_UNEXPECTED_ERROR, GetTransactionByCommandUUIDResponse{})
+		writeHTTPResponse(w, ENGINE_UNEXPECTED_ERROR, common.GetTransactionByCommandUUIDResponse{})
 		return
 	}
 
 	if count == 0 {
-		writeHTTPResponse(w, OK, GetTransactionByCommandUUIDResponse{Count: 0})
+		writeHTTPResponse(w, OK, common.GetTransactionByCommandUUIDResponse{Count: 0})
 		return
 	}
 
 	if count == 1 {
-		writeHTTPResponse(w, OK, GetTransactionByCommandUUIDResponse{
+		writeHTTPResponse(w, OK, common.GetTransactionByCommandUUIDResponse{
 			Count:           1,
 			TransactionUUID: result.Tokens[1]})
 		return
 	}
 
 	logger.Error("Node return invalid token `count` on command: " + string(command.ToBytes()))
-	writeHTTPResponse(w, ENGINE_UNEXPECTED_ERROR, GetTransactionByCommandUUIDResponse{})
+	writeHTTPResponse(w, ENGINE_UNEXPECTED_ERROR, common.GetTransactionByCommandUUIDResponse{})
 }

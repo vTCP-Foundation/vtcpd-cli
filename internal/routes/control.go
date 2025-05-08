@@ -7,19 +7,9 @@ import (
 	"strconv"
 	"time"
 
+	"github.com/vTCP-Foundation/vtcpd-cli/internal/common"
 	"github.com/vTCP-Foundation/vtcpd-cli/internal/handler"
 	"github.com/vTCP-Foundation/vtcpd-cli/internal/logger"
-)
-
-type ControlMsgResponse struct {
-	Status string `json:"status"`
-	Msg    string `json:"msg"`
-}
-
-type ControlResponse struct{}
-
-var (
-	DELETE_CRYPTO_DATA_TIMEOUT uint16 = 20 // seconds
 )
 
 func (router *RoutesHandler) StopEverything(w http.ResponseWriter, r *http.Request) {
@@ -42,7 +32,7 @@ func (router *RoutesHandler) StopEverything(w http.ResponseWriter, r *http.Reque
 		os.Exit(0)
 	}(router.nodeHandler)
 
-	writeHTTPResponse(w, OK, ControlMsgResponse{"ok", "Stop request received"})
+	writeHTTPResponse(w, OK, common.ControlMsgResponse{Status: "ok", Msg: "Stop request received"})
 }
 
 func (router *RoutesHandler) RemoveOutdatedCryptoData(w http.ResponseWriter, r *http.Request) {
@@ -64,15 +54,15 @@ func (router *RoutesHandler) RemoveOutdatedCryptoData(w http.ResponseWriter, r *
 	err = router.nodeHandler.Node.SendCommand(command)
 	if err != nil {
 		logger.Error("Can't send command: " + string(command.ToBytes()) + " to node. Details: " + err.Error())
-		writeHTTPResponse(w, COMMAND_TRANSFERRING_ERROR, ControlResponse{})
+		writeHTTPResponse(w, COMMAND_TRANSFERRING_ERROR, common.ControlResponse{})
 		return
 	}
 
-	result, err := router.nodeHandler.Node.GetResult(command, DELETE_CRYPTO_DATA_TIMEOUT)
+	result, err := router.nodeHandler.Node.GetResult(command, common.DELETE_CRYPTO_DATA_TIMEOUT)
 	if err != nil {
 		logger.Error("Node is inaccessible during processing command: " +
 			string(command.ToBytes()) + ". Details: " + err.Error())
-		writeHTTPResponse(w, NODE_IS_INACCESSIBLE, ControlResponse{})
+		writeHTTPResponse(w, NODE_IS_INACCESSIBLE, common.ControlResponse{})
 		return
 	}
 
@@ -81,7 +71,7 @@ func (router *RoutesHandler) RemoveOutdatedCryptoData(w http.ResponseWriter, r *
 			" on command: " + string(command.ToBytes()))
 	}
 
-	writeHTTPResponse(w, result.Code, ControlResponse{})
+	writeHTTPResponse(w, result.Code, common.ControlResponse{})
 }
 
 func (router *RoutesHandler) RegenerateAllKeys(w http.ResponseWriter, r *http.Request) {
@@ -114,28 +104,28 @@ func (router *RoutesHandler) RegenerateAllKeys(w http.ResponseWriter, r *http.Re
 	err = router.nodeHandler.Node.SendCommand(command)
 	if err != nil {
 		logger.Error("Can't send command: " + string(command.ToBytes()) + " to node. Details: " + err.Error())
-		writeHTTPResponse(w, COMMAND_TRANSFERRING_ERROR, ControlResponse{})
+		writeHTTPResponse(w, COMMAND_TRANSFERRING_ERROR, common.ControlResponse{})
 		return
 	}
 
-	resultEquivalents, err := router.nodeHandler.Node.GetResult(command, CHANNEL_RESULT_TIMEOUT)
+	resultEquivalents, err := router.nodeHandler.Node.GetResult(command, common.CHANNEL_RESULT_TIMEOUT)
 	if err != nil {
 		logger.Error("Node is inaccessible during processing command: " +
 			string(command.ToBytes()) + ". Details: " + err.Error())
-		writeHTTPResponse(w, NODE_IS_INACCESSIBLE, ControlResponse{})
+		writeHTTPResponse(w, NODE_IS_INACCESSIBLE, common.ControlResponse{})
 		return
 	}
 
 	if resultEquivalents.Code != OK {
 		logger.Error("Node return wrong command result: " + strconv.Itoa(resultEquivalents.Code) +
 			" on command: " + string(command.ToBytes()))
-		writeHTTPResponse(w, resultEquivalents.Code, ControlResponse{})
+		writeHTTPResponse(w, resultEquivalents.Code, common.ControlResponse{})
 		return
 	}
 
 	if len(resultEquivalents.Tokens) == 0 {
 		logger.Error("Node return invalid result tokens size on command: " + string(command.ToBytes()))
-		writeHTTPResponse(w, ENGINE_UNEXPECTED_ERROR, ControlResponse{})
+		writeHTTPResponse(w, ENGINE_UNEXPECTED_ERROR, common.ControlResponse{})
 		return
 	}
 
@@ -144,13 +134,13 @@ func (router *RoutesHandler) RegenerateAllKeys(w http.ResponseWriter, r *http.Re
 	if err != nil {
 		logger.Error("Node return invalid token on command: " +
 			string(command.ToBytes()) + ". Details: " + err.Error())
-		writeHTTPResponse(w, ENGINE_UNEXPECTED_ERROR, ControlResponse{})
+		writeHTTPResponse(w, ENGINE_UNEXPECTED_ERROR, common.ControlResponse{})
 		return
 	}
 
 	if equivalentsCount == 0 {
 		logger.Info("There are no SL")
-		writeHTTPResponse(w, resultEquivalents.Code, ControlResponse{})
+		writeHTTPResponse(w, resultEquivalents.Code, common.ControlResponse{})
 		return
 	}
 
@@ -164,28 +154,28 @@ func (router *RoutesHandler) RegenerateAllKeys(w http.ResponseWriter, r *http.Re
 	err = router.nodeHandler.Node.SendCommand(command)
 	if err != nil {
 		logger.Error("Can't send command: " + string(command.ToBytes()) + " to node. Details: " + err.Error())
-		writeHTTPResponse(w, COMMAND_TRANSFERRING_ERROR, ControlResponse{})
+		writeHTTPResponse(w, COMMAND_TRANSFERRING_ERROR, common.ControlResponse{})
 		return
 	}
 
-	resultContractors, err := router.nodeHandler.Node.GetResult(command, CHANNEL_RESULT_TIMEOUT)
+	resultContractors, err := router.nodeHandler.Node.GetResult(command, common.CHANNEL_RESULT_TIMEOUT)
 	if err != nil {
 		logger.Error("Node is inaccessible during processing command: " +
 			string(command.ToBytes()) + ". Details: " + err.Error())
-		writeHTTPResponse(w, NODE_IS_INACCESSIBLE, ControlResponse{})
+		writeHTTPResponse(w, NODE_IS_INACCESSIBLE, common.ControlResponse{})
 		return
 	}
 
 	if resultContractors.Code != OK {
 		logger.Error("Node return wrong command result: " + strconv.Itoa(resultContractors.Code) +
 			" on command: " + string(command.ToBytes()))
-		writeHTTPResponse(w, resultContractors.Code, ControlResponse{})
+		writeHTTPResponse(w, resultContractors.Code, common.ControlResponse{})
 		return
 	}
 
 	if len(resultContractors.Tokens) == 0 {
 		logger.Error("Node return invalid result tokens size on command: " + string(command.ToBytes()))
-		writeHTTPResponse(w, ENGINE_UNEXPECTED_ERROR, ControlResponse{})
+		writeHTTPResponse(w, ENGINE_UNEXPECTED_ERROR, common.ControlResponse{})
 		return
 	}
 
@@ -194,13 +184,13 @@ func (router *RoutesHandler) RegenerateAllKeys(w http.ResponseWriter, r *http.Re
 	if err != nil {
 		logger.Error("Node return invalid token on command: " +
 			string(command.ToBytes()) + ". Details: " + err.Error())
-		writeHTTPResponse(w, ENGINE_UNEXPECTED_ERROR, ControlResponse{})
+		writeHTTPResponse(w, ENGINE_UNEXPECTED_ERROR, common.ControlResponse{})
 		return
 	}
 
 	if channelsCount == 0 {
 		logger.Info("There are no contractors")
-		writeHTTPResponse(w, resultEquivalents.Code, ControlResponse{})
+		writeHTTPResponse(w, resultEquivalents.Code, common.ControlResponse{})
 		return
 	}
 
@@ -210,7 +200,7 @@ func (router *RoutesHandler) RegenerateAllKeys(w http.ResponseWriter, r *http.Re
 	/////
 
 	go router.regenerateAllKeys(contractors, equivalents, delayInt)
-	writeHTTPResponse(w, resultEquivalents.Code, ControlResponse{})
+	writeHTTPResponse(w, resultEquivalents.Code, common.ControlResponse{})
 }
 
 func (router *RoutesHandler) regenerateAllKeys(contractors []string, equivalents []string, delay int) {
@@ -227,7 +217,7 @@ func (router *RoutesHandler) regenerateAllKeys(contractors []string, equivalents
 				continue
 			}
 
-			result, err := router.nodeHandler.Node.GetResult(command, CHANNEL_RESULT_TIMEOUT)
+			result, err := router.nodeHandler.Node.GetResult(command, common.CHANNEL_RESULT_TIMEOUT)
 			if err != nil {
 				logger.Error("Node is inaccessible during processing command: " +
 					string(command.ToBytes()) + ". Details: " + err.Error())

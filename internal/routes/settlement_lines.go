@@ -6,88 +6,10 @@ import (
 	"strings"
 
 	"github.com/gorilla/mux"
+	"github.com/vTCP-Foundation/vtcpd-cli/internal/common"
 	"github.com/vTCP-Foundation/vtcpd-cli/internal/handler"
 	"github.com/vTCP-Foundation/vtcpd-cli/internal/logger"
 )
-
-var (
-	SETTLEMENT_LINE_RESULT_TIMEOUT  uint16 = 20 // seconds
-	CONTRACTORS_RESULT_TIMEOUT      uint16 = 20
-	STATS_RESULT_TIMEOUT            uint16 = 20 // seconds
-	DEFAULT_SETTLEMENT_LINES_OFFSET        = "0"
-	DFEAULT_SETTLEMENT_LINES_COUNT         = "10000"
-)
-
-// --- Global structs ---
-
-type SettlementLineListItem struct {
-	ID                    string `json:"contractor_id"`
-	Contractor            string `json:"contractor"`
-	State                 string `json:"state"`
-	OwnKeysPresent        string `json:"own_keys_present"`
-	ContractorKeysPresent string `json:"contractor_keys_present"`
-	MaxNegativeBalance    string `json:"max_negative_balance"`
-	MaxPositiveBalance    string `json:"max_positive_balance"`
-	Balance               string `json:"balance"`
-}
-
-type SettlementLineDetail struct {
-	ID                    string `json:"id"` // todo : contractor_id
-	State                 string `json:"state"`
-	OwnKeysPresent        string `json:"own_keys_present"`
-	ContractorKeysPresent string `json:"contractor_keys_present"`
-	AuditNumber           string `json:"audit_number"`
-	MaxNegativeBalance    string `json:"max_negative_balance"`
-	MaxPositiveBalance    string `json:"max_positive_balance"`
-	Balance               string `json:"balance"`
-}
-
-type EquivalentStatistics struct {
-	Eq              string                   `json:"equivalent"`
-	Count           int                      `json:"count"`
-	SettlementLines []SettlementLineListItem `json:"settlement_lines"`
-}
-
-type ContractorInfo struct {
-	ContractorID        string `json:"contractor_id"`
-	ContractorAddresses string `json:"contractor_addresses"`
-}
-
-// --- Global API responses ---
-
-// ActionResponse used for operations that return only status
-type ActionResponse struct{}
-
-type SettlementLineListResponse struct {
-	Count           int                      `json:"count"`
-	SettlementLines []SettlementLineListItem `json:"settlement_lines"`
-}
-
-type SettlementLineDetailResponse struct {
-	SettlementLine SettlementLineDetail `json:"settlement_line"`
-}
-
-type AllEquivalentsResponse struct {
-	Count       int                    `json:"count"`
-	Equivalents []EquivalentStatistics `json:"equivalents"`
-}
-
-type ContractorsListResponse struct {
-	Count       int              `json:"count"`
-	Contractors []ContractorInfo `json:"contractors"`
-}
-
-type EquivalentsListResponse struct {
-	Count       int      `json:"count"`
-	Equivalents []string `json:"equivalents"`
-}
-
-type TotalBalanceResponse struct {
-	TotalMaxNegativeBalance string `json:"total_max_negative_balance"`
-	TotalNegativeBalance    string `json:"total_negative_balance"`
-	TotalMaxPositiveBalance string `json:"total_max_positive_balance"`
-	TotalPositiveBalance    string `json:"total_positive_balance"`
-}
 
 func (router *RoutesHandler) InitSettlementLine(w http.ResponseWriter, r *http.Request) {
 	logger.Info("InitSettlementLine controller")
@@ -99,7 +21,7 @@ func (router *RoutesHandler) InitSettlementLine(w http.ResponseWriter, r *http.R
 	}
 
 	contractorID := mux.Vars(r)["contractor_id"]
-	if !handler.ValidateInt(contractorID) {
+	if !common.ValidateInt(contractorID) {
 		logger.Error("Bad request: invalid contractor_id parameter: " + url)
 		w.WriteHeader(BAD_REQUEST)
 		return
@@ -118,15 +40,15 @@ func (router *RoutesHandler) InitSettlementLine(w http.ResponseWriter, r *http.R
 	err = router.nodeHandler.Node.SendCommand(command)
 	if err != nil {
 		logger.Error("Can't send command: " + string(command.ToBytes()) + " to node. Details: " + err.Error())
-		writeHTTPResponse(w, COMMAND_TRANSFERRING_ERROR, ActionResponse{})
+		writeHTTPResponse(w, COMMAND_TRANSFERRING_ERROR, common.ActionResponse{})
 		return
 	}
 
-	result, err := router.nodeHandler.Node.GetResult(command, SETTLEMENT_LINE_RESULT_TIMEOUT)
+	result, err := router.nodeHandler.Node.GetResult(command, common.SETTLEMENT_LINE_RESULT_TIMEOUT)
 	if err != nil {
 		logger.Error("Node is inaccessible during processing command: " +
 			string(command.ToBytes()) + ". Details: " + err.Error())
-		writeHTTPResponse(w, NODE_IS_INACCESSIBLE, ActionResponse{})
+		writeHTTPResponse(w, NODE_IS_INACCESSIBLE, common.ActionResponse{})
 		return
 	}
 
@@ -135,7 +57,7 @@ func (router *RoutesHandler) InitSettlementLine(w http.ResponseWriter, r *http.R
 			" on command: " + string(command.ToBytes()))
 	}
 
-	writeHTTPResponse(w, result.Code, ActionResponse{})
+	writeHTTPResponse(w, result.Code, common.ActionResponse{})
 }
 
 func (router *RoutesHandler) SetMaxPositiveBalance(w http.ResponseWriter, r *http.Request) {
@@ -147,21 +69,21 @@ func (router *RoutesHandler) SetMaxPositiveBalance(w http.ResponseWriter, r *htt
 	}
 
 	contractorID := mux.Vars(r)["contractor_id"]
-	if !handler.ValidateInt(contractorID) {
+	if !common.ValidateInt(contractorID) {
 		logger.Error("Bad request: invalid contractor_id parameter: " + url)
 		w.WriteHeader(BAD_REQUEST)
 		return
 	}
 
 	equivalent := mux.Vars(r)["equivalent"]
-	if !handler.ValidateInt(equivalent) {
+	if !common.ValidateInt(equivalent) {
 		logger.Error("Bad request: invalid equivalent parameter: " + url)
 		w.WriteHeader(BAD_REQUEST)
 		return
 	}
 
 	amount := r.FormValue("amount")
-	if !handler.ValidateSettlementLineAmount(amount) {
+	if !common.ValidateSettlementLineAmount(amount) {
 		logger.Error("Bad request: invalid amount parameter: " + url)
 		w.WriteHeader(BAD_REQUEST)
 		return
@@ -173,15 +95,15 @@ func (router *RoutesHandler) SetMaxPositiveBalance(w http.ResponseWriter, r *htt
 	err = router.nodeHandler.Node.SendCommand(command)
 	if err != nil {
 		logger.Error("Can't send command: " + string(command.ToBytes()) + " to node. Details: " + err.Error())
-		writeHTTPResponse(w, COMMAND_TRANSFERRING_ERROR, ActionResponse{})
+		writeHTTPResponse(w, COMMAND_TRANSFERRING_ERROR, common.ActionResponse{})
 		return
 	}
 
-	result, err := router.nodeHandler.Node.GetResult(command, SETTLEMENT_LINE_RESULT_TIMEOUT)
+	result, err := router.nodeHandler.Node.GetResult(command, common.SETTLEMENT_LINE_RESULT_TIMEOUT)
 	if err != nil {
 		logger.Error("Node is inaccessible during processing command: " +
 			string(command.ToBytes()) + ". Details: " + err.Error())
-		writeHTTPResponse(w, NODE_IS_INACCESSIBLE, ActionResponse{})
+		writeHTTPResponse(w, NODE_IS_INACCESSIBLE, common.ActionResponse{})
 		return
 	}
 
@@ -190,7 +112,7 @@ func (router *RoutesHandler) SetMaxPositiveBalance(w http.ResponseWriter, r *htt
 			" on command: " + string(command.ToBytes()))
 	}
 
-	writeHTTPResponse(w, result.Code, ActionResponse{})
+	writeHTTPResponse(w, result.Code, common.ActionResponse{})
 }
 
 func (router *RoutesHandler) ZeroOutMaxNegativeBalance(w http.ResponseWriter, r *http.Request) {
@@ -202,14 +124,14 @@ func (router *RoutesHandler) ZeroOutMaxNegativeBalance(w http.ResponseWriter, r 
 	}
 
 	contractorID := mux.Vars(r)["contractor_id"]
-	if !handler.ValidateInt(contractorID) {
+	if !common.ValidateInt(contractorID) {
 		logger.Error("Bad request: invalid contractor_id parameter: " + url)
 		w.WriteHeader(BAD_REQUEST)
 		return
 	}
 
 	equivalent := mux.Vars(r)["equivalent"]
-	if !handler.ValidateInt(equivalent) {
+	if !common.ValidateInt(equivalent) {
 		logger.Error("Bad request: invalid equivalent parameter: " + url)
 		w.WriteHeader(BAD_REQUEST)
 		return
@@ -221,15 +143,15 @@ func (router *RoutesHandler) ZeroOutMaxNegativeBalance(w http.ResponseWriter, r 
 	err = router.nodeHandler.Node.SendCommand(command)
 	if err != nil {
 		logger.Error("Can't send command: " + string(command.ToBytes()) + " to node. Details: " + err.Error())
-		writeHTTPResponse(w, COMMAND_TRANSFERRING_ERROR, ActionResponse{})
+		writeHTTPResponse(w, COMMAND_TRANSFERRING_ERROR, common.ActionResponse{})
 		return
 	}
 
-	result, err := router.nodeHandler.Node.GetResult(command, SETTLEMENT_LINE_RESULT_TIMEOUT)
+	result, err := router.nodeHandler.Node.GetResult(command, common.SETTLEMENT_LINE_RESULT_TIMEOUT)
 	if err != nil {
 		logger.Error("Node is inaccessible during processing command: " +
 			string(command.ToBytes()) + ". Details: " + err.Error())
-		writeHTTPResponse(w, NODE_IS_INACCESSIBLE, ActionResponse{})
+		writeHTTPResponse(w, NODE_IS_INACCESSIBLE, common.ActionResponse{})
 		return
 	}
 
@@ -238,7 +160,7 @@ func (router *RoutesHandler) ZeroOutMaxNegativeBalance(w http.ResponseWriter, r 
 			" on command: " + string(command.ToBytes()))
 	}
 
-	writeHTTPResponse(w, result.Code, ActionResponse{})
+	writeHTTPResponse(w, result.Code, common.ActionResponse{})
 }
 
 func (router *RoutesHandler) PublicKeysSharing(w http.ResponseWriter, r *http.Request) {
@@ -250,14 +172,14 @@ func (router *RoutesHandler) PublicKeysSharing(w http.ResponseWriter, r *http.Re
 	}
 
 	contractorID := mux.Vars(r)["contractor_id"]
-	if !handler.ValidateInt(contractorID) {
+	if !common.ValidateInt(contractorID) {
 		logger.Error("Bad request: invalid contractor_id parameter: " + url)
 		w.WriteHeader(BAD_REQUEST)
 		return
 	}
 
 	equivalent := mux.Vars(r)["equivalent"]
-	if !handler.ValidateInt(equivalent) {
+	if !common.ValidateInt(equivalent) {
 		logger.Error("Bad request: invalid equivalent parameter: " + url)
 		w.WriteHeader(BAD_REQUEST)
 		return
@@ -269,15 +191,15 @@ func (router *RoutesHandler) PublicKeysSharing(w http.ResponseWriter, r *http.Re
 	err = router.nodeHandler.Node.SendCommand(command)
 	if err != nil {
 		logger.Error("Can't send command: " + string(command.ToBytes()) + " to node. Details: " + err.Error())
-		writeHTTPResponse(w, COMMAND_TRANSFERRING_ERROR, ActionResponse{})
+		writeHTTPResponse(w, COMMAND_TRANSFERRING_ERROR, common.ActionResponse{})
 		return
 	}
 
-	result, err := router.nodeHandler.Node.GetResult(command, SETTLEMENT_LINE_RESULT_TIMEOUT)
+	result, err := router.nodeHandler.Node.GetResult(command, common.SETTLEMENT_LINE_RESULT_TIMEOUT)
 	if err != nil {
 		logger.Error("Node is inaccessible during processing command: " +
 			string(command.ToBytes()) + ". Details: " + err.Error())
-		writeHTTPResponse(w, NODE_IS_INACCESSIBLE, ActionResponse{})
+		writeHTTPResponse(w, NODE_IS_INACCESSIBLE, common.ActionResponse{})
 		return
 	}
 
@@ -286,7 +208,7 @@ func (router *RoutesHandler) PublicKeysSharing(w http.ResponseWriter, r *http.Re
 			" on command: " + string(command.ToBytes()))
 	}
 
-	writeHTTPResponse(w, result.Code, ActionResponse{})
+	writeHTTPResponse(w, result.Code, common.ActionResponse{})
 }
 
 func (router *RoutesHandler) RemoveSettlementLine(w http.ResponseWriter, r *http.Request) {
@@ -298,14 +220,14 @@ func (router *RoutesHandler) RemoveSettlementLine(w http.ResponseWriter, r *http
 	}
 
 	contractorID := mux.Vars(r)["contractor_id"]
-	if !handler.ValidateInt(contractorID) {
+	if !common.ValidateInt(contractorID) {
 		logger.Error("Bad request: invalid contractor_id parameter: " + url)
 		w.WriteHeader(BAD_REQUEST)
 		return
 	}
 
 	equivalent := mux.Vars(r)["equivalent"]
-	if !handler.ValidateInt(equivalent) {
+	if !common.ValidateInt(equivalent) {
 		logger.Error("Bad request: invalid equivalent parameter: " + url)
 		w.WriteHeader(BAD_REQUEST)
 		return
@@ -317,15 +239,15 @@ func (router *RoutesHandler) RemoveSettlementLine(w http.ResponseWriter, r *http
 	err = router.nodeHandler.Node.SendCommand(command)
 	if err != nil {
 		logger.Error("Can't send command: " + string(command.ToBytes()) + " to node. Details: " + err.Error())
-		writeHTTPResponse(w, COMMAND_TRANSFERRING_ERROR, ActionResponse{})
+		writeHTTPResponse(w, COMMAND_TRANSFERRING_ERROR, common.ActionResponse{})
 		return
 	}
 
-	result, err := router.nodeHandler.Node.GetResult(command, SETTLEMENT_LINE_RESULT_TIMEOUT)
+	result, err := router.nodeHandler.Node.GetResult(command, common.SETTLEMENT_LINE_RESULT_TIMEOUT)
 	if err != nil {
 		logger.Error("Node is inaccessible during processing command: " +
 			string(command.ToBytes()) + ". Details: " + err.Error())
-		writeHTTPResponse(w, NODE_IS_INACCESSIBLE, ActionResponse{})
+		writeHTTPResponse(w, NODE_IS_INACCESSIBLE, common.ActionResponse{})
 		return
 	}
 
@@ -334,7 +256,7 @@ func (router *RoutesHandler) RemoveSettlementLine(w http.ResponseWriter, r *http
 			" on command: " + string(command.ToBytes()))
 	}
 
-	writeHTTPResponse(w, result.Code, ActionResponse{})
+	writeHTTPResponse(w, result.Code, common.ActionResponse{})
 }
 
 func (router *RoutesHandler) ResetSettlementLine(w http.ResponseWriter, r *http.Request) {
@@ -346,35 +268,35 @@ func (router *RoutesHandler) ResetSettlementLine(w http.ResponseWriter, r *http.
 	}
 
 	contractorID := mux.Vars(r)["contractor_id"]
-	if !handler.ValidateInt(contractorID) {
+	if !common.ValidateInt(contractorID) {
 		logger.Error("Bad request: invalid contractor_id parameter: " + url)
 		w.WriteHeader(BAD_REQUEST)
 		return
 	}
 
 	equivalent := mux.Vars(r)["equivalent"]
-	if !handler.ValidateInt(equivalent) {
+	if !common.ValidateInt(equivalent) {
 		logger.Error("Bad request: invalid equivalent parameter: " + url)
 		w.WriteHeader(BAD_REQUEST)
 		return
 	}
 
 	auditNumber := r.FormValue("audit_number")
-	if !handler.ValidateInt(auditNumber) {
+	if !common.ValidateInt(auditNumber) {
 		logger.Error("Bad request: invalid audit_number parameter: " + url)
 		w.WriteHeader(BAD_REQUEST)
 		return
 	}
 
 	maxNegativeBalance := r.FormValue("max_negative_balance")
-	if !handler.ValidateSettlementLineAmount(maxNegativeBalance) {
+	if !common.ValidateSettlementLineAmount(maxNegativeBalance) {
 		logger.Error("Bad request: invalid max_negative_balance parameter: " + url)
 		w.WriteHeader(BAD_REQUEST)
 		return
 	}
 
 	maxPositiveBalance := r.FormValue("max_positive_balance")
-	if !handler.ValidateSettlementLineAmount(maxPositiveBalance) {
+	if !common.ValidateSettlementLineAmount(maxPositiveBalance) {
 		logger.Error("Bad request: invalid max_positive_balance parameter: " + url)
 		w.WriteHeader(BAD_REQUEST)
 		return
@@ -394,15 +316,15 @@ func (router *RoutesHandler) ResetSettlementLine(w http.ResponseWriter, r *http.
 	err = router.nodeHandler.Node.SendCommand(command)
 	if err != nil {
 		logger.Error("Can't send command: " + string(command.ToBytes()) + " to node. Details: " + err.Error())
-		writeHTTPResponse(w, COMMAND_TRANSFERRING_ERROR, ActionResponse{})
+		writeHTTPResponse(w, COMMAND_TRANSFERRING_ERROR, common.ActionResponse{})
 		return
 	}
 
-	result, err := router.nodeHandler.Node.GetResult(command, SETTLEMENT_LINE_RESULT_TIMEOUT)
+	result, err := router.nodeHandler.Node.GetResult(command, common.SETTLEMENT_LINE_RESULT_TIMEOUT)
 	if err != nil {
 		logger.Error("Node is inaccessible during processing command: " +
 			string(command.ToBytes()) + ". Details: " + err.Error())
-		writeHTTPResponse(w, NODE_IS_INACCESSIBLE, ActionResponse{})
+		writeHTTPResponse(w, NODE_IS_INACCESSIBLE, common.ActionResponse{})
 		return
 	}
 
@@ -411,7 +333,7 @@ func (router *RoutesHandler) ResetSettlementLine(w http.ResponseWriter, r *http.
 			" on command: " + string(command.ToBytes()))
 	}
 
-	writeHTTPResponse(w, result.Code, ActionResponse{})
+	writeHTTPResponse(w, result.Code, common.ActionResponse{})
 }
 
 func (router *RoutesHandler) ListSettlementLines(w http.ResponseWriter, r *http.Request) {
@@ -429,38 +351,38 @@ func (router *RoutesHandler) ListSettlementLines(w http.ResponseWriter, r *http.
 		return
 	}
 
-	command := handler.NewCommand("GET:contractors/trust-lines", DEFAULT_SETTLEMENT_LINES_OFFSET, DFEAULT_SETTLEMENT_LINES_COUNT, equivalent)
+	command := handler.NewCommand("GET:contractors/trust-lines", common.DEFAULT_SETTLEMENT_LINES_OFFSET, common.DFEAULT_SETTLEMENT_LINES_COUNT, equivalent)
 
 	err = router.nodeHandler.Node.SendCommand(command)
 	if err != nil {
 		logger.Error("Can't send command: " + string(command.ToBytes()) + " to node. Details: " + err.Error())
-		writeHTTPResponse(w, COMMAND_TRANSFERRING_ERROR, SettlementLineListResponse{})
+		writeHTTPResponse(w, COMMAND_TRANSFERRING_ERROR, common.SettlementLineListResponse{})
 		return
 	}
 
-	result, err := router.nodeHandler.Node.GetResult(command, SETTLEMENT_LINE_RESULT_TIMEOUT)
+	result, err := router.nodeHandler.Node.GetResult(command, common.SETTLEMENT_LINE_RESULT_TIMEOUT)
 	if err != nil {
 		logger.Error("Node is inaccessible during processing command: " +
 			string(command.ToBytes()) + ". Details: " + err.Error())
-		writeHTTPResponse(w, NODE_IS_INACCESSIBLE, SettlementLineListResponse{})
+		writeHTTPResponse(w, NODE_IS_INACCESSIBLE, common.SettlementLineListResponse{})
 		return
 	}
 
 	if result.Code != OK && result.Code != ENGINE_NO_EQUIVALENT {
 		logger.Error("Node return wrong command result: " + strconv.Itoa(result.Code) +
 			" on command: " + string(command.ToBytes()))
-		writeHTTPResponse(w, result.Code, SettlementLineListResponse{})
+		writeHTTPResponse(w, result.Code, common.SettlementLineListResponse{})
 		return
 	}
 	if result.Code == ENGINE_NO_EQUIVALENT {
 		logger.Info("Node hasn't equivalent for command: " + string(command.ToBytes()))
-		writeHTTPResponse(w, result.Code, SettlementLineListResponse{})
+		writeHTTPResponse(w, result.Code, common.SettlementLineListResponse{})
 		return
 	}
 
 	if len(result.Tokens) == 0 {
 		logger.Error("Node return invalid result tokens size on command: " + string(command.ToBytes()))
-		writeHTTPResponse(w, ENGINE_UNEXPECTED_ERROR, SettlementLineListResponse{})
+		writeHTTPResponse(w, ENGINE_UNEXPECTED_ERROR, common.SettlementLineListResponse{})
 		return
 	}
 
@@ -468,20 +390,20 @@ func (router *RoutesHandler) ListSettlementLines(w http.ResponseWriter, r *http.
 	if err != nil {
 		logger.Error("Node return invalid token on command: " + string(command.ToBytes()) +
 			". Details: " + err.Error())
-		writeHTTPResponse(w, ENGINE_UNEXPECTED_ERROR, SettlementLineListResponse{})
+		writeHTTPResponse(w, ENGINE_UNEXPECTED_ERROR, common.SettlementLineListResponse{})
 		return
 	}
 
 	if contractorsCount == 0 {
-		writeHTTPResponse(w, OK, SettlementLineListResponse{Count: contractorsCount})
+		writeHTTPResponse(w, OK, common.SettlementLineListResponse{Count: contractorsCount})
 		return
 	}
 
-	response := SettlementLineListResponse{Count: contractorsCount}
-	response.SettlementLines = make([]SettlementLineListItem, 0, contractorsCount)
+	response := common.SettlementLineListResponse{Count: contractorsCount}
+	response.SettlementLines = make([]common.SettlementLineListItem, 0, contractorsCount)
 
 	for i := range contractorsCount {
-		response.SettlementLines = append(response.SettlementLines, SettlementLineListItem{
+		response.SettlementLines = append(response.SettlementLines, common.SettlementLineListItem{
 			ID:                    result.Tokens[i*8+1],
 			Contractor:            result.Tokens[i*8+2],
 			State:                 result.Tokens[i*8+3],
@@ -504,14 +426,14 @@ func (router *RoutesHandler) ListSettlementLinesPortions(w http.ResponseWriter, 
 	}
 
 	offset, isParamPresent := mux.Vars(r)["offset"]
-	if !isParamPresent || !handler.ValidateInt(offset) {
+	if !isParamPresent || !common.ValidateInt(offset) {
 		logger.Error("Bad request: invalid offset parameter: " + url)
 		w.WriteHeader(BAD_REQUEST)
 		return
 	}
 
 	count, isParamPresent := mux.Vars(r)["count"]
-	if !isParamPresent || !handler.ValidateInt(count) {
+	if !isParamPresent || !common.ValidateInt(count) {
 		logger.Error("Bad request: invalid count parameter: " + url)
 		w.WriteHeader(BAD_REQUEST)
 		return
@@ -529,33 +451,33 @@ func (router *RoutesHandler) ListSettlementLinesPortions(w http.ResponseWriter, 
 	err = router.nodeHandler.Node.SendCommand(command)
 	if err != nil {
 		logger.Error("Can't send command: " + string(command.ToBytes()) + " to node. Details: " + err.Error())
-		writeHTTPResponse(w, COMMAND_TRANSFERRING_ERROR, SettlementLineListResponse{})
+		writeHTTPResponse(w, COMMAND_TRANSFERRING_ERROR, common.SettlementLineListResponse{})
 		return
 	}
 
-	result, err := router.nodeHandler.Node.GetResult(command, SETTLEMENT_LINE_RESULT_TIMEOUT)
+	result, err := router.nodeHandler.Node.GetResult(command, common.SETTLEMENT_LINE_RESULT_TIMEOUT)
 	if err != nil {
 		logger.Error("Node is inaccessible during processing command: " +
 			string(command.ToBytes()) + ". Details: " + err.Error())
-		writeHTTPResponse(w, NODE_IS_INACCESSIBLE, SettlementLineListResponse{})
+		writeHTTPResponse(w, NODE_IS_INACCESSIBLE, common.SettlementLineListResponse{})
 		return
 	}
 
 	if result.Code != OK && result.Code != ENGINE_NO_EQUIVALENT {
 		logger.Error("Node return wrong command result: " + strconv.Itoa(result.Code) +
 			" on command: " + string(command.ToBytes()))
-		writeHTTPResponse(w, result.Code, SettlementLineListResponse{})
+		writeHTTPResponse(w, result.Code, common.SettlementLineListResponse{})
 		return
 	}
 	if result.Code == ENGINE_NO_EQUIVALENT {
 		logger.Info("Node hasn't equivalent for command: " + string(command.ToBytes()))
-		writeHTTPResponse(w, result.Code, SettlementLineListResponse{})
+		writeHTTPResponse(w, result.Code, common.SettlementLineListResponse{})
 		return
 	}
 
 	if len(result.Tokens) == 0 {
 		logger.Error("Node return invalid result tokens size on command: " + string(command.ToBytes()))
-		writeHTTPResponse(w, ENGINE_UNEXPECTED_ERROR, SettlementLineListResponse{})
+		writeHTTPResponse(w, ENGINE_UNEXPECTED_ERROR, common.SettlementLineListResponse{})
 		return
 	}
 
@@ -563,20 +485,20 @@ func (router *RoutesHandler) ListSettlementLinesPortions(w http.ResponseWriter, 
 	if err != nil {
 		logger.Error("Node return invalid token on command: " +
 			string(command.ToBytes()) + ". Details: " + err.Error())
-		writeHTTPResponse(w, ENGINE_UNEXPECTED_ERROR, SettlementLineListResponse{})
+		writeHTTPResponse(w, ENGINE_UNEXPECTED_ERROR, common.SettlementLineListResponse{})
 		return
 	}
 
 	if contractorsCount == 0 {
-		writeHTTPResponse(w, OK, SettlementLineListResponse{Count: contractorsCount})
+		writeHTTPResponse(w, OK, common.SettlementLineListResponse{Count: contractorsCount})
 		return
 	}
 
-	response := SettlementLineListResponse{Count: contractorsCount}
-	response.SettlementLines = make([]SettlementLineListItem, 0, contractorsCount)
+	response := common.SettlementLineListResponse{Count: contractorsCount}
+	response.SettlementLines = make([]common.SettlementLineListItem, 0, contractorsCount)
 
 	for i := range contractorsCount {
-		response.SettlementLines = append(response.SettlementLines, SettlementLineListItem{
+		response.SettlementLines = append(response.SettlementLines, common.SettlementLineListItem{
 			ID:                    result.Tokens[i*8+1],
 			Contractor:            result.Tokens[i*8+2],
 			State:                 result.Tokens[i*8+3],
@@ -598,33 +520,33 @@ func (router *RoutesHandler) ListSettlementLinesAllEquivalents(w http.ResponseWr
 		return
 	}
 
-	command := handler.NewCommand("GET:contractors/trust-lines-all", DEFAULT_SETTLEMENT_LINES_OFFSET, DFEAULT_SETTLEMENT_LINES_COUNT)
+	command := handler.NewCommand("GET:contractors/trust-lines-all", common.DEFAULT_SETTLEMENT_LINES_OFFSET, common.DFEAULT_SETTLEMENT_LINES_COUNT)
 
 	err = router.nodeHandler.Node.SendCommand(command)
 	if err != nil {
 		logger.Error("Can't send command: " + string(command.ToBytes()) + " to node. Details: " + err.Error())
-		writeHTTPResponse(w, COMMAND_TRANSFERRING_ERROR, AllEquivalentsResponse{})
+		writeHTTPResponse(w, COMMAND_TRANSFERRING_ERROR, common.AllEquivalentsResponse{})
 		return
 	}
 
-	result, err := router.nodeHandler.Node.GetResult(command, SETTLEMENT_LINE_RESULT_TIMEOUT)
+	result, err := router.nodeHandler.Node.GetResult(command, common.SETTLEMENT_LINE_RESULT_TIMEOUT)
 	if err != nil {
 		logger.Error("Node is inaccessible during processing command: " +
 			string(command.ToBytes()) + ". Details: " + err.Error())
-		writeHTTPResponse(w, NODE_IS_INACCESSIBLE, AllEquivalentsResponse{})
+		writeHTTPResponse(w, NODE_IS_INACCESSIBLE, common.AllEquivalentsResponse{})
 		return
 	}
 
 	if result.Code != OK {
 		logger.Error("Node return wrong command result: " + strconv.Itoa(result.Code) +
 			" on command: " + string(command.ToBytes()))
-		writeHTTPResponse(w, result.Code, AllEquivalentsResponse{})
+		writeHTTPResponse(w, result.Code, common.AllEquivalentsResponse{})
 		return
 	}
 
 	if len(result.Tokens) == 0 {
 		logger.Error("Node return invalid result tokens size on command: " + string(command.ToBytes()))
-		writeHTTPResponse(w, ENGINE_UNEXPECTED_ERROR, AllEquivalentsResponse{})
+		writeHTTPResponse(w, ENGINE_UNEXPECTED_ERROR, common.AllEquivalentsResponse{})
 		return
 	}
 
@@ -632,30 +554,30 @@ func (router *RoutesHandler) ListSettlementLinesAllEquivalents(w http.ResponseWr
 	if err != nil {
 		logger.Error("Node return invalid token on command: " +
 			string(command.ToBytes()) + ". Details: " + err.Error())
-		writeHTTPResponse(w, ENGINE_UNEXPECTED_ERROR, AllEquivalentsResponse{})
+		writeHTTPResponse(w, ENGINE_UNEXPECTED_ERROR, common.AllEquivalentsResponse{})
 		return
 	}
 
 	if equivalentsCount == 0 {
-		writeHTTPResponse(w, OK, AllEquivalentsResponse{Count: equivalentsCount})
+		writeHTTPResponse(w, OK, common.AllEquivalentsResponse{Count: equivalentsCount})
 		return
 	}
 
 	tokenIdx := 1
 
-	response := AllEquivalentsResponse{Count: equivalentsCount}
+	response := common.AllEquivalentsResponse{Count: equivalentsCount}
 	for range equivalentsCount {
 		contractorsCount, err := strconv.Atoi(result.Tokens[tokenIdx+1])
 		if err != nil {
 			logger.Error("Node return invalid token on command: " +
 				string(command.ToBytes()) + ". Details: " + err.Error())
-			writeHTTPResponse(w, ENGINE_UNEXPECTED_ERROR, AllEquivalentsResponse{})
+			writeHTTPResponse(w, ENGINE_UNEXPECTED_ERROR, common.AllEquivalentsResponse{})
 			return
 		}
-		responseSettlementLines := EquivalentStatistics{Eq: result.Tokens[tokenIdx], Count: contractorsCount}
+		responseSettlementLines := common.EquivalentStatistics{Eq: result.Tokens[tokenIdx], Count: contractorsCount}
 		tokenIdx = tokenIdx + 2
 		for i := range contractorsCount {
-			responseSettlementLines.SettlementLines = append(responseSettlementLines.SettlementLines, SettlementLineListItem{
+			responseSettlementLines.SettlementLines = append(responseSettlementLines.SettlementLines, common.SettlementLineListItem{
 				ID:                    result.Tokens[tokenIdx+i*8],
 				Contractor:            result.Tokens[tokenIdx+i*8+1],
 				State:                 result.Tokens[tokenIdx+i*8+2],
@@ -692,33 +614,33 @@ func (router *RoutesHandler) ListContractors(w http.ResponseWriter, r *http.Requ
 	err = router.nodeHandler.Node.SendCommand(command)
 	if err != nil {
 		logger.Error("Can't send command: " + string(command.ToBytes()) + " to node. Details: " + err.Error())
-		writeHTTPResponse(w, COMMAND_TRANSFERRING_ERROR, ContractorsListResponse{})
+		writeHTTPResponse(w, COMMAND_TRANSFERRING_ERROR, common.ContractorsListResponse{})
 		return
 	}
 
-	result, err := router.nodeHandler.Node.GetResult(command, CONTRACTORS_RESULT_TIMEOUT)
+	result, err := router.nodeHandler.Node.GetResult(command, common.CONTRACTORS_RESULT_TIMEOUT)
 	if err != nil {
 		logger.Error("Node is inaccessible during processing command: " +
 			string(command.ToBytes()) + ". Details: " + err.Error())
-		writeHTTPResponse(w, NODE_IS_INACCESSIBLE, ContractorsListResponse{})
+		writeHTTPResponse(w, NODE_IS_INACCESSIBLE, common.ContractorsListResponse{})
 		return
 	}
 
 	if result.Code != OK && result.Code != ENGINE_NO_EQUIVALENT {
 		logger.Error("Node return wrong command result: " + strconv.Itoa(result.Code) +
 			" on command: " + string(command.ToBytes()))
-		writeHTTPResponse(w, result.Code, ContractorsListResponse{})
+		writeHTTPResponse(w, result.Code, common.ContractorsListResponse{})
 		return
 	}
 	if result.Code == ENGINE_NO_EQUIVALENT {
 		logger.Info("Node hasn't equivalent for command: " + string(command.ToBytes()))
-		writeHTTPResponse(w, result.Code, ContractorsListResponse{})
+		writeHTTPResponse(w, result.Code, common.ContractorsListResponse{})
 		return
 	}
 
 	if len(result.Tokens) == 0 {
 		logger.Error("Node return invalid result tokens size on command: " + string(command.ToBytes()))
-		writeHTTPResponse(w, ENGINE_UNEXPECTED_ERROR, ContractorsListResponse{})
+		writeHTTPResponse(w, ENGINE_UNEXPECTED_ERROR, common.ContractorsListResponse{})
 		return
 	}
 
@@ -726,18 +648,18 @@ func (router *RoutesHandler) ListContractors(w http.ResponseWriter, r *http.Requ
 	if err != nil {
 		logger.Error("Node return invalid token on command: " + string(command.ToBytes()) +
 			". Details: " + err.Error())
-		writeHTTPResponse(w, ENGINE_UNEXPECTED_ERROR, ContractorsListResponse{})
+		writeHTTPResponse(w, ENGINE_UNEXPECTED_ERROR, common.ContractorsListResponse{})
 		return
 	}
 
 	if contractorsCount == 0 {
-		writeHTTPResponse(w, OK, ContractorsListResponse{Count: contractorsCount})
+		writeHTTPResponse(w, OK, common.ContractorsListResponse{Count: contractorsCount})
 		return
 	}
 
-	response := ContractorsListResponse{Count: contractorsCount}
+	response := common.ContractorsListResponse{Count: contractorsCount}
 	for i := range contractorsCount {
-		response.Contractors = append(response.Contractors, ContractorInfo{
+		response.Contractors = append(response.Contractors, common.ContractorInfo{
 			ContractorID:        result.Tokens[i*2+1],
 			ContractorAddresses: result.Tokens[i*2+2],
 		})
@@ -762,7 +684,7 @@ func (router *RoutesHandler) GetSettlementLineByID(w http.ResponseWriter, r *htt
 	}
 
 	contractorID := r.FormValue("contractor_id")
-	if !handler.ValidateInt(contractorID) {
+	if !common.ValidateInt(contractorID) {
 		logger.Error("Bad request: invalid contractorID parameter: " + url)
 		w.WriteHeader(BAD_REQUEST)
 		return
@@ -774,42 +696,42 @@ func (router *RoutesHandler) GetSettlementLineByID(w http.ResponseWriter, r *htt
 	err = router.nodeHandler.Node.SendCommand(command)
 	if err != nil {
 		logger.Error("Can't send command: " + string(command.ToBytes()) + " to node. Details: " + err.Error())
-		writeHTTPResponse(w, COMMAND_TRANSFERRING_ERROR, SettlementLineDetailResponse{})
+		writeHTTPResponse(w, COMMAND_TRANSFERRING_ERROR, common.SettlementLineDetailResponse{})
 		return
 	}
 
-	result, err := router.nodeHandler.Node.GetResult(command, SETTLEMENT_LINE_RESULT_TIMEOUT)
+	result, err := router.nodeHandler.Node.GetResult(command, common.SETTLEMENT_LINE_RESULT_TIMEOUT)
 	if err != nil {
 		logger.Error("Node is inaccessible during processing command: " +
 			string(command.ToBytes()) + ". Details: " + err.Error())
-		writeHTTPResponse(w, NODE_IS_INACCESSIBLE, SettlementLineDetailResponse{})
+		writeHTTPResponse(w, NODE_IS_INACCESSIBLE, common.SettlementLineDetailResponse{})
 		return
 	}
 
 	if result.Code != OK && result.Code != ENGINE_NO_EQUIVALENT && result.Code != NODE_NOT_FOUND {
 		logger.Error("Node return wrong command result: " + strconv.Itoa(result.Code) +
 			" on command: " + string(command.ToBytes()))
-		writeHTTPResponse(w, result.Code, SettlementLineDetailResponse{})
+		writeHTTPResponse(w, result.Code, common.SettlementLineDetailResponse{})
 		return
 	}
 	if result.Code == ENGINE_NO_EQUIVALENT {
 		logger.Info("Node hasn't equivalent for command: " + string(command.ToBytes()))
-		writeHTTPResponse(w, result.Code, SettlementLineDetailResponse{})
+		writeHTTPResponse(w, result.Code, common.SettlementLineDetailResponse{})
 		return
 	}
 	if result.Code == NODE_NOT_FOUND {
 		logger.Info("Node hasn't TL with requested contractor for command " + string(command.ToBytes()))
-		writeHTTPResponse(w, result.Code, SettlementLineDetailResponse{})
+		writeHTTPResponse(w, result.Code, common.SettlementLineDetailResponse{})
 		return
 	}
 
 	if len(result.Tokens) < 4 {
 		logger.Error("Node return invalid result tokens size on command: " + string(command.ToBytes()))
-		writeHTTPResponse(w, ENGINE_UNEXPECTED_ERROR, SettlementLineDetailResponse{})
+		writeHTTPResponse(w, ENGINE_UNEXPECTED_ERROR, common.SettlementLineDetailResponse{})
 		return
 	}
 
-	response := SettlementLineDetailResponse{SettlementLine: SettlementLineDetail{
+	response := common.SettlementLineDetailResponse{SettlementLine: common.SettlementLineDetail{
 		ID:                    result.Tokens[0],
 		State:                 result.Tokens[1],
 		OwnKeysPresent:        result.Tokens[2],
@@ -865,42 +787,42 @@ func (router *RoutesHandler) GetSettlementLineByAddress(w http.ResponseWriter, r
 	err = router.nodeHandler.Node.SendCommand(command)
 	if err != nil {
 		logger.Error("Can't send command: " + string(command.ToBytes()) + " to node. Details: " + err.Error())
-		writeHTTPResponse(w, COMMAND_TRANSFERRING_ERROR, SettlementLineDetailResponse{})
+		writeHTTPResponse(w, COMMAND_TRANSFERRING_ERROR, common.SettlementLineDetailResponse{})
 		return
 	}
 
-	result, err := router.nodeHandler.Node.GetResult(command, SETTLEMENT_LINE_RESULT_TIMEOUT)
+	result, err := router.nodeHandler.Node.GetResult(command, common.SETTLEMENT_LINE_RESULT_TIMEOUT)
 	if err != nil {
 		logger.Error("Node is inaccessible during processing command: " +
 			string(command.ToBytes()) + ". Details: " + err.Error())
-		writeHTTPResponse(w, NODE_IS_INACCESSIBLE, SettlementLineDetailResponse{})
+		writeHTTPResponse(w, NODE_IS_INACCESSIBLE, common.SettlementLineDetailResponse{})
 		return
 	}
 
 	if result.Code != OK && result.Code != ENGINE_NO_EQUIVALENT && result.Code != NODE_NOT_FOUND {
 		logger.Error("Node return wrong command result: " + strconv.Itoa(result.Code) +
 			" on command: " + string(command.ToBytes()))
-		writeHTTPResponse(w, result.Code, SettlementLineDetailResponse{})
+		writeHTTPResponse(w, result.Code, common.SettlementLineDetailResponse{})
 		return
 	}
 	if result.Code == ENGINE_NO_EQUIVALENT {
 		logger.Info("Node hasn't equivalent for command: " + string(command.ToBytes()))
-		writeHTTPResponse(w, result.Code, SettlementLineDetailResponse{})
+		writeHTTPResponse(w, result.Code, common.SettlementLineDetailResponse{})
 		return
 	}
 	if result.Code == NODE_NOT_FOUND {
 		logger.Info("Node hasn't TL with requested contractor for command " + string(command.ToBytes()))
-		writeHTTPResponse(w, result.Code, SettlementLineDetailResponse{})
+		writeHTTPResponse(w, result.Code, common.SettlementLineDetailResponse{})
 		return
 	}
 
 	if len(result.Tokens) < 4 {
 		logger.Error("Node return invalid result tokens size on command: " + string(command.ToBytes()))
-		writeHTTPResponse(w, ENGINE_UNEXPECTED_ERROR, SettlementLineDetailResponse{})
+		writeHTTPResponse(w, ENGINE_UNEXPECTED_ERROR, common.SettlementLineDetailResponse{})
 		return
 	}
 
-	response := SettlementLineDetailResponse{SettlementLine: SettlementLineDetail{
+	response := common.SettlementLineDetailResponse{SettlementLine: common.SettlementLineDetail{
 		ID:                    result.Tokens[0],
 		State:                 result.Tokens[1],
 		OwnKeysPresent:        result.Tokens[2],
@@ -926,28 +848,28 @@ func (router *RoutesHandler) ListEquivalents(w http.ResponseWriter, r *http.Requ
 	err = router.nodeHandler.Node.SendCommand(command)
 	if err != nil {
 		logger.Error("Can't send command: " + string(command.ToBytes()) + " to node. Details: " + err.Error())
-		writeHTTPResponse(w, COMMAND_TRANSFERRING_ERROR, EquivalentsListResponse{})
+		writeHTTPResponse(w, COMMAND_TRANSFERRING_ERROR, common.EquivalentsListResponse{})
 		return
 	}
 
-	result, err := router.nodeHandler.Node.GetResult(command, SETTLEMENT_LINE_RESULT_TIMEOUT)
+	result, err := router.nodeHandler.Node.GetResult(command, common.SETTLEMENT_LINE_RESULT_TIMEOUT)
 	if err != nil {
 		logger.Error("Node is inaccessible during processing command: " +
 			string(command.ToBytes()) + ". Details: " + err.Error())
-		writeHTTPResponse(w, NODE_IS_INACCESSIBLE, EquivalentsListResponse{})
+		writeHTTPResponse(w, NODE_IS_INACCESSIBLE, common.EquivalentsListResponse{})
 		return
 	}
 
 	if result.Code != OK {
 		logger.Error("Node return wrong command result: " + strconv.Itoa(result.Code) +
 			" on command: " + string(command.ToBytes()))
-		writeHTTPResponse(w, result.Code, EquivalentsListResponse{})
+		writeHTTPResponse(w, result.Code, common.EquivalentsListResponse{})
 		return
 	}
 
 	if len(result.Tokens) == 0 {
 		logger.Error("Node return invalid result tokens size on command: " + string(command.ToBytes()))
-		writeHTTPResponse(w, ENGINE_UNEXPECTED_ERROR, EquivalentsListResponse{})
+		writeHTTPResponse(w, ENGINE_UNEXPECTED_ERROR, common.EquivalentsListResponse{})
 		return
 	}
 
@@ -955,16 +877,16 @@ func (router *RoutesHandler) ListEquivalents(w http.ResponseWriter, r *http.Requ
 	if err != nil {
 		logger.Error("Node return invalid token on command: " +
 			string(command.ToBytes()) + ". Details: " + err.Error())
-		writeHTTPResponse(w, ENGINE_UNEXPECTED_ERROR, EquivalentsListResponse{})
+		writeHTTPResponse(w, ENGINE_UNEXPECTED_ERROR, common.EquivalentsListResponse{})
 		return
 	}
 
 	if equivalentsCount == 0 {
-		writeHTTPResponse(w, OK, EquivalentsListResponse{Count: equivalentsCount})
+		writeHTTPResponse(w, OK, common.EquivalentsListResponse{Count: equivalentsCount})
 		return
 	}
 
-	response := EquivalentsListResponse{Count: equivalentsCount}
+	response := common.EquivalentsListResponse{Count: equivalentsCount}
 	for i := range equivalentsCount {
 		response.Equivalents = append(response.Equivalents, result.Tokens[i+1])
 	}
@@ -991,37 +913,37 @@ func (router *RoutesHandler) TotalBalance(w http.ResponseWriter, r *http.Request
 	err = router.nodeHandler.Node.SendCommand(command)
 	if err != nil {
 		logger.Error("Can't send command: " + string(command.ToBytes()) + " to node. Details: " + err.Error())
-		writeHTTPResponse(w, COMMAND_TRANSFERRING_ERROR, TotalBalanceResponse{})
+		writeHTTPResponse(w, COMMAND_TRANSFERRING_ERROR, common.TotalBalanceResponse{})
 		return
 	}
 
-	result, err := router.nodeHandler.Node.GetResult(command, STATS_RESULT_TIMEOUT)
+	result, err := router.nodeHandler.Node.GetResult(command, common.STATS_RESULT_TIMEOUT)
 	if err != nil {
 		logger.Error("Node is inaccessible during processing command: " + string(command.ToBytes()) +
 			". Details: " + err.Error())
-		writeHTTPResponse(w, NODE_IS_INACCESSIBLE, TotalBalanceResponse{})
+		writeHTTPResponse(w, NODE_IS_INACCESSIBLE, common.TotalBalanceResponse{})
 		return
 	}
 
 	if result.Code != OK && result.Code != ENGINE_NO_EQUIVALENT {
 		logger.Error("Node return wrong command result: " + strconv.Itoa(result.Code) +
 			" on command: " + string(command.ToBytes()))
-		writeHTTPResponse(w, result.Code, TotalBalanceResponse{})
+		writeHTTPResponse(w, result.Code, common.TotalBalanceResponse{})
 		return
 	}
 	if result.Code == ENGINE_NO_EQUIVALENT {
 		logger.Info("Node hasn't equivalent for command: " + string(command.ToBytes()))
-		writeHTTPResponse(w, result.Code, TotalBalanceResponse{})
+		writeHTTPResponse(w, result.Code, common.TotalBalanceResponse{})
 		return
 	}
 
 	if len(result.Tokens) < 4 {
 		logger.Error("Node return invalid result tokens size on command: " + string(command.ToBytes()))
-		writeHTTPResponse(w, ENGINE_UNEXPECTED_ERROR, TotalBalanceResponse{})
+		writeHTTPResponse(w, ENGINE_UNEXPECTED_ERROR, common.TotalBalanceResponse{})
 		return
 	}
 
-	response := TotalBalanceResponse{
+	response := common.TotalBalanceResponse{
 		TotalMaxNegativeBalance: result.Tokens[0],
 		TotalNegativeBalance:    result.Tokens[1],
 		TotalMaxPositiveBalance: result.Tokens[2],

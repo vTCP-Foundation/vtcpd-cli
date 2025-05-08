@@ -4,19 +4,11 @@ import (
 	"fmt"
 	"strconv"
 
+	"github.com/vTCP-Foundation/vtcpd-cli/internal/common"
 	"github.com/vTCP-Foundation/vtcpd-cli/internal/logger"
 )
 
-type ControlMsgResponse struct {
-	Status string `json:"status"`
-	Msg    string `json:"msg"`
-}
-
-type ControlResponse struct{}
-
-var (
-	DELETE_CRYPTO_DATA_TIMEOUT uint16 = 20 // seconds
-)
+var ()
 
 func (handler *NodeHandler) RemoveOutdatedCryptoDataCommand() {
 	// Command generation
@@ -25,16 +17,16 @@ func (handler *NodeHandler) RemoveOutdatedCryptoDataCommand() {
 	err := handler.Node.SendCommand(command)
 	if err != nil {
 		logger.Error("Can't send command: " + string(command.ToBytes()) + " to node. Details: " + err.Error())
-		resultJSON := buildJSONResponse(COMMAND_TRANSFERRING_ERROR, ControlResponse{})
+		resultJSON := buildJSONResponse(COMMAND_TRANSFERRING_ERROR, common.ControlResponse{})
 		fmt.Println(string(resultJSON))
 		return
 	}
 
-	result, err := handler.Node.GetResult(command, DELETE_CRYPTO_DATA_TIMEOUT)
+	result, err := handler.Node.GetResult(command, common.DELETE_CRYPTO_DATA_TIMEOUT)
 	if err != nil {
 		logger.Error("Node is inaccessible during processing command: " +
 			string(command.ToBytes()) + ". Details: " + err.Error())
-		resultJSON := buildJSONResponse(NODE_IS_INACCESSIBLE, ControlResponse{})
+		resultJSON := buildJSONResponse(NODE_IS_INACCESSIBLE, common.ControlResponse{})
 		fmt.Println(string(resultJSON))
 		return
 	}
@@ -44,6 +36,6 @@ func (handler *NodeHandler) RemoveOutdatedCryptoDataCommand() {
 			" on command: " + string(command.ToBytes()))
 	}
 
-	resultJSON := buildJSONResponse(result.Code, ControlResponse{})
+	resultJSON := buildJSONResponse(result.Code, common.ControlResponse{})
 	fmt.Println(string(resultJSON))
 }

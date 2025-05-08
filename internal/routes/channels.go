@@ -6,47 +6,10 @@ import (
 	"strings"
 
 	"github.com/gorilla/mux"
+	"github.com/vTCP-Foundation/vtcpd-cli/internal/common"
 	"github.com/vTCP-Foundation/vtcpd-cli/internal/handler"
 	"github.com/vTCP-Foundation/vtcpd-cli/internal/logger"
 )
-
-var (
-	CHANNEL_RESULT_TIMEOUT uint16 = 20 // seconds
-)
-
-// --- Global structs for channels ---
-
-type ChannelListItem struct {
-	ID        string `json:"channel_id"`
-	Addresses string `json:"channel_addresses"`
-}
-
-// --- Global API responses for channels ---
-
-type ChannelInitResponse struct {
-	ChannelID string `json:"channel_id"`
-	CryptoKey string `json:"crypto_key"`
-}
-
-type ChannelInfoResponse struct {
-	ID                  string   `json:"channel_id"`
-	Addresses           []string `json:"channel_addresses"`
-	IsConfirmed         string   `json:"channel_confirmed"`
-	CryptoKey           string   `json:"channel_crypto_key"`
-	ContractorCryptoKey string   `json:"channel_contractor_crypto_key"`
-}
-
-type ChannelListResponse struct {
-	Count    int               `json:"count"`
-	Channels []ChannelListItem `json:"channels"`
-}
-
-type ChannelInfoByAddressResponse struct {
-	ID          string `json:"channel_id"`
-	IsConfirmed string `json:"channel_confirmed"`
-}
-
-type ChannelResponse struct{}
 
 func (router *RoutesHandler) InitChannel(w http.ResponseWriter, r *http.Request) {
 	url, err := preprocessRequest(r)
@@ -83,7 +46,7 @@ func (router *RoutesHandler) InitChannel(w http.ResponseWriter, r *http.Request)
 	contractorAddresses = append([]string{"INIT:contractors/channel"}, contractorAddresses...)
 	if cryptoKey != "" {
 		contractorChannelID := r.FormValue("contractor_id")
-		if !handler.ValidateInt(contractorChannelID) {
+		if !common.ValidateInt(contractorChannelID) {
 			logger.Error("Bad request: there are no contractor_id parameter: " + url)
 			w.WriteHeader(BAD_REQUEST)
 			return
@@ -95,32 +58,32 @@ func (router *RoutesHandler) InitChannel(w http.ResponseWriter, r *http.Request)
 	err = router.nodeHandler.Node.SendCommand(command)
 	if err != nil {
 		logger.Error("Can't send command: " + string(command.ToBytes()) + " to node. Details: " + err.Error())
-		writeHTTPResponse(w, COMMAND_TRANSFERRING_ERROR, ChannelInitResponse{})
+		writeHTTPResponse(w, COMMAND_TRANSFERRING_ERROR, common.ChannelInitResponse{})
 		return
 	}
 
-	result, err := router.nodeHandler.Node.GetResult(command, CHANNEL_RESULT_TIMEOUT)
+	result, err := router.nodeHandler.Node.GetResult(command, common.CHANNEL_RESULT_TIMEOUT)
 	if err != nil {
 		logger.Error("Node is inaccessible during processing command: " +
 			string(command.ToBytes()) + ". Details: " + err.Error())
-		writeHTTPResponse(w, NODE_IS_INACCESSIBLE, ChannelInitResponse{})
+		writeHTTPResponse(w, NODE_IS_INACCESSIBLE, common.ChannelInitResponse{})
 		return
 	}
 
 	if result.Code != OK {
 		logger.Error("Node return wrong command result: " + strconv.Itoa(result.Code) +
 			" on command: " + string(command.ToBytes()))
-		writeHTTPResponse(w, result.Code, ChannelInitResponse{})
+		writeHTTPResponse(w, result.Code, common.ChannelInitResponse{})
 		return
 	}
 
 	if len(result.Tokens) < 2 {
 		logger.Error("Node return invalid result tokens size on command: " + string(command.ToBytes()))
-		writeHTTPResponse(w, ENGINE_UNEXPECTED_ERROR, ChannelInitResponse{})
+		writeHTTPResponse(w, ENGINE_UNEXPECTED_ERROR, common.ChannelInitResponse{})
 		return
 	}
 
-	writeHTTPResponse(w, OK, ChannelInitResponse{
+	writeHTTPResponse(w, OK, common.ChannelInitResponse{
 		ChannelID: result.Tokens[0],
 		CryptoKey: result.Tokens[1]})
 }
@@ -138,28 +101,28 @@ func (router *RoutesHandler) ListChannels(w http.ResponseWriter, r *http.Request
 	err = router.nodeHandler.Node.SendCommand(command)
 	if err != nil {
 		logger.Error("Can't send command: " + string(command.ToBytes()) + " to node. Details: " + err.Error())
-		writeHTTPResponse(w, COMMAND_TRANSFERRING_ERROR, ChannelListResponse{})
+		writeHTTPResponse(w, COMMAND_TRANSFERRING_ERROR, common.ChannelListResponse{})
 		return
 	}
 
-	result, err := router.nodeHandler.Node.GetResult(command, CHANNEL_RESULT_TIMEOUT)
+	result, err := router.nodeHandler.Node.GetResult(command, common.CHANNEL_RESULT_TIMEOUT)
 	if err != nil {
 		logger.Error("Node is inaccessible during processing command: " +
 			string(command.ToBytes()) + ". Details: " + err.Error())
-		writeHTTPResponse(w, NODE_IS_INACCESSIBLE, ChannelListResponse{})
+		writeHTTPResponse(w, NODE_IS_INACCESSIBLE, common.ChannelListResponse{})
 		return
 	}
 
 	if result.Code != OK {
 		logger.Error("Node return wrong command result: " + strconv.Itoa(result.Code) +
 			" on command: " + string(command.ToBytes()))
-		writeHTTPResponse(w, result.Code, ChannelListResponse{})
+		writeHTTPResponse(w, result.Code, common.ChannelListResponse{})
 		return
 	}
 
 	if len(result.Tokens) == 0 {
 		logger.Error("Node return invalid result tokens size on command: " + string(command.ToBytes()))
-		writeHTTPResponse(w, ENGINE_UNEXPECTED_ERROR, ChannelListResponse{})
+		writeHTTPResponse(w, ENGINE_UNEXPECTED_ERROR, common.ChannelListResponse{})
 		return
 	}
 
@@ -168,18 +131,18 @@ func (router *RoutesHandler) ListChannels(w http.ResponseWriter, r *http.Request
 	if err != nil {
 		logger.Error("Node return invalid token on command: " +
 			string(command.ToBytes()) + ". Details: " + err.Error())
-		writeHTTPResponse(w, ENGINE_UNEXPECTED_ERROR, ChannelListResponse{})
+		writeHTTPResponse(w, ENGINE_UNEXPECTED_ERROR, common.ChannelListResponse{})
 		return
 	}
 
 	if channelsCount == 0 {
-		writeHTTPResponse(w, OK, ChannelListResponse{Count: channelsCount})
+		writeHTTPResponse(w, OK, common.ChannelListResponse{Count: channelsCount})
 		return
 	}
 
-	response := ChannelListResponse{Count: channelsCount}
+	response := common.ChannelListResponse{Count: channelsCount}
 	for i := range channelsCount {
-		response.Channels = append(response.Channels, ChannelListItem{
+		response.Channels = append(response.Channels, common.ChannelListItem{
 			ID:        result.Tokens[i*2+1],
 			Addresses: result.Tokens[i*2+2]})
 	}
@@ -201,7 +164,7 @@ func (router *RoutesHandler) ChannelInfo(w http.ResponseWriter, r *http.Request)
 		return
 	}
 
-	if !handler.ValidateInt(contractorID) {
+	if !common.ValidateInt(contractorID) {
 		logger.Error("Bad request: invalid contractor_id parameter")
 		w.WriteHeader(BAD_REQUEST)
 		return
@@ -212,41 +175,41 @@ func (router *RoutesHandler) ChannelInfo(w http.ResponseWriter, r *http.Request)
 	err = router.nodeHandler.Node.SendCommand(command)
 	if err != nil {
 		logger.Error("Can't send command: " + string(command.ToBytes()) + " to node. Details: " + err.Error())
-		writeHTTPResponse(w, COMMAND_TRANSFERRING_ERROR, ChannelInfoResponse{})
+		writeHTTPResponse(w, COMMAND_TRANSFERRING_ERROR, common.ChannelInfoResponse{})
 		return
 	}
 
-	result, err := router.nodeHandler.Node.GetResult(command, CHANNEL_RESULT_TIMEOUT)
+	result, err := router.nodeHandler.Node.GetResult(command, common.CHANNEL_RESULT_TIMEOUT)
 	if err != nil {
 		logger.Error("Node is inaccessible during processing command: " +
 			string(command.ToBytes()) + ". Details: " + err.Error())
-		writeHTTPResponse(w, NODE_IS_INACCESSIBLE, ChannelInfoResponse{})
+		writeHTTPResponse(w, NODE_IS_INACCESSIBLE, common.ChannelInfoResponse{})
 		return
 	}
 
 	if result.Code != OK {
 		logger.Error("Node return wrong command result: " + strconv.Itoa(result.Code) +
 			" on command: " + string(command.ToBytes()))
-		writeHTTPResponse(w, result.Code, ChannelInfoResponse{})
+		writeHTTPResponse(w, result.Code, common.ChannelInfoResponse{})
 		return
 	}
 
 	if len(result.Tokens) < 2 {
 		logger.Error("Node return invalid result tokens size on command: " + string(command.ToBytes()))
-		writeHTTPResponse(w, ENGINE_UNEXPECTED_ERROR, ChannelInfoResponse{})
+		writeHTTPResponse(w, ENGINE_UNEXPECTED_ERROR, common.ChannelInfoResponse{})
 		return
 	}
 
 	addressesCount, err := strconv.Atoi(result.Tokens[1])
 	if err != nil {
 		logger.Error("Node return invalid token on command: " + string(command.ToBytes()) + ". Details: " + err.Error())
-		writeHTTPResponse(w, ENGINE_UNEXPECTED_ERROR, ChannelInfoResponse{})
+		writeHTTPResponse(w, ENGINE_UNEXPECTED_ERROR, common.ChannelInfoResponse{})
 		return
 	}
 
 	if addressesCount == 0 {
 		logger.Error("Node return invalid addresses token on command: " + string(command.ToBytes()))
-		writeHTTPResponse(w, ENGINE_UNEXPECTED_ERROR, ChannelInfoResponse{})
+		writeHTTPResponse(w, ENGINE_UNEXPECTED_ERROR, common.ChannelInfoResponse{})
 		return
 	}
 
@@ -255,7 +218,7 @@ func (router *RoutesHandler) ChannelInfo(w http.ResponseWriter, r *http.Request)
 		addresses = append(addresses, result.Tokens[idx+2])
 	}
 
-	response := ChannelInfoResponse{
+	response := common.ChannelInfoResponse{
 		ID:                  result.Tokens[0],
 		Addresses:           addresses,
 		IsConfirmed:         result.Tokens[2+addressesCount],
@@ -299,32 +262,32 @@ func (router *RoutesHandler) ChannelInfoByAddresses(w http.ResponseWriter, r *ht
 	err = router.nodeHandler.Node.SendCommand(command)
 	if err != nil {
 		logger.Error("Can't send command: " + string(command.ToBytes()) + " to node. Details: " + err.Error())
-		writeHTTPResponse(w, COMMAND_TRANSFERRING_ERROR, ChannelInfoByAddressResponse{})
+		writeHTTPResponse(w, COMMAND_TRANSFERRING_ERROR, common.ChannelInfoByAddressResponse{})
 		return
 	}
 
-	result, err := router.nodeHandler.Node.GetResult(command, CHANNEL_RESULT_TIMEOUT)
+	result, err := router.nodeHandler.Node.GetResult(command, common.CHANNEL_RESULT_TIMEOUT)
 	if err != nil {
 		logger.Error("Node is inaccessible during processing command: " +
 			string(command.ToBytes()) + ". Details: " + err.Error())
-		writeHTTPResponse(w, NODE_IS_INACCESSIBLE, ChannelInfoByAddressResponse{})
+		writeHTTPResponse(w, NODE_IS_INACCESSIBLE, common.ChannelInfoByAddressResponse{})
 		return
 	}
 
 	if result.Code != OK {
 		logger.Error("Node return wrong command result: " + strconv.Itoa(result.Code) +
 			" on command: " + string(command.ToBytes()))
-		writeHTTPResponse(w, result.Code, ChannelInfoByAddressResponse{})
+		writeHTTPResponse(w, result.Code, common.ChannelInfoByAddressResponse{})
 		return
 	}
 
 	if len(result.Tokens) < 2 {
 		logger.Error("Node return invalid result tokens size on command: " + string(command.ToBytes()))
-		writeHTTPResponse(w, ENGINE_UNEXPECTED_ERROR, ChannelInfoByAddressResponse{})
+		writeHTTPResponse(w, ENGINE_UNEXPECTED_ERROR, common.ChannelInfoByAddressResponse{})
 		return
 	}
 
-	response := ChannelInfoByAddressResponse{
+	response := common.ChannelInfoByAddressResponse{
 		ID:          result.Tokens[0],
 		IsConfirmed: result.Tokens[1]}
 	writeHTTPResponse(w, OK, response)
@@ -345,7 +308,7 @@ func (router *RoutesHandler) SetChannelAddresses(w http.ResponseWriter, r *http.
 		return
 	}
 
-	if !handler.ValidateInt(contractorID) {
+	if !common.ValidateInt(contractorID) {
 		logger.Error("Bad request: invalid contractor_id parameter")
 		w.WriteHeader(BAD_REQUEST)
 		return
@@ -378,15 +341,15 @@ func (router *RoutesHandler) SetChannelAddresses(w http.ResponseWriter, r *http.
 	err = router.nodeHandler.Node.SendCommand(command)
 	if err != nil {
 		logger.Error("Can't send command: " + string(command.ToBytes()) + " to node. Details: " + err.Error())
-		writeHTTPResponse(w, COMMAND_TRANSFERRING_ERROR, ChannelResponse{})
+		writeHTTPResponse(w, COMMAND_TRANSFERRING_ERROR, common.ChannelResponse{})
 		return
 	}
 
-	result, err := router.nodeHandler.Node.GetResult(command, CHANNEL_RESULT_TIMEOUT)
+	result, err := router.nodeHandler.Node.GetResult(command, common.CHANNEL_RESULT_TIMEOUT)
 	if err != nil {
 		logger.Error("Node is inaccessible during processing command: " +
 			string(command.ToBytes()) + ". Details: " + err.Error())
-		writeHTTPResponse(w, NODE_IS_INACCESSIBLE, ChannelResponse{})
+		writeHTTPResponse(w, NODE_IS_INACCESSIBLE, common.ChannelResponse{})
 		return
 	}
 
@@ -395,7 +358,7 @@ func (router *RoutesHandler) SetChannelAddresses(w http.ResponseWriter, r *http.
 			" on command: " + string(command.ToBytes()))
 	}
 
-	writeHTTPResponse(w, result.Code, ChannelResponse{})
+	writeHTTPResponse(w, result.Code, common.ChannelResponse{})
 }
 
 func (router *RoutesHandler) SetChannelCryptoKey(w http.ResponseWriter, r *http.Request) {
@@ -413,7 +376,7 @@ func (router *RoutesHandler) SetChannelCryptoKey(w http.ResponseWriter, r *http.
 		return
 	}
 
-	if !handler.ValidateInt(contractorID) {
+	if !common.ValidateInt(contractorID) {
 		logger.Error("Bad request: invalid contractor_id parameter")
 		w.WriteHeader(BAD_REQUEST)
 		return
@@ -425,7 +388,7 @@ func (router *RoutesHandler) SetChannelCryptoKey(w http.ResponseWriter, r *http.
 
 	channelIDOnContractorSide := r.FormValue("channel_id_on_contractor_side")
 	if channelIDOnContractorSide != "" {
-		if !handler.ValidateInt(channelIDOnContractorSide) {
+		if !common.ValidateInt(channelIDOnContractorSide) {
 			logger.Error("Bad request: invalid channel_id_on_contractor_side parameter: " + url)
 			w.WriteHeader(BAD_REQUEST)
 			return
@@ -438,15 +401,15 @@ func (router *RoutesHandler) SetChannelCryptoKey(w http.ResponseWriter, r *http.
 	err = router.nodeHandler.Node.SendCommand(command)
 	if err != nil {
 		logger.Error("Can't send command: " + string(command.ToBytes()) + " to node. Details: " + err.Error())
-		writeHTTPResponse(w, COMMAND_TRANSFERRING_ERROR, ChannelResponse{})
+		writeHTTPResponse(w, COMMAND_TRANSFERRING_ERROR, common.ChannelResponse{})
 		return
 	}
 
-	result, err := router.nodeHandler.Node.GetResult(command, CHANNEL_RESULT_TIMEOUT)
+	result, err := router.nodeHandler.Node.GetResult(command, common.CHANNEL_RESULT_TIMEOUT)
 	if err != nil {
 		logger.Error("Node is inaccessible during processing command: " +
 			string(command.ToBytes()) + ". Details: " + err.Error())
-		writeHTTPResponse(w, NODE_IS_INACCESSIBLE, ChannelResponse{})
+		writeHTTPResponse(w, NODE_IS_INACCESSIBLE, common.ChannelResponse{})
 		return
 	}
 
@@ -455,7 +418,7 @@ func (router *RoutesHandler) SetChannelCryptoKey(w http.ResponseWriter, r *http.
 			" on command: " + string(command.ToBytes()))
 	}
 
-	writeHTTPResponse(w, result.Code, ChannelResponse{})
+	writeHTTPResponse(w, result.Code, common.ChannelResponse{})
 }
 
 func (router *RoutesHandler) RegenerateChannelCryptoKey(w http.ResponseWriter, r *http.Request) {
@@ -473,7 +436,7 @@ func (router *RoutesHandler) RegenerateChannelCryptoKey(w http.ResponseWriter, r
 		return
 	}
 
-	if !handler.ValidateInt(contractorID) {
+	if !common.ValidateInt(contractorID) {
 		logger.Error("Bad request: invalid contractor_id parameter")
 		w.WriteHeader(BAD_REQUEST)
 		return
@@ -485,32 +448,32 @@ func (router *RoutesHandler) RegenerateChannelCryptoKey(w http.ResponseWriter, r
 	err = router.nodeHandler.Node.SendCommand(command)
 	if err != nil {
 		logger.Error("Can't send command: " + string(command.ToBytes()) + " to node. Details: " + err.Error())
-		writeHTTPResponse(w, COMMAND_TRANSFERRING_ERROR, ChannelInitResponse{})
+		writeHTTPResponse(w, COMMAND_TRANSFERRING_ERROR, common.ChannelInitResponse{})
 		return
 	}
 
-	result, err := router.nodeHandler.Node.GetResult(command, CHANNEL_RESULT_TIMEOUT)
+	result, err := router.nodeHandler.Node.GetResult(command, common.CHANNEL_RESULT_TIMEOUT)
 	if err != nil {
 		logger.Error("Node is inaccessible during processing command: " +
 			string(command.ToBytes()) + ". Details: " + err.Error())
-		writeHTTPResponse(w, NODE_IS_INACCESSIBLE, ChannelInitResponse{})
+		writeHTTPResponse(w, NODE_IS_INACCESSIBLE, common.ChannelInitResponse{})
 		return
 	}
 
 	if result.Code != OK {
 		logger.Error("Node return wrong command result: " + strconv.Itoa(result.Code) +
 			" on command: " + string(command.ToBytes()))
-		writeHTTPResponse(w, result.Code, ChannelInitResponse{})
+		writeHTTPResponse(w, result.Code, common.ChannelInitResponse{})
 		return
 	}
 
 	if len(result.Tokens) < 2 {
 		logger.Error("Node return invalid result tokens size on command: " + string(command.ToBytes()))
-		writeHTTPResponse(w, ENGINE_UNEXPECTED_ERROR, ChannelInitResponse{})
+		writeHTTPResponse(w, ENGINE_UNEXPECTED_ERROR, common.ChannelInitResponse{})
 		return
 	}
 
-	writeHTTPResponse(w, OK, ChannelInitResponse{
+	writeHTTPResponse(w, OK, common.ChannelInitResponse{
 		ChannelID: result.Tokens[0],
 		CryptoKey: result.Tokens[1]})
 }
@@ -530,7 +493,7 @@ func (router *RoutesHandler) RemoveChannel(w http.ResponseWriter, r *http.Reques
 		return
 	}
 
-	if !handler.ValidateInt(contractorID) {
+	if !common.ValidateInt(contractorID) {
 		logger.Error("Bad request: invalid contractor_id parameter")
 		w.WriteHeader(BAD_REQUEST)
 		return
@@ -542,15 +505,15 @@ func (router *RoutesHandler) RemoveChannel(w http.ResponseWriter, r *http.Reques
 	err = router.nodeHandler.Node.SendCommand(command)
 	if err != nil {
 		logger.Error("Can't send command: " + string(command.ToBytes()) + " to node. Details: " + err.Error())
-		writeHTTPResponse(w, COMMAND_TRANSFERRING_ERROR, ChannelResponse{})
+		writeHTTPResponse(w, COMMAND_TRANSFERRING_ERROR, common.ChannelResponse{})
 		return
 	}
 
-	result, err := router.nodeHandler.Node.GetResult(command, CHANNEL_RESULT_TIMEOUT)
+	result, err := router.nodeHandler.Node.GetResult(command, common.CHANNEL_RESULT_TIMEOUT)
 	if err != nil {
 		logger.Error("Node is inaccessible during processing command: " +
 			string(command.ToBytes()) + ". Details: " + err.Error())
-		writeHTTPResponse(w, NODE_IS_INACCESSIBLE, ChannelResponse{})
+		writeHTTPResponse(w, NODE_IS_INACCESSIBLE, common.ChannelResponse{})
 		return
 	}
 
@@ -559,5 +522,5 @@ func (router *RoutesHandler) RemoveChannel(w http.ResponseWriter, r *http.Reques
 			" on command: " + string(command.ToBytes()))
 	}
 
-	writeHTTPResponse(w, result.Code, ChannelResponse{})
+	writeHTTPResponse(w, result.Code, common.ChannelResponse{})
 }

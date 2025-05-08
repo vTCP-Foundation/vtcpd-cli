@@ -4,46 +4,9 @@ import (
 	"fmt"
 	"strconv"
 
+	"github.com/vTCP-Foundation/vtcpd-cli/internal/common"
 	"github.com/vTCP-Foundation/vtcpd-cli/internal/logger"
 )
-
-var (
-	CHANNEL_RESULT_TIMEOUT uint16 = 20 // seconds
-)
-
-// --- Global structs for channels ---
-
-type ChannelListItem struct {
-	ID        string `json:"channel_id"`
-	Addresses string `json:"channel_addresses"`
-}
-
-// --- Global API responses for channels ---
-
-type ChannelInitResponse struct {
-	ChannelID string `json:"channel_id"`
-	CryptoKey string `json:"crypto_key"`
-}
-
-type ChannelInfoResponse struct {
-	ID                  string   `json:"channel_id"`
-	Addresses           []string `json:"channel_addresses"`
-	IsConfirmed         string   `json:"channel_confirmed"`
-	CryptoKey           string   `json:"channel_crypto_key"`
-	ContractorCryptoKey string   `json:"channel_contractor_crypto_key"`
-}
-
-type ChannelListResponse struct {
-	Count    int               `json:"count"`
-	Channels []ChannelListItem `json:"channels"`
-}
-
-type ChannelInfoByAddressResponse struct {
-	ID          string `json:"channel_id"`
-	IsConfirmed string `json:"channel_confirmed"`
-}
-
-type ChannelResponse struct{}
 
 func (handler *NodeHandler) Channels() {
 
@@ -87,7 +50,7 @@ func (handler *NodeHandler) initChannel() {
 
 	var addresses []string
 	for idx := range len(Addresses) {
-		addressType, address := ValidateAddress(Addresses[idx])
+		addressType, address := common.ValidateAddress(Addresses[idx])
 		if addressType == "" {
 			logger.Error("Bad request: invalid address parameter in channel init request")
 			fmt.Println("Bad request: invalid address parameter")
@@ -100,7 +63,7 @@ func (handler *NodeHandler) initChannel() {
 	addresses = append([]string{"INIT:contractors/channel"}, addresses...)
 	if CryptoKey != "" {
 		addresses = append(addresses, []string{CryptoKey}...)
-		if !ValidateInt(ContractorID) {
+		if !common.ValidateInt(ContractorID) {
 			logger.Error("Bad request: invalid contractorID parameter in channel init request")
 			fmt.Println("Bad request: invalid contractorID parameter")
 			return
@@ -117,16 +80,16 @@ func (handler *NodeHandler) initChannelGetResult(command *Command) {
 	err := handler.Node.SendCommand(command)
 	if err != nil {
 		logger.Error("Can't send command: " + string(command.ToBytes()) + " to node. Details: " + err.Error())
-		resultJSON := buildJSONResponse(COMMAND_TRANSFERRING_ERROR, ChannelInitResponse{})
+		resultJSON := buildJSONResponse(COMMAND_TRANSFERRING_ERROR, common.ChannelInitResponse{})
 		fmt.Println(string(resultJSON))
 		return
 	}
 
-	result, err := handler.Node.GetResult(command, CHANNEL_RESULT_TIMEOUT)
+	result, err := handler.Node.GetResult(command, common.CHANNEL_RESULT_TIMEOUT)
 	if err != nil {
 		logger.Error("Node is inaccessible during processing command: " +
 			string(command.ToBytes()) + ". Details: " + err.Error())
-		resultJSON := buildJSONResponse(NODE_IS_INACCESSIBLE, ChannelInitResponse{})
+		resultJSON := buildJSONResponse(NODE_IS_INACCESSIBLE, common.ChannelInitResponse{})
 		fmt.Println(string(resultJSON))
 		return
 	}
@@ -134,18 +97,18 @@ func (handler *NodeHandler) initChannelGetResult(command *Command) {
 	if result.Code != OK {
 		logger.Error("Node return wrong command result: " + strconv.Itoa(result.Code) +
 			" on command: " + string(command.ToBytes()))
-		resultJSON := buildJSONResponse(result.Code, ChannelInitResponse{})
+		resultJSON := buildJSONResponse(result.Code, common.ChannelInitResponse{})
 		fmt.Println(string(resultJSON))
 		return
 	}
 
 	if len(result.Tokens) < 2 {
 		logger.Error("Node return invalid result tokens size on command: " + string(command.ToBytes()))
-		resultJSON := buildJSONResponse(ENGINE_UNEXPECTED_ERROR, ChannelInitResponse{})
+		resultJSON := buildJSONResponse(ENGINE_UNEXPECTED_ERROR, common.ChannelInitResponse{})
 		fmt.Println(string(resultJSON))
 		return
 	}
-	resultJSON := buildJSONResponse(result.Code, ChannelInitResponse{
+	resultJSON := buildJSONResponse(result.Code, common.ChannelInitResponse{
 		ChannelID: result.Tokens[0],
 		CryptoKey: result.Tokens[1]})
 	fmt.Println(string(resultJSON))
@@ -162,16 +125,16 @@ func (handler *NodeHandler) listChannelsGetResult(command *Command) {
 	err := handler.Node.SendCommand(command)
 	if err != nil {
 		logger.Error("Can't send command: " + string(command.ToBytes()) + " to node. Details: " + err.Error())
-		resultJSON := buildJSONResponse(COMMAND_TRANSFERRING_ERROR, ChannelListResponse{})
+		resultJSON := buildJSONResponse(COMMAND_TRANSFERRING_ERROR, common.ChannelListResponse{})
 		fmt.Println(string(resultJSON))
 		return
 	}
 
-	result, err := handler.Node.GetResult(command, CHANNEL_RESULT_TIMEOUT)
+	result, err := handler.Node.GetResult(command, common.CHANNEL_RESULT_TIMEOUT)
 	if err != nil {
 		logger.Error("Node is inaccessible during processing command: " +
 			string(command.ToBytes()) + ". Details: " + err.Error())
-		resultJSON := buildJSONResponse(NODE_IS_INACCESSIBLE, ChannelListResponse{})
+		resultJSON := buildJSONResponse(NODE_IS_INACCESSIBLE, common.ChannelListResponse{})
 		fmt.Println(string(resultJSON))
 		return
 	}
@@ -179,14 +142,14 @@ func (handler *NodeHandler) listChannelsGetResult(command *Command) {
 	if result.Code != OK {
 		logger.Error("Node return wrong command result: " + strconv.Itoa(result.Code) +
 			" on command: " + string(command.ToBytes()))
-		resultJSON := buildJSONResponse(result.Code, ChannelListResponse{})
+		resultJSON := buildJSONResponse(result.Code, common.ChannelListResponse{})
 		fmt.Println(string(resultJSON))
 		return
 	}
 
 	if len(result.Tokens) == 0 {
 		logger.Error("Node return invalid result tokens size on command: " + string(command.ToBytes()))
-		resultJSON := buildJSONResponse(ENGINE_UNEXPECTED_ERROR, ChannelListResponse{})
+		resultJSON := buildJSONResponse(ENGINE_UNEXPECTED_ERROR, common.ChannelListResponse{})
 		fmt.Println(string(resultJSON))
 		return
 	}
@@ -196,20 +159,20 @@ func (handler *NodeHandler) listChannelsGetResult(command *Command) {
 	if err != nil {
 		logger.Error("Node return invalid token on command: " +
 			string(command.ToBytes()) + ". Details: " + err.Error())
-		resultJSON := buildJSONResponse(ENGINE_UNEXPECTED_ERROR, ChannelListResponse{})
+		resultJSON := buildJSONResponse(ENGINE_UNEXPECTED_ERROR, common.ChannelListResponse{})
 		fmt.Println(string(resultJSON))
 		return
 	}
 
 	if channelsCount == 0 {
-		resultJSON := buildJSONResponse(OK, ChannelListResponse{Count: channelsCount})
+		resultJSON := buildJSONResponse(OK, common.ChannelListResponse{Count: channelsCount})
 		fmt.Println(string(resultJSON))
 		return
 	}
 
-	response := ChannelListResponse{Count: channelsCount}
+	response := common.ChannelListResponse{Count: channelsCount}
 	for i := range channelsCount {
-		response.Channels = append(response.Channels, ChannelListItem{
+		response.Channels = append(response.Channels, common.ChannelListItem{
 			ID:        result.Tokens[i*2+1],
 			Addresses: result.Tokens[i*2+2]})
 	}
@@ -219,7 +182,7 @@ func (handler *NodeHandler) listChannelsGetResult(command *Command) {
 
 func (handler *NodeHandler) channelInfo() {
 
-	if !ValidateInt(ContractorID) {
+	if !common.ValidateInt(ContractorID) {
 		logger.Error("Bad request: invalid contractorID parameter in channels one request")
 		fmt.Println("Bad request: invalid contractorID parameter")
 		return
@@ -234,16 +197,16 @@ func (handler *NodeHandler) channelInfoGetResult(command *Command) {
 	err := handler.Node.SendCommand(command)
 	if err != nil {
 		logger.Error("Can't send command: " + string(command.ToBytes()) + " to node. Details: " + err.Error())
-		resultJSON := buildJSONResponse(COMMAND_TRANSFERRING_ERROR, ChannelInfoResponse{})
+		resultJSON := buildJSONResponse(COMMAND_TRANSFERRING_ERROR, common.ChannelInfoResponse{})
 		fmt.Println(string(resultJSON))
 		return
 	}
 
-	result, err := handler.Node.GetResult(command, CHANNEL_RESULT_TIMEOUT)
+	result, err := handler.Node.GetResult(command, common.CHANNEL_RESULT_TIMEOUT)
 	if err != nil {
 		logger.Error("Node is inaccessible during processing command: " +
 			string(command.ToBytes()) + ". Details: " + err.Error())
-		resultJSON := buildJSONResponse(NODE_IS_INACCESSIBLE, ChannelInfoResponse{})
+		resultJSON := buildJSONResponse(NODE_IS_INACCESSIBLE, common.ChannelInfoResponse{})
 		fmt.Println(string(resultJSON))
 		return
 	}
@@ -251,14 +214,14 @@ func (handler *NodeHandler) channelInfoGetResult(command *Command) {
 	if result.Code != OK {
 		logger.Error("Node return wrong command result: " + strconv.Itoa(result.Code) +
 			" on command: " + string(command.ToBytes()))
-		resultJSON := buildJSONResponse(result.Code, ChannelInfoResponse{})
+		resultJSON := buildJSONResponse(result.Code, common.ChannelInfoResponse{})
 		fmt.Println(string(resultJSON))
 		return
 	}
 
 	if len(result.Tokens) < 2 {
 		logger.Error("Node return invalid result tokens size on command: " + string(command.ToBytes()))
-		resultJSON := buildJSONResponse(ENGINE_UNEXPECTED_ERROR, ChannelInfoResponse{})
+		resultJSON := buildJSONResponse(ENGINE_UNEXPECTED_ERROR, common.ChannelInfoResponse{})
 		fmt.Println(string(resultJSON))
 		return
 	}
@@ -266,14 +229,14 @@ func (handler *NodeHandler) channelInfoGetResult(command *Command) {
 	addressesCount, err := strconv.Atoi(result.Tokens[1])
 	if err != nil {
 		logger.Error("Node return invalid token on command: " + string(command.ToBytes()) + ". Details: " + err.Error())
-		resultJSON := buildJSONResponse(ENGINE_UNEXPECTED_ERROR, ChannelInfoResponse{})
+		resultJSON := buildJSONResponse(ENGINE_UNEXPECTED_ERROR, common.ChannelInfoResponse{})
 		fmt.Println(string(resultJSON))
 		return
 	}
 
 	if addressesCount == 0 {
 		logger.Error("Node return invalid addresses token on command: " + string(command.ToBytes()))
-		resultJSON := buildJSONResponse(ENGINE_UNEXPECTED_ERROR, ChannelInfoResponse{})
+		resultJSON := buildJSONResponse(ENGINE_UNEXPECTED_ERROR, common.ChannelInfoResponse{})
 		fmt.Println(string(resultJSON))
 		return
 	}
@@ -283,7 +246,7 @@ func (handler *NodeHandler) channelInfoGetResult(command *Command) {
 		addresses = append(addresses, result.Tokens[idx+2])
 	}
 
-	response := ChannelInfoResponse{
+	response := common.ChannelInfoResponse{
 		ID:                  result.Tokens[0],
 		Addresses:           addresses,
 		IsConfirmed:         result.Tokens[2+addressesCount],
@@ -303,7 +266,7 @@ func (handler *NodeHandler) channelInfoByAddresses() {
 
 	var addresses []string
 	for idx := range len(addresses) {
-		addressType, address := ValidateAddress(Addresses[idx])
+		addressType, address := common.ValidateAddress(Addresses[idx])
 		if addressType == "" {
 			logger.Error("Bad request: invalid address parameter in one-by-addresses request")
 			fmt.Println("Bad request: invalid address parameter")
@@ -324,16 +287,16 @@ func (handler *NodeHandler) channelInfoByAddressesGetResult(command *Command) {
 	err := handler.Node.SendCommand(command)
 	if err != nil {
 		logger.Error("Can't send command: " + string(command.ToBytes()) + " to node. Details: " + err.Error())
-		resultJSON := buildJSONResponse(COMMAND_TRANSFERRING_ERROR, ChannelInfoByAddressResponse{})
+		resultJSON := buildJSONResponse(COMMAND_TRANSFERRING_ERROR, common.ChannelInfoByAddressResponse{})
 		fmt.Println(string(resultJSON))
 		return
 	}
 
-	result, err := handler.Node.GetResult(command, CHANNEL_RESULT_TIMEOUT)
+	result, err := handler.Node.GetResult(command, common.CHANNEL_RESULT_TIMEOUT)
 	if err != nil {
 		logger.Error("Node is inaccessible during processing command: " +
 			string(command.ToBytes()) + ". Details: " + err.Error())
-		resultJSON := buildJSONResponse(NODE_IS_INACCESSIBLE, ChannelInfoByAddressResponse{})
+		resultJSON := buildJSONResponse(NODE_IS_INACCESSIBLE, common.ChannelInfoByAddressResponse{})
 		fmt.Println(string(resultJSON))
 		return
 	}
@@ -341,19 +304,19 @@ func (handler *NodeHandler) channelInfoByAddressesGetResult(command *Command) {
 	if result.Code != OK {
 		logger.Error("Node return wrong command result: " + strconv.Itoa(result.Code) +
 			" on command: " + string(command.ToBytes()))
-		resultJSON := buildJSONResponse(result.Code, ChannelInfoByAddressResponse{})
+		resultJSON := buildJSONResponse(result.Code, common.ChannelInfoByAddressResponse{})
 		fmt.Println(string(resultJSON))
 		return
 	}
 
 	if len(result.Tokens) < 2 {
 		logger.Error("Node return invalid result tokens size on command: " + string(command.ToBytes()))
-		resultJSON := buildJSONResponse(ENGINE_UNEXPECTED_ERROR, ChannelInfoByAddressResponse{})
+		resultJSON := buildJSONResponse(ENGINE_UNEXPECTED_ERROR, common.ChannelInfoByAddressResponse{})
 		fmt.Println(string(resultJSON))
 		return
 	}
 
-	response := ChannelInfoByAddressResponse{
+	response := common.ChannelInfoByAddressResponse{
 		ID:          result.Tokens[0],
 		IsConfirmed: result.Tokens[1]}
 	resultJSON := buildJSONResponse(OK, response)
@@ -362,7 +325,7 @@ func (handler *NodeHandler) channelInfoByAddressesGetResult(command *Command) {
 
 func (handler *NodeHandler) setChannelAddresses() {
 
-	if !ValidateInt(ContractorID) {
+	if !common.ValidateInt(ContractorID) {
 		logger.Error("Bad request: invalid contractorID parameter in channels set-addresses request")
 		fmt.Println("Bad request: invalid contractorID parameter")
 		return
@@ -376,7 +339,7 @@ func (handler *NodeHandler) setChannelAddresses() {
 
 	var addresses []string
 	for idx := range len(Addresses) {
-		addressType, address := ValidateAddress(Addresses[idx])
+		addressType, address := common.ValidateAddress(Addresses[idx])
 		if addressType == "" {
 			logger.Error("Bad request: invalid address parameter in channel set-addresses request")
 			fmt.Println("Bad request: invalid address parameter")
@@ -395,16 +358,16 @@ func (handler *NodeHandler) setChannelAddressesGetResult(command *Command) {
 	err := handler.Node.SendCommand(command)
 	if err != nil {
 		logger.Error("Can't send command: " + string(command.ToBytes()) + " to node. Details: " + err.Error())
-		resultJSON := buildJSONResponse(COMMAND_TRANSFERRING_ERROR, ChannelResponse{})
+		resultJSON := buildJSONResponse(COMMAND_TRANSFERRING_ERROR, common.ChannelResponse{})
 		fmt.Println(string(resultJSON))
 		return
 	}
 
-	result, err := handler.Node.GetResult(command, CHANNEL_RESULT_TIMEOUT)
+	result, err := handler.Node.GetResult(command, common.CHANNEL_RESULT_TIMEOUT)
 	if err != nil {
 		logger.Error("Node is inaccessible during processing command: " +
 			string(command.ToBytes()) + ". Details: " + err.Error())
-		resultJSON := buildJSONResponse(NODE_IS_INACCESSIBLE, ChannelResponse{})
+		resultJSON := buildJSONResponse(NODE_IS_INACCESSIBLE, common.ChannelResponse{})
 		fmt.Println(string(resultJSON))
 		return
 	}
@@ -414,13 +377,13 @@ func (handler *NodeHandler) setChannelAddressesGetResult(command *Command) {
 			" on command: " + string(command.ToBytes()))
 	}
 
-	resultJSON := buildJSONResponse(result.Code, ChannelResponse{})
+	resultJSON := buildJSONResponse(result.Code, common.ChannelResponse{})
 	fmt.Println(string(resultJSON))
 }
 
 func (handler *NodeHandler) setChannelCryptoKey() {
 
-	if !ValidateInt(ContractorID) {
+	if !common.ValidateInt(ContractorID) {
 		logger.Error("Bad request: invalid contractorID parameter in channels set-crypto-key request")
 		fmt.Println("Bad request: invalid contractorID parameter")
 		return
@@ -429,7 +392,7 @@ func (handler *NodeHandler) setChannelCryptoKey() {
 	var commandParams []string
 	commandParams = append(commandParams, "SET:channel/crypto-key", ContractorID, CryptoKey)
 	if ChannelIDOnContractorSide != "" {
-		if !ValidateInt(ChannelIDOnContractorSide) {
+		if !common.ValidateInt(ChannelIDOnContractorSide) {
 			logger.Error("Bad request: invalid channel-id-on-contractor-side parameter in channels set-crypto-key request")
 			fmt.Println("Bad request: invalid channel-id-on-contractor-side parameter")
 			return
@@ -446,16 +409,16 @@ func (handler *NodeHandler) setChannelCryptoKeyGetResult(command *Command) {
 	err := handler.Node.SendCommand(command)
 	if err != nil {
 		logger.Error("Can't send command: " + string(command.ToBytes()) + " to node. Details: " + err.Error())
-		resultJSON := buildJSONResponse(COMMAND_TRANSFERRING_ERROR, ChannelResponse{})
+		resultJSON := buildJSONResponse(COMMAND_TRANSFERRING_ERROR, common.ChannelResponse{})
 		fmt.Println(string(resultJSON))
 		return
 	}
 
-	result, err := handler.Node.GetResult(command, CHANNEL_RESULT_TIMEOUT)
+	result, err := handler.Node.GetResult(command, common.CHANNEL_RESULT_TIMEOUT)
 	if err != nil {
 		logger.Error("Node is inaccessible during processing command: " +
 			string(command.ToBytes()) + ". Details: " + err.Error())
-		resultJSON := buildJSONResponse(NODE_IS_INACCESSIBLE, ChannelResponse{})
+		resultJSON := buildJSONResponse(NODE_IS_INACCESSIBLE, common.ChannelResponse{})
 		fmt.Println(string(resultJSON))
 		return
 	}
@@ -465,13 +428,13 @@ func (handler *NodeHandler) setChannelCryptoKeyGetResult(command *Command) {
 			" on command: " + string(command.ToBytes()))
 	}
 
-	resultJSON := buildJSONResponse(result.Code, ChannelResponse{})
+	resultJSON := buildJSONResponse(result.Code, common.ChannelResponse{})
 	fmt.Println(string(resultJSON))
 }
 
 func (handler *NodeHandler) regenerateChannelCryptoKey() {
 
-	if !ValidateInt(ContractorID) {
+	if !common.ValidateInt(ContractorID) {
 		logger.Error("Bad request: invalid contractor_id parameter in channels regenerate-crypto-key request")
 		fmt.Println("Bad request: invalid contractor_id parameter")
 		return
@@ -486,16 +449,16 @@ func (handler *NodeHandler) regenerateChannelCryptoKeyGetResult(command *Command
 	err := handler.Node.SendCommand(command)
 	if err != nil {
 		logger.Error("Can't send command: " + string(command.ToBytes()) + " to node. Details: " + err.Error())
-		resultJSON := buildJSONResponse(COMMAND_TRANSFERRING_ERROR, ChannelInitResponse{})
+		resultJSON := buildJSONResponse(COMMAND_TRANSFERRING_ERROR, common.ChannelInitResponse{})
 		fmt.Println(string(resultJSON))
 		return
 	}
 
-	result, err := handler.Node.GetResult(command, CHANNEL_RESULT_TIMEOUT)
+	result, err := handler.Node.GetResult(command, common.CHANNEL_RESULT_TIMEOUT)
 	if err != nil {
 		logger.Error("Node is inaccessible during processing command: " +
 			string(command.ToBytes()) + ". Details: " + err.Error())
-		resultJSON := buildJSONResponse(NODE_IS_INACCESSIBLE, ChannelInitResponse{})
+		resultJSON := buildJSONResponse(NODE_IS_INACCESSIBLE, common.ChannelInitResponse{})
 		fmt.Println(string(resultJSON))
 		return
 	}
@@ -503,18 +466,18 @@ func (handler *NodeHandler) regenerateChannelCryptoKeyGetResult(command *Command
 	if result.Code != OK {
 		logger.Error("Node return wrong command result: " + strconv.Itoa(result.Code) +
 			" on command: " + string(command.ToBytes()))
-		resultJSON := buildJSONResponse(result.Code, ChannelInitResponse{})
+		resultJSON := buildJSONResponse(result.Code, common.ChannelInitResponse{})
 		fmt.Println(string(resultJSON))
 		return
 	}
 
 	if len(result.Tokens) < 2 {
 		logger.Error("Node return invalid result tokens size on command: " + string(command.ToBytes()))
-		resultJSON := buildJSONResponse(ENGINE_UNEXPECTED_ERROR, ChannelInitResponse{})
+		resultJSON := buildJSONResponse(ENGINE_UNEXPECTED_ERROR, common.ChannelInitResponse{})
 		fmt.Println(string(resultJSON))
 		return
 	}
-	resultJSON := buildJSONResponse(result.Code, ChannelInitResponse{
+	resultJSON := buildJSONResponse(result.Code, common.ChannelInitResponse{
 		ChannelID: result.Tokens[0],
 		CryptoKey: result.Tokens[1]})
 	fmt.Println(string(resultJSON))
@@ -522,7 +485,7 @@ func (handler *NodeHandler) regenerateChannelCryptoKeyGetResult(command *Command
 
 func (handler *NodeHandler) removeChannel() {
 
-	if !ValidateInt(ContractorID) {
+	if !common.ValidateInt(ContractorID) {
 		logger.Error("Bad request: invalid contractor_id parameter in channels remove request")
 		fmt.Println("Bad request: invalid contractor_id parameter")
 		return
@@ -537,16 +500,16 @@ func (handler *NodeHandler) removeChannelGetResult(command *Command) {
 	err := handler.Node.SendCommand(command)
 	if err != nil {
 		logger.Error("Can't send command: " + string(command.ToBytes()) + " to node. Details: " + err.Error())
-		resultJSON := buildJSONResponse(COMMAND_TRANSFERRING_ERROR, ChannelResponse{})
+		resultJSON := buildJSONResponse(COMMAND_TRANSFERRING_ERROR, common.ChannelResponse{})
 		fmt.Println(string(resultJSON))
 		return
 	}
 
-	result, err := handler.Node.GetResult(command, CHANNEL_RESULT_TIMEOUT)
+	result, err := handler.Node.GetResult(command, common.CHANNEL_RESULT_TIMEOUT)
 	if err != nil {
 		logger.Error("Node is inaccessible during processing command: " +
 			string(command.ToBytes()) + ". Details: " + err.Error())
-		resultJSON := buildJSONResponse(NODE_IS_INACCESSIBLE, ChannelResponse{})
+		resultJSON := buildJSONResponse(NODE_IS_INACCESSIBLE, common.ChannelResponse{})
 		fmt.Println(string(resultJSON))
 		return
 	}
@@ -556,6 +519,6 @@ func (handler *NodeHandler) removeChannelGetResult(command *Command) {
 			" on command: " + string(command.ToBytes()))
 	}
 
-	resultJSON := buildJSONResponse(result.Code, ChannelResponse{})
+	resultJSON := buildJSONResponse(result.Code, common.ChannelResponse{})
 	fmt.Println(string(resultJSON))
 }
