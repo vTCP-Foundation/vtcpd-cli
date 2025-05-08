@@ -13,27 +13,6 @@ import (
 	"github.com/vTCP-Foundation/vtcpd-cli/internal/server"
 )
 
-var (
-	CommandType               = ""
-	Addresses                 []string
-	ContractorID              = ""
-	ChannelIDOnContractorSide = ""
-	Amount                    = ""
-	Offset                    = ""
-	Count                     = ""
-	Equivalent                = ""
-	HistoryFrom               = ""
-	HistoryTo                 = ""
-	AmountFrom                = ""
-	AmountTo                  = ""
-	CryptoKey                 = ""
-	Payload                   = ""
-	AuditNumber               = ""
-	MaxNegativeBalance        = ""
-	MaxPositiveBalance        = ""
-	Balance                   = ""
-)
-
 type CommandHandler struct {
 	nodeHandler *handler.NodeHandler
 }
@@ -43,24 +22,6 @@ func NewCommandHandler() (*CommandHandler, error) {
 	if err != nil {
 		return nil, err
 	}
-	handler.CommandType = CommandType
-	handler.Addresses = Addresses
-	handler.ContractorID = ContractorID
-	handler.ChannelIDOnContractorSide = ChannelIDOnContractorSide
-	handler.Amount = Amount
-	handler.Offset = Offset
-	handler.Count = Count
-	handler.Equivalent = Equivalent
-	handler.HistoryFrom = HistoryFrom
-	handler.HistoryTo = HistoryTo
-	handler.AmountFrom = AmountFrom
-	handler.AmountTo = AmountTo
-	handler.CryptoKey = CryptoKey
-	handler.Payload = Payload
-	handler.AuditNumber = AuditNumber
-	handler.MaxNegativeBalance = MaxNegativeBalance
-	handler.MaxPositiveBalance = MaxPositiveBalance
-	handler.Balance = Balance
 	return &CommandHandler{
 		nodeHandler: nodeHandler,
 	}, nil

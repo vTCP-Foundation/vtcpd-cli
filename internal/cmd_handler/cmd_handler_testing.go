@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"net/http"
 	"os"
+	"time"
 
 	"github.com/vTCP-Foundation/vtcpd-cli/internal/conf"
 	"github.com/vTCP-Foundation/vtcpd-cli/internal/handler"
@@ -12,48 +13,30 @@ import (
 	"github.com/vTCP-Foundation/vtcpd-cli/internal/server"
 )
 
-type CommandHandlerTes struct {
+type CommandHandlerTesting struct {
 	nodeHandler *handler.NodeHandler
 }
 
-func NewCommandHandlerTes() (*CommandHandlerTes, error) {
+func NewCommandHandlerTesting() (*CommandHandlerTesting, error) {
 	nodeHandler, err := handler.InitNodeHandler()
 	if err != nil {
 		return nil, err
 	}
-	handler.CommandType = CommandType
-	handler.Addresses = Addresses
-	handler.ContractorID = ContractorID
-	handler.ChannelIDOnContractorSide = ChannelIDOnContractorSide
-	handler.Amount = Amount
-	handler.Offset = Offset
-	handler.Count = Count
-	handler.Equivalent = Equivalent
-	handler.HistoryFrom = HistoryFrom
-	handler.HistoryTo = HistoryTo
-	handler.AmountFrom = AmountFrom
-	handler.AmountTo = AmountTo
-	handler.CryptoKey = CryptoKey
-	handler.Payload = Payload
-	handler.AuditNumber = AuditNumber
-	handler.MaxNegativeBalance = MaxNegativeBalance
-	handler.MaxPositiveBalance = MaxPositiveBalance
-	handler.Balance = Balance
-	return &CommandHandlerTes{
+	return &CommandHandlerTesting{
 		nodeHandler: nodeHandler,
 	}, nil
 }
 
-func (h *CommandHandlerTes) HandleCommand(command string) error {
+func (h *CommandHandlerTesting) HandleCommand(command string) error {
 	switch command {
 	case "start":
 		return h.nodeHandler.HandleStart()
 	case "stop":
 		return h.nodeHandler.HandleStop()
 	case "http":
-		return h.HandleTestHTTP()
+		return h.HandleHTTP()
 	case "start-http":
-		return h.HandleTestStartHTTP()
+		return h.HandleStartHTTP()
 	case "channels":
 		return h.nodeHandler.HandleChannels()
 	case "settlement-lines":
@@ -74,20 +57,42 @@ func (h *CommandHandlerTes) HandleCommand(command string) error {
 	}
 }
 
-func (h *CommandHandlerTes) HandleTestHTTP() error {
+func (h *CommandHandlerTesting) WaitForNodeResults() {
+	for {
+		time.Sleep(time.Millisecond * 10)
+		if h.nodeHandler.IfNodeWaitForResult() {
+			continue
+		}
+		logger.Info("There are no node results")
+		err := h.nodeHandler.StopNodeCommunication()
+		if err != nil {
+			logger.Error("Can't stop handler")
+		}
+		break
+	}
+}
+
+func (h *CommandHandlerTesting) HandleHTTP() error {
 	err := h.nodeHandler.StartNodeForCommunication()
 	if err != nil {
 		logger.Error("Node is not running. Details: " + err.Error())
 		fmt.Println("Node is not running. Details: " + err.Error())
 		return err
 	}
-	// todo : add new server
+	go func() {
+		routesHandlerTesting := routes.NewRoutesHandler(h.nodeHandler)
+		routerTesting := server.InitTestNodeHandlerServer(routesHandlerTesting)
+		err = http.ListenAndServe(conf.Params.TestHandler.HTTPInterface(), routerTesting)
+		if err != nil {
+			os.Exit(1)
+		}
+	}()
 	routesHandler := routes.NewRoutesHandler(h.nodeHandler)
 	router := server.InitNodeHandlerServer(routesHandler)
 	return http.ListenAndServe(conf.Params.Handler.HTTPInterface(), router)
 }
 
-func (h *CommandHandlerTes) HandleTestStartHTTP() error {
+func (h *CommandHandlerTesting) HandleStartHTTP() error {
 	isNodeRunning, err := h.nodeHandler.CheckNodeRunning()
 	if err != nil {
 		logger.Error("Can't check if node is running. Details: " + err.Error())
@@ -104,7 +109,14 @@ func (h *CommandHandlerTes) HandleTestStartHTTP() error {
 		fmt.Println("Can't start. Details: " + err.Error())
 		return err
 	}
-	// todo : add new server
+	go func() {
+		routesHandlerTesting := routes.NewRoutesHandler(h.nodeHandler)
+		routerTesting := server.InitTestNodeHandlerServer(routesHandlerTesting)
+		err = http.ListenAndServe(conf.Params.TestHandler.HTTPInterface(), routerTesting)
+		if err != nil {
+			os.Exit(1)
+		}
+	}()
 	routesHandler := routes.NewRoutesHandler(h.nodeHandler)
 	router := server.InitNodeHandlerServer(routesHandler)
 	return http.ListenAndServe(conf.Params.Handler.HTTPInterface(), router)

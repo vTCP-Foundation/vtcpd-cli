@@ -7,6 +7,7 @@ import (
 	"github.com/alecthomas/kingpin/v2"
 	"github.com/vTCP-Foundation/vtcpd-cli/internal/cmd_handler"
 	"github.com/vTCP-Foundation/vtcpd-cli/internal/conf"
+	"github.com/vTCP-Foundation/vtcpd-cli/internal/handler"
 	"github.com/vTCP-Foundation/vtcpd-cli/internal/logger"
 )
 
@@ -48,26 +49,26 @@ func main() {
 	kingpin.Version("0.0.1")
 	kingpin.Parse()
 
-	cmd_handler.CommandType = *commandType
-	cmd_handler.Addresses = *addresses
-	cmd_handler.ContractorID = *contractorID
-	cmd_handler.ChannelIDOnContractorSide = *channelIDOnContractorSide
-	cmd_handler.Amount = *amount
-	cmd_handler.Offset = *offset
-	cmd_handler.Count = *count
-	cmd_handler.Equivalent = *equivalent
-	cmd_handler.HistoryFrom = *historyFrom
-	cmd_handler.HistoryTo = *historyTo
-	cmd_handler.AmountFrom = *amountFrom
-	cmd_handler.AmountTo = *amountTo
-	cmd_handler.CryptoKey = *cryptoKey
-	cmd_handler.Payload = *payload
-	cmd_handler.AuditNumber = *auditNumber
-	cmd_handler.MaxNegativeBalance = *maxNegativeBalance
-	cmd_handler.MaxPositiveBalance = *maxPositiveBalance
-	cmd_handler.Balance = *balance
+	handler.CommandType = *commandType
+	handler.Addresses = *addresses
+	handler.ContractorID = *contractorID
+	handler.ChannelIDOnContractorSide = *channelIDOnContractorSide
+	handler.Amount = *amount
+	handler.Offset = *offset
+	handler.Count = *count
+	handler.Equivalent = *equivalent
+	handler.HistoryFrom = *historyFrom
+	handler.HistoryTo = *historyTo
+	handler.AmountFrom = *amountFrom
+	handler.AmountTo = *amountTo
+	handler.CryptoKey = *cryptoKey
+	handler.Payload = *payload
+	handler.AuditNumber = *auditNumber
+	handler.MaxNegativeBalance = *maxNegativeBalance
+	handler.MaxPositiveBalance = *maxPositiveBalance
+	handler.Balance = *balance
 
-	cmdHandler, err := cmd_handler.NewCommandHandlerTes()
+	cmdHandler, err := cmd_handler.NewCommandHandlerTesting()
 	if err != nil {
 		logger.Error("Can't initialise node handler. Details: " + err.Error())
 		os.Exit(-1)
