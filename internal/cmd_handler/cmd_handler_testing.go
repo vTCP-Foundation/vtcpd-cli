@@ -95,8 +95,11 @@ func (h *CommandHandlerTesting) HandleHTTP() error {
 func (h *CommandHandlerTesting) HandleStartHTTP() error {
 	isNodeRunning, err := h.nodeHandler.CheckNodeRunning()
 	if err != nil {
-		logger.Error("Can't check if node is running. Details: " + err.Error())
-		return err
+		if !os.IsNotExist(err) {
+			logger.Error("Can't check if node is running. Details: " + err.Error())
+			return err
+		}
+		logger.Info("No PID file found. Node is not running.")
 	}
 	if isNodeRunning {
 		logger.Error("Node already running")

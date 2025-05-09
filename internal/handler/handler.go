@@ -159,6 +159,9 @@ func (nh *NodeHandler) CheckNodeRunning() (bool, error) {
 
 	nodePID, err := getProcessPID(path.Join(conf.Params.WorkDir, "process.pid"))
 	if err != nil {
+		if os.IsNotExist(err) {
+			return false, err
+		}
 		return false, wrap("Can't read node PID", err)
 	}
 	process, err := os.FindProcess(int(nodePID))
@@ -209,6 +212,9 @@ func (nh *NodeHandler) StopNode() error {
 func getProcessPID(pidFileName string) (int, error) {
 	pidFile, err := os.OpenFile(pidFileName, os.O_RDONLY, 0600)
 	if err != nil {
+		if os.IsNotExist(err) {
+			return -1, err
+		}
 		return -1, wrap("Can't open PID file for reading.", err)
 	}
 	defer pidFile.Close()
@@ -216,10 +222,10 @@ func getProcessPID(pidFileName string) (int, error) {
 	reader := bufio.NewReader(pidFile)
 	line, isLinePresent, err := reader.ReadLine()
 	if err != nil {
-		return -1, wrap("Can't read events-monitor PID", err)
+		return -1, wrap("Can't read PID", err)
 	}
 	if isLinePresent {
-		return -1, errors.New("events-monitor PID is empty")
+		return -1, errors.New("PID is empty")
 	}
 	pid, err := strconv.Atoi(string(line))
 	if err != nil {

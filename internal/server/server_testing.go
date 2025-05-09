@@ -15,6 +15,6 @@ func InitTestNodeHandlerServer(r *routes.RoutesHandler) *mux.Router {
 	router.HandleFunc("/api/v1/node/settlement-lines-influence/{flags}/", r.SetSLInfluenceFlags).Methods("PUT")
 	router.HandleFunc("/api/v1/node/make-node-busy/", r.MakeNodeBusy).Methods("PUT")
 
-	logger.Info("Requests accepting started on " + conf.Params.HTTPTesting.HTTPInterface())
+	logger.Info("Testing requests accepting started on " + conf.Params.HTTPTesting.HTTPInterface())
 	return router
 }
