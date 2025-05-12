@@ -43,9 +43,9 @@ func InitNodeHandlerServer(r *routes.RoutesHandler) *mux.Router {
 	router.HandleFunc("/api/v1/node/contractors/{contractor_id}/reset-settlement-line/{equivalent}/", r.ResetSettlementLine).Methods("PUT")
 
 	// Contractors / Transactions
-	// router.HandleFunc("/api/v1/node/contractors/transactions/{equivalent}/", handler.CreateTransaction).Methods("POST")
-	// router.HandleFunc("/api/v1/node/contractors/transactions/max/{equivalent}/", handler.BatchMaxFullyTransaction).Methods("GET")
-	// router.HandleFunc("/api/v1/node/transactions/{command_uuid}/", handler.GetTransactionByCommandUUID).Methods("GET")
+	router.HandleFunc("/api/v1/node/contractors/transactions/{equivalent}/", r.CreateTransaction).Methods("POST")
+	router.HandleFunc("/api/v1/node/contractors/transactions/max/{equivalent}/", r.BatchMaxFullyTransaction).Methods("GET")
+	router.HandleFunc("/api/v1/node/transactions/{command_uuid}/", r.GetTransactionByCommandUUID).Methods("GET")
 
 	// Stats
 	router.HandleFunc("/api/v1/node/stats/total-balance/{equivalent}/", r.TotalBalance).Methods("GET")
