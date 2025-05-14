@@ -702,10 +702,10 @@ Addresses in the API use the following format: `<type_code>-<address>`
         *   **Description:** Creates and sends a payment (transaction).
         *   **Path Parameters:** `equivalent` (Equivalent/currency ID).
         *   **Request Parameters (query):**
-            *   `contractor_id` (required, recipient contractor ID)
+            *   `contractor_address` (required, recipient contractor address)
             *   `amount` (required, payment amount)
             *   `payload` (optional, additional transaction data)
-        *   **Example:** `curl -X POST "http://localhost:PORT/api/v1/node/contractors/transactions/0/?contractor_id=recipient-uuid&amount=100&payload=Order123"`
+        *   **Example:** `curl -X POST "http://localhost:PORT/api/v1/node/contractors/transactions/0/?contractor_address=12-1.2.3.4.:5000&amount=100&payload=Order123"`
         *   **Response:** JSON object containing the transaction UUID.
         *   **Response Body (JSON Example):**
             ```json
@@ -719,8 +719,8 @@ Addresses in the API use the following format: `<type_code>-<address>`
         *   **Description:** Calculates the maximum flow for the specified equivalent (likely for *all* contractors or for one specified via query).
         *   **Path Parameters:** `equivalent` (Equivalent/currency ID).
         *   **Request Parameters (query):**
-            *   `contractor_id` (likely optional, for calculation per specific contractor)
-        *   **Example:** `curl -X GET "http://localhost:PORT/api/v1/node/contractors/transactions/max/0/?contractor_id=contractor-uuid"`
+            *   `contractor_address` (contractor address, can be repeted)
+        *   **Example:** `curl -X GET "http://localhost:PORT/api/v1/node/contractors/transactions/max/0/?contractor_address=12-1.2.3.4:500"`
         *   **Response:** JSON object containing the max flow calculation results.
         *   **Response Body (JSON Example):**
             ```json
