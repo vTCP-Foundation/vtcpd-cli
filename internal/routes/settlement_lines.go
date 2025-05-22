@@ -816,7 +816,7 @@ func (router *RoutesHandler) GetSettlementLineByAddress(w http.ResponseWriter, r
 		return
 	}
 
-	if len(result.Tokens) < 4 {
+	if len(result.Tokens) < 8 {
 		logger.Error("Node return invalid result tokens size on command: " + string(command.ToBytes()))
 		writeHTTPResponse(w, ENGINE_UNEXPECTED_ERROR, common.SettlementLineDetailResponse{})
 		return

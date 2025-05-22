@@ -17,6 +17,12 @@ var (
 )
 
 func (router *RoutesHandler) SetTestingFlags(w http.ResponseWriter, r *http.Request) {
+	_, err := preprocessRequest(r)
+	if err != nil {
+		logger.Error("Bad request: invalid security parameters: " + err.Error())
+		w.WriteHeader(BAD_REQUEST)
+		return
+	}
 
 	flags := mux.Vars(r)["flags"]
 	if flags == "" {
@@ -37,20 +43,9 @@ func (router *RoutesHandler) SetTestingFlags(w http.ResponseWriter, r *http.Requ
 			writeHTTPResponse(w, NODE_IS_INACCESSIBLE, common.ControlResponse{})
 			return
 		}
-		result, err := router.nodeHandler.Node.GetResult(command, INFLUENCE_RESULT_TIMEOUT)
-		if err != nil {
-			logger.Error("Node is inaccessible during processing command: " +
-				string(command.ToBytes()) + ". Details: " + err.Error())
-			writeHTTPResponse(w, NODE_IS_INACCESSIBLE, common.ControlResponse{})
-			return
-		}
 
-		if result.Code != OK {
-			logger.Error("Node return wrong command result: " + strconv.Itoa(result.Code) +
-				" on command: " + string(command.ToBytes()))
-		}
-
-		writeHTTPResponse(w, result.Code, common.ControlResponse{})
+		// Node is not responding to this command
+		writeHTTPResponse(w, http.StatusOK, common.ControlResponse{})
 		return
 	}
 
@@ -65,49 +60,34 @@ func (router *RoutesHandler) SetTestingFlags(w http.ResponseWriter, r *http.Requ
 			writeHTTPResponse(w, NODE_IS_INACCESSIBLE, common.ControlResponse{})
 			return
 		}
-		result, err := router.nodeHandler.Node.GetResult(command, INFLUENCE_RESULT_TIMEOUT)
-		if err != nil {
-			logger.Error("Node is inaccessible during processing command: " +
-				string(command.ToBytes()) + ". Details: " + err.Error())
-			writeHTTPResponse(w, NODE_IS_INACCESSIBLE, common.ControlResponse{})
-			return
-		}
 
-		if result.Code != OK {
-			logger.Error("Node return wrong command result: " + strconv.Itoa(result.Code) +
-				" on command: " + string(command.ToBytes()))
-		}
-
-		writeHTTPResponse(w, result.Code, common.ControlResponse{})
+		// Node is not responding to this command
+		writeHTTPResponse(w, http.StatusOK, common.ControlResponse{})
 		return
 	}
 
 	command := handler.NewCommand(
 		"SET:subsystems_controller/flags", flags, typeAndAddress[0], typeAndAddress[1], forbiddenAmount)
 
-	err := router.nodeHandler.Node.SendCommand(command)
+	err = router.nodeHandler.Node.SendCommand(command)
 	if err != nil {
 		logger.Error("Can't send command: " + string(command.ToBytes()) + " to node. Details: " + err.Error())
 		writeHTTPResponse(w, NODE_IS_INACCESSIBLE, common.ControlResponse{})
 		return
 	}
-	result, err := router.nodeHandler.Node.GetResult(command, INFLUENCE_RESULT_TIMEOUT)
-	if err != nil {
-		logger.Error("Node is inaccessible during processing command: " +
-			string(command.ToBytes()) + ". Details: " + err.Error())
-		writeHTTPResponse(w, NODE_IS_INACCESSIBLE, common.ControlResponse{})
-		return
-	}
+	logger.Info("Command sent: " + string(command.ToBytes()))
 
-	if result.Code != OK {
-		logger.Error("Node return wrong command result: " + strconv.Itoa(result.Code) +
-			" on command: " + string(command.ToBytes()))
-	}
-
-	writeHTTPResponse(w, result.Code, common.ControlResponse{})
+	// Node is not responding to this command
+	writeHTTPResponse(w, http.StatusOK, common.ControlResponse{})
 }
 
 func (router *RoutesHandler) SetSLInfluenceFlags(w http.ResponseWriter, r *http.Request) {
+	_, err := preprocessRequest(r)
+	if err != nil {
+		logger.Error("Bad request: invalid security parameters: " + err.Error())
+		w.WriteHeader(BAD_REQUEST)
+		return
+	}
 
 	flags := mux.Vars(r)["flags"]
 	if flags == "" {
@@ -123,26 +103,15 @@ func (router *RoutesHandler) SetSLInfluenceFlags(w http.ResponseWriter, r *http.
 	command := handler.NewCommand(
 		"SET:subsystems_controller/trust_lines_influence/flags", flags, firstParameter, secondParameter, thirdParameter)
 
-	err := router.nodeHandler.Node.SendCommand(command)
+	err = router.nodeHandler.Node.SendCommand(command)
 	if err != nil {
 		logger.Error("Can't send command: " + string(command.ToBytes()) + " to node. Details: " + err.Error())
 		writeHTTPResponse(w, NODE_IS_INACCESSIBLE, common.ControlResponse{})
 		return
 	}
-	result, err := router.nodeHandler.Node.GetResult(command, INFLUENCE_RESULT_TIMEOUT)
-	if err != nil {
-		logger.Error("Node is inaccessible during processing command: " +
-			string(command.ToBytes()) + ". Details: " + err.Error())
-		writeHTTPResponse(w, NODE_IS_INACCESSIBLE, common.ControlResponse{})
-		return
-	}
 
-	if result.Code != OK {
-		logger.Error("Node return wrong command result: " + strconv.Itoa(result.Code) +
-			" on command: " + string(command.ToBytes()))
-	}
-
-	writeHTTPResponse(w, result.Code, common.ControlResponse{})
+	// Node is not responding to this command
+	writeHTTPResponse(w, http.StatusOK, common.ControlResponse{})
 }
 
 func (router *RoutesHandler) MakeNodeBusy(w http.ResponseWriter, r *http.Request) {
