@@ -162,11 +162,11 @@ For these commands, many flags are global and are set for use by internal handle
 8.  **`payment`**
     *   **Description:** Creates and sends a payment.
     *   **Flags Used:**
-        *   `--contractorID <recipient_ID>`: Recipient contractor ID.
+        *   `--address <address>`: Contractor address. Multiple can be specified.
         *   `--eq <equivalent_ID>`: Equivalent ID.
         *   `--amount <sum>`: Payment amount.
         *   `--payload <data>`: (Optional) Additional data for the transaction.
-    *   **Example:** `vtcpd-cli payment --contractorID "recipient-uuid" --eq 0 --amount 100 --payload "Order 123"`
+    *   **Example:** `vtcpd-cli payment --address "ipv4:1.2.3.4:5678" --eq 0 --amount 100 --payload "Order 123"`
 
 9.  **`history`**
     *   **Description:** Views transaction history.
