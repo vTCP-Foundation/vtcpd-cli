@@ -27,7 +27,7 @@ func (router *RoutesHandler) SetTestingFlags(w http.ResponseWriter, r *http.Requ
 	flags := mux.Vars(r)["flags"]
 	if flags == "" {
 		logger.Error("Bad request: invalid flags parameter in set test flag request")
-		fmt.Println("Bad request: invalid flags parameter")
+		writeHTTPResponse(w, BAD_REQUEST, common.ControlResponse{})
 		return
 	}
 
@@ -50,6 +50,11 @@ func (router *RoutesHandler) SetTestingFlags(w http.ResponseWriter, r *http.Requ
 	}
 
 	typeAndAddress := strings.Split(forbiddenNodeAddress, "-")
+	if len(typeAndAddress) != 2 {
+		logger.Error("Bad request: invalid forbidden_address parameter in set test flag request")
+		writeHTTPResponse(w, BAD_REQUEST, common.ControlResponse{})
+		return
+	}
 
 	if forbiddenAmount == "" {
 		command := handler.NewCommand(
@@ -67,7 +72,7 @@ func (router *RoutesHandler) SetTestingFlags(w http.ResponseWriter, r *http.Requ
 	}
 
 	command := handler.NewCommand(
-		"SET:subsystems_controller/flags", flags, typeAndAddress[0], typeAndAddress[1], forbiddenAmount)
+		"SET:subsystems_controller/flags", flags, typeAndAddress[0], typeAndAddress[1])
 
 	err = router.nodeHandler.Node.SendCommand(command)
 	if err != nil {
