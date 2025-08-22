@@ -1,6 +1,5 @@
 .idea/*
 
 bin/
+build/
 pkg/
-src/github.com/*
-src/gopkg.in/*

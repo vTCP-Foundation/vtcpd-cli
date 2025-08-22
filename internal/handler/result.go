@@ -2,9 +2,10 @@ package handler
 
 import (
 	"errors"
-	"github.com/satori/go.uuid"
 	"strconv"
 	"strings"
+
+	"github.com/google/uuid"
 )
 
 type Result struct {
@@ -22,15 +23,15 @@ type Result struct {
 func ResultFromRawInput(body []byte) *Result {
 	UUID_HEX_LENGTH := 36
 	if len(body) < UUID_HEX_LENGTH {
-		return &Result{Error: errors.New("To short")}
+		return &Result{Error: errors.New("too short")}
 	}
 
 	uuidPart := body[:UUID_HEX_LENGTH]
-	identifier, err := uuid.FromString(string(uuidPart))
+	identifier, err := uuid.Parse(string(uuidPart))
 	if err != nil {
 		return &Result{
-			UUID:  uuid.FromStringOrNil("00000000-0000-0000-0000-000000000000"),
-			Error: errors.New("Can't parse result UUID."),
+			UUID:  uuid.Nil,
+			Error: errors.New("can't parse result UUID"),
 		}
 	}
 
@@ -41,7 +42,7 @@ func ResultFromRawInput(body []byte) *Result {
 	if err != nil {
 		return &Result{
 			UUID:  identifier,
-			Error: errors.New("Can't parse result code."),
+			Error: errors.New("can't parse result code"),
 		}
 	}
 
