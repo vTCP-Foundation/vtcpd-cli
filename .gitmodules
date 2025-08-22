@@ -1,0 +1,6 @@
+[submodule "workspace"]
+	path = workspace
+	url = git@github.com:vTCP-Foundation/workspace.git
+[submodule "vtcpd"]
+	path = vtcpd
+	url = git@github.com:vTCP-Foundation/vtcpd.git
