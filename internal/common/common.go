@@ -234,3 +234,29 @@ type ControlMsgResponse struct {
 }
 
 type ControlResponse struct{}
+
+// --- Global structs for rates ---
+
+type RateItem struct {
+	EquivalentFrom             string `json:"equivalent_from"`
+	EquivalentTo               string `json:"equivalent_to"`
+	Value                      string `json:"value"`
+	Shift                      int16  `json:"shift"`
+	RealRate                   string `json:"real_rate"`
+	MinExchangeAmount          string `json:"min_exchange_amount"`
+	MaxExchangeAmount          string `json:"max_exchange_amount"`
+	ExpiresAtUnixMicroseconds  string `json:"expires_at_unix_microseconds"`
+}
+
+// --- Global API responses for rates ---
+
+type RatesActionResponse struct{}
+
+type RateGetResponse struct {
+	Rate RateItem `json:"rate"`
+}
+
+type RatesListResponse struct {
+	Count int        `json:"count"`
+	Rates []RateItem `json:"rates"`
+}

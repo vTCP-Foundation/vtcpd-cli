@@ -61,6 +61,13 @@ func InitNodeHandlerServer(r *routes.RoutesHandler) *mux.Router {
 	router.HandleFunc("/api/v1/node/remove-outdated-crypto/", r.RemoveOutdatedCryptoData).Methods("DELETE")
 	router.HandleFunc("/api/v1/node/regenerate-all-keys/", r.RegenerateAllKeys).Methods("POST")
 
+	// Rates
+	router.HandleFunc("/api/v1/node/rates/{equivalent_from}/{equivalent_to}/", r.SetRate).Methods("POST")
+	router.HandleFunc("/api/v1/node/rates/{equivalent_from}/{equivalent_to}/", r.GetRate).Methods("GET")
+	router.HandleFunc("/api/v1/node/rates/", r.ListRates).Methods("GET")
+	router.HandleFunc("/api/v1/node/rates/{equivalent_from}/{equivalent_to}/", r.DeleteRate).Methods("DELETE")
+	router.HandleFunc("/api/v1/node/rates/", r.ClearRates).Methods("DELETE")
+
 	// Control
 	router.HandleFunc("/api/v1/ctrl/stop/", r.StopEverything).Methods("POST")
 
