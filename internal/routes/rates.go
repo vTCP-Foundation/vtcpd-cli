@@ -13,19 +13,6 @@ import (
 	"github.com/vTCP-Foundation/vtcpd-cli/internal/logger"
 )
 
-const (
-	DECIMALS_101  = 2
-	DECIMALS_1001 = 8
-	DECIMALS_1002 = 8
-	DECIMALS_2002 = 6
-)
-
-var decimalsMap = map[string]int{
-	"101":  DECIMALS_101,
-	"1001": DECIMALS_1001,
-	"1002": DECIMALS_1002,
-	"2002": DECIMALS_2002,
-}
 
 func (router *RoutesHandler) SetRate(w http.ResponseWriter, r *http.Request) {
 	logger.Info("SetRate controller")
@@ -40,12 +27,12 @@ func (router *RoutesHandler) SetRate(w http.ResponseWriter, r *http.Request) {
 	equivalentTo := mux.Vars(r)["equivalent_to"]
 
 	// Validate equivalents exist in decimals map
-	if _, exists := decimalsMap[equivalentFrom]; !exists {
+	if _, exists := common.DecimalsMap[equivalentFrom]; !exists {
 		logger.Error("Bad request: unknown equivalent scale for equivalent_from: " + equivalentFrom)
 		w.WriteHeader(BAD_REQUEST)
 		return
 	}
-	if _, exists := decimalsMap[equivalentTo]; !exists {
+	if _, exists := common.DecimalsMap[equivalentTo]; !exists {
 		logger.Error("Bad request: unknown equivalent scale for equivalent_to: " + equivalentTo)
 		w.WriteHeader(BAD_REQUEST)
 		return
@@ -97,8 +84,8 @@ func (router *RoutesHandler) SetRate(w http.ResponseWriter, r *http.Request) {
 		}
 
 		// Apply scale adjustment
-		decimalsFrom := decimalsMap[equivalentFrom]
-		decimalsTo := decimalsMap[equivalentTo]
+		decimalsFrom := common.DecimalsMap[equivalentFrom]
+		decimalsTo := common.DecimalsMap[equivalentTo]
 		adjustedShift := shift64 - int64(decimalsFrom-decimalsTo)
 
 		if adjustedShift < math.MinInt16 || adjustedShift > math.MaxInt16 {
@@ -394,8 +381,8 @@ func parseAndValidateRealRate(realRate string, equivalentFrom string, equivalent
 	}
 
 	// Apply scale difference
-	decimalsFrom := decimalsMap[equivalentFrom]
-	decimalsTo := decimalsMap[equivalentTo]
+	decimalsFrom := common.DecimalsMap[equivalentFrom]
+	decimalsTo := common.DecimalsMap[equivalentTo]
 	adjustedShift := int64(shift) - int64(decimalsFrom-decimalsTo)
 
 	// Validate int16 range
@@ -476,8 +463,8 @@ func normalizeDecimal(decimal string) (string, int16, error) {
 // computeRealRateString computes the real decimal rate from native (value, shift) format
 func computeRealRateString(value string, shift int16, equivalentFrom string, equivalentTo string) string {
 	// Reverse scale adjustment
-	decimalsFrom := decimalsMap[equivalentFrom]
-	decimalsTo := decimalsMap[equivalentTo]
+	decimalsFrom := common.DecimalsMap[equivalentFrom]
+	decimalsTo := common.DecimalsMap[equivalentTo]
 	originalShift := int(shift) + (decimalsFrom - decimalsTo)
 
 	return applyShiftToValue(value, originalShift)

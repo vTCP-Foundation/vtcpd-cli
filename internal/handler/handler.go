@@ -47,6 +47,14 @@ var (
 	MaxNegativeBalance        = ""
 	MaxPositiveBalance        = ""
 	Balance                   = ""
+	// Rates-specific variables
+	EquivalentFrom      = ""
+	EquivalentTo        = ""
+	RealRate            = ""
+	Value               = ""
+	Shift               = ""
+	MinExchangeAmount   = ""
+	MaxExchangeAmount   = ""
 )
 
 type NodeHandler struct {

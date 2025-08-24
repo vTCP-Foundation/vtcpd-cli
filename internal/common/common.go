@@ -1,5 +1,20 @@
 package common
 
+// Decimals map for equivalent scales
+const (
+	DECIMALS_101  = 2
+	DECIMALS_1001 = 8
+	DECIMALS_1002 = 8
+	DECIMALS_2002 = 6
+)
+
+var DecimalsMap = map[string]int{
+	"101":  DECIMALS_101,
+	"1001": DECIMALS_1001,
+	"1002": DECIMALS_1002,
+	"2002": DECIMALS_2002,
+}
+
 // --- Global conts for command timeouts ---
 var (
 	CHANNEL_RESULT_TIMEOUT          uint16 = 20 // seconds

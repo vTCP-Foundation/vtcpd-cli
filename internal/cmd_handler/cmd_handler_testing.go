@@ -49,6 +49,8 @@ func (h *CommandHandlerTesting) HandleCommand(command string) error {
 		return h.nodeHandler.HandleHistory()
 	case "remove-outdated-crypto":
 		return h.nodeHandler.HandleRemoveOutdatedCrypto()
+	case "rates":
+		return h.nodeHandler.HandleRates()
 	default:
 		logger.Error("Invalid command " + command)
 		fmt.Println("Invalid command")

@@ -96,3 +96,13 @@ func (nh *NodeHandler) HandleRemoveOutdatedCrypto() error {
 	nh.RemoveOutdatedCryptoDataCommand()
 	return nil
 }
+
+func (nh *NodeHandler) HandleRates() error {
+	err := nh.StartNodeForCommunication()
+	if err != nil {
+		logger.Error("Node is not running. Details: " + err.Error())
+		return errors.New("Node is not running. Details: " + err.Error())
+	}
+	nh.Rates()
+	return nil
+}

@@ -31,6 +31,14 @@ var (
 	maxNegativeBalance        = kingpin.Flag("max-negative-balance", "Max negative balance.").Default("").String()
 	maxPositiveBalance        = kingpin.Flag("max-positive-balance", "Max positive balance.").Default("").String()
 	balance                   = kingpin.Flag("balance", "Settlement line balance.").Default("").String()
+	// Rates flags
+	equivalentFrom            = kingpin.Flag("from", "Equivalent from").Default("").String()
+	equivalentTo              = kingpin.Flag("to", "Equivalent to").Default("").String()
+	realRate                  = kingpin.Flag("real", "Real rate").Default("").String()
+	value                     = kingpin.Flag("value", "Value").Default("").String()
+	shift                     = kingpin.Flag("shift", "Shift").Default("").String()
+	minExchangeAmount         = kingpin.Flag("min", "Minimum exchange amount").Default("").String()
+	maxExchangeAmount         = kingpin.Flag("max", "Maximum exchange amount").Default("").String()
 )
 
 func main() {
@@ -67,6 +75,14 @@ func main() {
 	handler.MaxNegativeBalance = *maxNegativeBalance
 	handler.MaxPositiveBalance = *maxPositiveBalance
 	handler.Balance = *balance
+	// Rates assignments
+	handler.EquivalentFrom = *equivalentFrom
+	handler.EquivalentTo = *equivalentTo
+	handler.RealRate = *realRate
+	handler.Value = *value
+	handler.Shift = *shift
+	handler.MinExchangeAmount = *minExchangeAmount
+	handler.MaxExchangeAmount = *maxExchangeAmount
 
 	cmdHandler, err := cmd_handler.NewCommandHandler()
 	if err != nil {
