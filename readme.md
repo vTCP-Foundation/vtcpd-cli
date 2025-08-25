@@ -225,6 +225,47 @@ For these commands, many flags are global and are set for use by internal handle
     *   **Flags:** None.
     *   **Example:** `vtcpd-cli remove-outdated-crypto`
 
+11. **`rates`**
+    *   **Description:** Manages exchange rates between equivalents. For detailed explanation of storage format and conversion between real decimal and native (value + shift) formats, see [Exchange Rates: Storage Format and Conversion](#exchange-rates-storage-format-and-conversion).
+    *   **Main Types (`--type`):** (The `--type <type>` flag is required to define the action for `rates` command)
+        *   `set`: Set an exchange rate using real decimal value.
+            *   **Flags:**
+                *   `--from <equivalent_from>`: Source equivalent ID.
+                *   `--to <equivalent_to>`: Target equivalent ID.
+                *   `--real <real_rate>`: Exchange rate as decimal (max 16 fractional digits).
+                *   `--min <min_exchange_amount>`: (Optional) Minimum exchange amount.
+                *   `--max <max_exchange_amount>`: (Optional) Maximum exchange amount.
+        *   `set-native`: Set an exchange rate using native value and shift format.
+            *   **Flags:**
+                *   `--from <equivalent_from>`: Source equivalent ID.
+                *   `--to <equivalent_to>`: Target equivalent ID.
+                *   `--value <int>`: Integer value for native format.
+                *   `--shift <int16>`: Base-10 shift for native format.
+                *   `--min <min_exchange_amount>`: (Optional) Minimum exchange amount.
+                *   `--max <max_exchange_amount>`: (Optional) Maximum exchange amount.
+        *   `get`: Get a specific exchange rate.
+            *   **Flags:**
+                *   `--from <equivalent_from>`: Source equivalent ID.
+                *   `--to <equivalent_to>`: Target equivalent ID.
+        *   `list`: List all exchange rates.
+            *   **Flags:** None.
+        *   `del`: Delete a specific exchange rate.
+            *   **Flags:**
+                *   `--from <equivalent_from>`: Source equivalent ID.
+                *   `--to <equivalent_to>`: Target equivalent ID.
+        *   `clear`: Delete all exchange rates.
+            *   **Flags:** None.
+    *   **Output:**
+        *   For `set`, `set-native`, `del`, `clear`: Empty data structure (success confirmation only).
+        *   For `get`, `list`: Full rate object(s) including both native (`value`, `shift`) and computed `real_rate` plus optional amounts and expiration.
+    *   **Examples:**
+        *   Set rate with decimal: `vtcpd-cli rates --type set --from 101 --to 1001 --real 0.00123 --min 100`
+        *   Set rate with native format: `vtcpd-cli rates --type set-native --from 101 --to 1001 --value 123 --shift -5 --max 10000`
+        *   Get specific rate: `vtcpd-cli rates --type get --from 101 --to 1001`
+        *   List all rates: `vtcpd-cli rates --type list`
+        *   Delete specific rate: `vtcpd-cli rates --type del --from 101 --to 1001`
+        *   Clear all rates: `vtcpd-cli rates --type clear`
+
 ## REST API Endpoints
 
 ### Address Format
@@ -823,6 +864,193 @@ Addresses in the API use the following format: `<type_code>-<address>`
             }
             ```
     *   `GET /api/v1/node/history/transactions/payments/additional/{offset}/{count}/{equivalent}/`
+
+*   **Exchange Rates**
+    *   `POST /api/v1/node/rates/{equivalent_from}/{equivalent_to}/`
+        *   **Description:** Sets an exchange rate between two equivalents. For detailed explanation of the difference between real decimal and native (value + shift) input formats, see [Exchange Rates: Storage Format and Conversion](#exchange-rates-storage-format-and-conversion).
+        *   **Path Parameters:** `equivalent_from`, `equivalent_to` (Equivalent IDs for the exchange pair). Parsed via `mux.Vars(r)["equivalent_from"]`, `mux.Vars(r)["equivalent_to"]`.
+        *   **Request Parameters (query) - Mutually Exclusive:**
+            *   Either `real_rate` (string, decimal rate with max 16 fractional digits)
+            *   Or `value` (string, integer value) AND `shift` (int16, base-10 shift)
+            *   Optional: `min_exchange_amount` (string), `max_exchange_amount` (string)
+        *   **Validation Rules:**
+            *   Cannot specify both `real_rate` and (`value` + `shift`) simultaneously
+            *   Must specify either `real_rate` or both `value` and `shift`
+            *   `real_rate` must have ≤ 16 decimal places
+            *   `shift` must be within int16 range
+            *   Both equivalents must exist in decimals map
+        *   **Example (Real Rate):**
+            ```bash
+            curl -X POST "http://localhost:PORT/api/v1/node/rates/101/1001/?real_rate=0.00123&min_exchange_amount=100"
+            ```
+        *   **Example (Native Format):**
+            ```bash
+            curl -X POST "http://localhost:PORT/api/v1/node/rates/101/1001/?value=123&shift=-3&max_exchange_amount=10000"
+            ```
+        *   **Response:** JSON object with empty data on success.
+        *   **Response Body (JSON Example):**
+            ```json
+            {
+                "data": {}
+            }
+            ```
+    *   `GET /api/v1/node/rates/{equivalent_from}/{equivalent_to}/`
+        *   **Description:** Gets an exchange rate between two equivalents.
+        *   **Path Parameters:** `equivalent_from`, `equivalent_to` (Equivalent IDs). Parsed via `mux.Vars(r)["equivalent_from"]`, `mux.Vars(r)["equivalent_to"]`.
+        *   **Example:** `curl http://localhost:PORT/api/v1/node/rates/101/1001/`
+        *   **Response:** JSON object containing the exchange rate details.
+        *   **Response Body (JSON Example):**
+            ```json
+            {
+                "data": {
+                    "rate": {
+                        "equivalent_from": "101",
+                        "equivalent_to": "1001",
+                        "value": "123",
+                        "shift": -5,
+                        "real_rate": "0.00123",
+                        "min_exchange_amount": "100",
+                        "max_exchange_amount": "10000",
+                        "expires_at_unix_microseconds": "1672531200000000"
+                    }
+                }
+            }
+            ```
+    *   `GET /api/v1/node/rates/`
+        *   **Description:** Lists all exchange rates.
+        *   **Example:** `curl http://localhost:PORT/api/v1/node/rates/`
+        *   **Response:** JSON object containing count and list of all exchange rates.
+        *   **Response Body (JSON Example):**
+            ```json
+            {
+                "data": {
+                    "count": 2,
+                    "rates": [
+                        {
+                            "equivalent_from": "101",
+                            "equivalent_to": "1001",
+                            "value": "123",
+                            "shift": -5,
+                            "real_rate": "0.00123",
+                            "min_exchange_amount": "100",
+                            "max_exchange_amount": "10000",
+                            "expires_at_unix_microseconds": "1672531200000000"
+                        },
+                        {
+                            "equivalent_from": "1001",
+                            "equivalent_to": "2002",
+                            "value": "456789",
+                            "shift": 3,
+                            "real_rate": "456789000",
+                            "min_exchange_amount": "50",
+                            "max_exchange_amount": "5000",
+                            "expires_at_unix_microseconds": "1672531300000000"
+                        }
+                    ]
+                }
+            }
+            ```
+    *   `DELETE /api/v1/node/rates/{equivalent_from}/{equivalent_to}/`
+        *   **Description:** Deletes a specific exchange rate.
+        *   **Path Parameters:** `equivalent_from`, `equivalent_to` (Equivalent IDs). Parsed via `mux.Vars(r)["equivalent_from"]`, `mux.Vars(r)["equivalent_to"]`.
+        *   **Example:** `curl -X DELETE http://localhost:PORT/api/v1/node/rates/101/1001/`
+        *   **Response:** JSON object with empty data on success.
+        *   **Response Body (JSON Example):**
+            ```json
+            {
+                "data": {}
+            }
+            ```
+    *   `DELETE /api/v1/node/rates/`
+        *   **Description:** Deletes all exchange rates.
+        *   **Example:** `curl -X DELETE http://localhost:PORT/api/v1/node/rates/`
+        *   **Response:** JSON object with empty data on success.
+        *   **Response Body (JSON Example):**
+            ```json
+            {
+                "data": {}
+            }
+            ```
+
+## Exchange Rates: Storage Format and Conversion
+
+### Native Storage Format
+
+Exchange rates are stored internally using a platform-stable format consisting of two integers:
+
+*   **`value`**: An integer representing the rate's significant digits
+*   **`shift`**: A base-10 power representing the decimal position (int16 range: -32,768 to 32,767)
+
+This native format ensures cross-platform stability and precise arithmetic operations without floating-point precision issues.
+
+### Two Input Modes
+
+The system supports two methods for setting exchange rates:
+
+1.  **Real Decimal Mode** (`real_rate` parameter):
+    *   Input: Decimal string (e.g., "0.00123", "1234.567")
+    *   Limitation: Maximum 16 digits after decimal point
+    *   Automatic conversion to native format with scale adjustments
+
+2.  **Native Mode** (`value` + `shift` parameters):
+    *   Direct specification of the native storage format
+    *   Full control over precision and representation
+    *   No decimal limitations beyond int16 range for shift
+
+### Conversion Rules
+
+#### Real to Native Conversion
+
+When using `real_rate`, the system performs the following conversion:
+
+1.  **Normalize** decimal to integer `value` with `shift`:
+    *   `0.123` → `(123, -3)`
+    *   `0.00123` → `(123, -5)`  
+    *   `123.456` → `(123456, -3)`
+    *   `1234` → `(1234, 0)`
+
+2.  **Apply scale adjustment** based on equivalent decimals:
+    *   `shift -= (decimals_from - decimals_to)`
+    *   Uses predefined decimals map: `{101: 2, 1001: 8, 1002: 8, 2002: 6}`
+
+3.  **Validate constraints**:
+    *   `real_rate` must have ≤ 16 fractional digits
+    *   Final `shift` must fit within int16 range after adjustment
+    *   Both equivalents must exist in decimals map
+
+#### Native to Real Conversion (Display)
+
+For display purposes, native format is converted back to decimal string:
+
+*   **Formula**: `real_rate = value × 10^shift`
+*   **Truncation behavior**: For negative shifts, truncation toward zero (no rounding)
+*   **Scale adjustment**: Applied in reverse using decimals map
+
+### Precision Limits and Caveats
+
+*   **16-Decimal Limit**: Real rate inputs are limited to 16 digits after decimal point
+*   **Int16 Shift Range**: Final shift value must fit within -32,768 to 32,767
+*   **Truncation Effects**: Negative shifts may result in precision loss due to truncation toward zero
+*   **Scale Map Dependency**: All equivalents must exist in the predefined decimals map (`{101: 2, 1001: 8, 1002: 8, 2002: 6}`)
+
+### Example Conversions
+
+**Example 1**: Rate 0.00123 between equivalent 101 (2 decimals) and 1001 (8 decimals)
+1.  Input: `real_rate=0.00123`
+2.  Normalize: `value=123, shift=-5`
+3.  Apply scale: `shift = -5 - (2 - 8) = -5 + 6 = 1`
+4.  Result: `value=123, shift=1` (stored as 1230)
+
+**Example 2**: Native input `value=456789, shift=3`
+*   Stored directly as `value=456789, shift=3`
+*   Display: `456789 × 10^3 = 456789000`
+
+### Validation Error Examples
+
+*   **400**: "real_rate and (value, shift) are mutually exclusive"
+*   **400**: "real_rate has more than 16 fractional digits"  
+*   **400**: "shift is out of int16 range"
+*   **400**: "unknown equivalent scale for {equivalent}"
 
 ### **Testing API (`server_testing.go`). Can be used only in testing build mode**
 
