@@ -13,7 +13,6 @@ import (
 	"github.com/vTCP-Foundation/vtcpd-cli/internal/logger"
 )
 
-
 func (router *RoutesHandler) SetRate(w http.ResponseWriter, r *http.Request) {
 	logger.Info("SetRate controller")
 	url, err := preprocessRequest(r)
@@ -61,9 +60,6 @@ func (router *RoutesHandler) SetRate(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	var finalValue string
-	var finalShift int16
-
 	if hasRealRate {
 		// Process real_rate mode
 		value, shift, err := parseAndValidateRealRate(realRate, equivalentFrom, equivalentTo)
@@ -72,34 +68,12 @@ func (router *RoutesHandler) SetRate(w http.ResponseWriter, r *http.Request) {
 			w.WriteHeader(BAD_REQUEST)
 			return
 		}
-		finalValue = value
-		finalShift = shift
-	} else {
-		// Process native mode
-		shift64, err := strconv.ParseInt(shiftStr, 10, 16)
-		if err != nil {
-			logger.Error("Bad request: shift is out of int16 range: " + url)
-			w.WriteHeader(BAD_REQUEST)
-			return
-		}
-
-		// Apply scale adjustment
-		decimalsFrom := common.DecimalsMap[equivalentFrom]
-		decimalsTo := common.DecimalsMap[equivalentTo]
-		adjustedShift := shift64 - int64(decimalsFrom-decimalsTo)
-
-		if adjustedShift < math.MinInt16 || adjustedShift > math.MaxInt16 {
-			logger.Error("Bad request: shift is out of int16 range after scale adjustment: " + url)
-			w.WriteHeader(BAD_REQUEST)
-			return
-		}
-
-		finalValue = valueStr
-		finalShift = int16(adjustedShift)
+		valueStr = value
+		shiftStr = strconv.Itoa(int(shift))
 	}
 
 	// Build command arguments
-	args := []string{"SET:RATE", equivalentFrom, equivalentTo, finalValue, strconv.Itoa(int(finalShift))}
+	args := []string{"SET:RATE", equivalentFrom, equivalentTo, valueStr, shiftStr}
 	if minExchangeAmount != "" {
 		args = append(args, minExchangeAmount)
 	} else {
@@ -370,8 +344,8 @@ func (router *RoutesHandler) ClearRates(w http.ResponseWriter, r *http.Request) 
 func parseAndValidateRealRate(realRate string, equivalentFrom string, equivalentTo string) (string, int16, error) {
 	// Check for maximum 12 fractional digits
 	parts := strings.Split(realRate, ".")
-	if len(parts) == 2 && len(parts[1]) > 12 {
-		return "", 0, fmt.Errorf("real_rate has more than 12 fractional digits")
+	if len(parts) == 2 && len(parts[1]) > 16 {
+		return "", 0, fmt.Errorf("real_rate has more than 16 fractional digits")
 	}
 
 	// Parse the decimal value
@@ -383,7 +357,7 @@ func parseAndValidateRealRate(realRate string, equivalentFrom string, equivalent
 	// Apply scale difference
 	decimalsFrom := common.DecimalsMap[equivalentFrom]
 	decimalsTo := common.DecimalsMap[equivalentTo]
-	adjustedShift := int64(shift) - int64(decimalsFrom-decimalsTo)
+	adjustedShift := int64(shift) + int64(decimalsFrom-decimalsTo)
 
 	// Validate int16 range
 	if adjustedShift < math.MinInt16 || adjustedShift > math.MaxInt16 {

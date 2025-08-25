@@ -43,7 +43,7 @@ func (handler *NodeHandler) setRate() {
 		fmt.Println("Bad request: --to parameter is required")
 		return
 	}
-	
+
 	// Validate equivalents exist in decimals map
 	if _, exists := common.DecimalsMap[EquivalentFrom]; !exists {
 		logger.Error("Bad request: unknown equivalent scale for equivalent_from: " + EquivalentFrom)
@@ -100,7 +100,7 @@ func (handler *NodeHandler) setNativeRate() {
 		fmt.Println("Bad request: --to parameter is required")
 		return
 	}
-	
+
 	// Validate equivalents exist in decimals map
 	if _, exists := common.DecimalsMap[EquivalentFrom]; !exists {
 		logger.Error("Bad request: unknown equivalent scale for equivalent_from: " + EquivalentFrom)
@@ -125,27 +125,8 @@ func (handler *NodeHandler) setNativeRate() {
 		return
 	}
 
-	// Parse shift
-	shift64, err := strconv.ParseInt(Shift, 10, 16)
-	if err != nil {
-		logger.Error("Bad request: shift is out of int16 range")
-		fmt.Println("Bad request: shift is out of int16 range")
-		return
-	}
-
-	// Apply scale adjustment
-	decimalsFrom := common.DecimalsMap[EquivalentFrom]
-	decimalsTo := common.DecimalsMap[EquivalentTo]
-	adjustedShift := shift64 - int64(decimalsFrom-decimalsTo)
-
-	if adjustedShift < math.MinInt16 || adjustedShift > math.MaxInt16 {
-		logger.Error("Bad request: shift is out of int16 range after scale adjustment")
-		fmt.Println("Bad request: shift is out of int16 range after scale adjustment")
-		return
-	}
-
 	// Build command arguments
-	args := []string{"SET:RATE", EquivalentFrom, EquivalentTo, Value, strconv.Itoa(int(adjustedShift))}
+	args := []string{"SET:RATE", EquivalentFrom, EquivalentTo, Value, Shift}
 	if MinExchangeAmount != "" {
 		args = append(args, MinExchangeAmount)
 	} else {
@@ -173,7 +154,7 @@ func (handler *NodeHandler) getRate() {
 		fmt.Println("Bad request: --to parameter is required")
 		return
 	}
-	
+
 	command := NewCommand("GET:RATE", EquivalentFrom, EquivalentTo)
 	go handler.getRateResult(command)
 }
@@ -195,7 +176,7 @@ func (handler *NodeHandler) deleteRate() {
 		fmt.Println("Bad request: --to parameter is required")
 		return
 	}
-	
+
 	command := NewCommand("DEL:RATE", EquivalentFrom, EquivalentTo)
 	go handler.actionRatesGetResult(command)
 }
@@ -387,8 +368,8 @@ func (handler *NodeHandler) listRatesResult(command *Command) {
 func parseAndValidateRealRate(realRate string, equivalentFrom string, equivalentTo string) (string, int16, error) {
 	// Check for maximum 12 fractional digits
 	parts := strings.Split(realRate, ".")
-	if len(parts) == 2 && len(parts[1]) > 12 {
-		return "", 0, fmt.Errorf("real_rate has more than 12 fractional digits")
+	if len(parts) == 2 && len(parts[1]) > 16 {
+		return "", 0, fmt.Errorf("real_rate has more than 16 fractional digits")
 	}
 
 	// Parse the decimal value
@@ -400,7 +381,7 @@ func parseAndValidateRealRate(realRate string, equivalentFrom string, equivalent
 	// Apply scale difference
 	decimalsFrom := common.DecimalsMap[equivalentFrom]
 	decimalsTo := common.DecimalsMap[equivalentTo]
-	adjustedShift := int64(shift) - int64(decimalsFrom-decimalsTo)
+	adjustedShift := int64(shift) + int64(decimalsFrom-decimalsTo)
 
 	// Validate int16 range
 	if adjustedShift < math.MinInt16 || adjustedShift > math.MaxInt16 {
@@ -482,7 +463,7 @@ func computeRealRateString(value string, shift int16, equivalentFrom string, equ
 	// Reverse scale adjustment
 	decimalsFrom := common.DecimalsMap[equivalentFrom]
 	decimalsTo := common.DecimalsMap[equivalentTo]
-	originalShift := int(shift) + (decimalsFrom - decimalsTo)
+	originalShift := int(shift) - (decimalsFrom - decimalsTo)
 
 	return applyShiftToValue(value, originalShift)
 }
