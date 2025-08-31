@@ -145,19 +145,23 @@ For these commands, many flags are global and are set for use by internal handle
 7.  **`max-flow`**
     *   **Description:** Calculates the maximum flow.
     *   **Main Types (`--type`):** (The `--type <type>` flag is required to define the action for `max-flow` command)
-        *   `calculate-fully`: Full calculation of maximum flow.
+        *   `fully`: Full calculation of maximum flow.
             *   **Flags:**
-                *   `--contractorID <ID>`: Contractor ID.
+                *   `--address <address>`: Contractor address. Multiple can be specified.
                 *   `--eq <equivalent_ID>`: Equivalent ID.
-        *   `calculate-partly-step-1`: Partial calculation, step 1.
+        *   `partly`: Partial calculation.
             *   **Flags:**
-                *   `--contractorID <ID>`: Contractor ID.
+                *   `--address <address>`: Contractor address. Multiple can be specified.
                 *   `--eq <equivalent_ID>`: Equivalent ID.
-        *   `calculate-partly-step-2`: Partial calculation, step 2.
+        *   `exchange`: Calculate maximum spend with exchange equivalents.
             *   **Flags:**
-                *   `--channel-id-on-contractor-side <ID>`: Channel ID on the contractor's side.
+                *   `--address <address>`: Contractor address. Multiple can be specified.
+                *   `--eq <equivalent_ID>`: Target equivalent ID.
+                *   `--xeq <equivalent_ID>`: Payer equivalent for exchange. Repeatable.
     *   **Examples:**
-        *   Calculate fully: `vtcpd-cli max-flow --type calculate-fully --contractorID "contractor-uuid" --eq 0`
+        *   Calculate fully: `vtcpd-cli max-flow --type calculate-fully --address "ipv4:1.2.3.4:5678" --eq 0`
+        *   Calculate partly: `vtcpd-cli max-flow --type calculate-partly --address "ipv4:1.2.3.4:5678" --eq 0`
+        *   Calculate with exchange: `vtcpd-cli max-flow --type exchange --address "ipv4:1.2.3.4:5678" --eq 0 --xeq 101 --xeq 1001`
 
 8.  **`payment`**
     *   **Description:** Creates and sends a payment.
@@ -763,6 +767,36 @@ Addresses in the API use the following format: `<type_code>-<address>`
             *   `contractor_address` (contractor address, can be repeted)
         *   **Example:** `curl -X GET "http://localhost:PORT/api/v1/node/contractors/transactions/max/0/?contractor_address=12-1.2.3.4:500"`
         *   **Response:** JSON object containing the max flow calculation results.
+        *   **Response Body (JSON Example):**
+            ```json
+            {
+                "data": {
+                    "count": 1,
+                    "records": [
+                        {
+                            "address_type": "12",
+                            "contractor_address": "1.2.3.4:5000",
+                            "max_amount": "10000"
+                        }
+                    ]
+                }
+            }
+            ```
+    *   `GET /api/v1/node/contractors/transactions/exchange/max/{equivalent}/`
+        *   **Description:** Calculates the maximum spend for the specified target equivalent considering exchange across provided payer equivalents.
+        *   **Path Parameters:** `equivalent` (Target equivalent/currency ID).
+        *   **Request Parameters (query):**
+            *   `contractor_address` (required, can be repeated)
+            *   `exchange_equivalent` (required, can be repeated) — list of payer equivalents to consider for exchange
+        *   **Example:**
+            ```bash
+            curl -X GET "http://localhost:PORT/api/v1/node/contractors/transactions/exchange/max/0/\
+            ?contractor_address=12-1.2.3.4:5000\
+            &contractor_address=12-5.6.7.8:5001\
+            &exchange_equivalent=101\
+            &exchange_equivalent=1001"
+            ```
+        *   **Response:** Same format as the non-exchange max endpoint.
         *   **Response Body (JSON Example):**
             ```json
             {

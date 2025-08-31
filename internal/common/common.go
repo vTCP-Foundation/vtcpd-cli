@@ -25,7 +25,7 @@ var (
 	DFEAULT_SETTLEMENT_LINES_COUNT         = "10000"
 	PAYMENT_OPERATION_TIMEOUT       uint16 = 60
 	MAX_FLOW_FIRST_TIMEOUT          uint16 = 30
-	MAX_FLOW_FULLY_TIMEOUT          uint16 = 60
+	MAX_FLOW_FULLY_TIMEOUT          uint16 = 30
 	COMMAND_UUID_TIMEOUT            uint16 = 20
 	HISTORY_RESULT_TIMEOUT          uint16 = 20 // seconds
 	DELETE_CRYPTO_DATA_TIMEOUT      uint16 = 20 // seconds
@@ -253,14 +253,14 @@ type ControlResponse struct{}
 // --- Global structs for rates ---
 
 type RateItem struct {
-	EquivalentFrom             string `json:"equivalent_from"`
-	EquivalentTo               string `json:"equivalent_to"`
-	Value                      string `json:"value"`
-	Shift                      int16  `json:"shift"`
-	RealRate                   string `json:"real_rate"`
-	MinExchangeAmount          string `json:"min_exchange_amount"`
-	MaxExchangeAmount          string `json:"max_exchange_amount"`
-	ExpiresAtUnixMicroseconds  string `json:"expires_at_unix_microseconds"`
+	EquivalentFrom            string `json:"equivalent_from"`
+	EquivalentTo              string `json:"equivalent_to"`
+	Value                     string `json:"value"`
+	Shift                     int16  `json:"shift"`
+	RealRate                  string `json:"real_rate"`
+	MinExchangeAmount         string `json:"min_exchange_amount"`
+	MaxExchangeAmount         string `json:"max_exchange_amount"`
+	ExpiresAtUnixMicroseconds string `json:"expires_at_unix_microseconds"`
 }
 
 // --- Global API responses for rates ---

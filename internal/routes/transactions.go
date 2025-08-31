@@ -111,6 +111,124 @@ func (router *RoutesHandler) BatchMaxFullyTransaction(w http.ResponseWriter, r *
 	writeHTTPResponse(w, OK, response)
 }
 
+func (router *RoutesHandler) BatchMaxExchangeTransaction(w http.ResponseWriter, r *http.Request) {
+	url, err := preprocessRequest(r)
+	if err != nil {
+		logger.Error("Bad request: invalid security parameters: " + err.Error())
+		w.WriteHeader(BAD_REQUEST)
+		return
+	}
+
+	equivalent, isParamPresent := mux.Vars(r)["equivalent"]
+	if !isParamPresent {
+		logger.Error("Bad request: missing equivalent parameter: " + url)
+		w.WriteHeader(BAD_REQUEST)
+		return
+	}
+
+	contractorAddresses := []string{}
+	for key, values := range r.URL.Query() {
+		if key != "contractor_address" {
+			continue
+		}
+		for _, value := range values {
+			typeAndAddress := strings.Split(value, "-")
+			contractorAddresses = append(contractorAddresses, typeAndAddress[0])
+			contractorAddresses = append(contractorAddresses, typeAndAddress[1])
+		}
+		break
+	}
+	if len(contractorAddresses) == 0 {
+		logger.Error("Bad request: there are no contractor_addresses parameters: " + url)
+		w.WriteHeader(BAD_REQUEST)
+		return
+	}
+
+	// Parse exchange equivalents
+	exchangeEquivalents := []string{}
+	for key, values := range r.URL.Query() {
+		if key != "exchange_equivalent" {
+			continue
+		}
+		// Expecting plain integer equivalents as strings
+		exchangeEquivalents = append(exchangeEquivalents, values...)
+		break
+	}
+	if len(exchangeEquivalents) == 0 {
+		logger.Error("Bad request: there are no exchange_equivalents parameters: " + url)
+		w.WriteHeader(BAD_REQUEST)
+		return
+	}
+
+	// Command generation
+	contractorAddresses = append([]string{strconv.Itoa(len(contractorAddresses) / 2)}, contractorAddresses...)
+	contractorAddresses = append([]string{"GET:contractors/transactions/max/exchange"}, contractorAddresses...)
+	// Insert exchange equivalents block after addresses and before target equivalent
+	contractorAddresses = append(contractorAddresses, []string{equivalent}...)
+	contractorAddresses = append(contractorAddresses, exchangeEquivalents...)
+
+	command := handler.NewCommand(contractorAddresses...)
+
+	err = router.nodeHandler.Node.SendCommand(command)
+	if err != nil {
+		logger.Error("Can't send command: " + string(command.ToBytes()) + " to node. Details: " + err.Error())
+		writeHTTPResponse(w, COMMAND_TRANSFERRING_ERROR, common.MaxFlowResponse{})
+		return
+	}
+
+	// Command processing.
+	// This command may execute relatively slow.
+	// Timeout is set to a slightly greater value to be able to handle this.
+	result, err := router.nodeHandler.Node.GetResult(command, common.MAX_FLOW_FULLY_TIMEOUT)
+	if err != nil {
+		logger.Error("Node is inaccessible during processing command: " +
+			string(command.ToBytes()) + ". Details: " + err.Error())
+		writeHTTPResponse(w, NODE_IS_INACCESSIBLE, common.MaxFlowResponse{})
+		return
+	}
+
+	if result.Code != OK && result.Code != ENGINE_NO_EQUIVALENT {
+		logger.Error("Node return wrong command result: " + strconv.Itoa(result.Code) +
+			" on command: " + string(command.ToBytes()))
+		writeHTTPResponse(w, result.Code, common.MaxFlowResponse{})
+		return
+	}
+	if result.Code == ENGINE_NO_EQUIVALENT {
+		logger.Info("Node hasn't equivalent for command: " + string(command.ToBytes()))
+		writeHTTPResponse(w, result.Code, common.MaxFlowResponse{})
+		return
+	}
+
+	if len(result.Tokens) == 0 {
+		logger.Error("Node return invalid result tokens size on command: " + string(command.ToBytes()))
+		writeHTTPResponse(w, ENGINE_UNEXPECTED_ERROR, common.MaxFlowResponse{})
+		return
+	}
+
+	contractorsCount, err := strconv.Atoi(result.Tokens[0])
+	if err != nil {
+		logger.Error("Node return invalid token on command: " + string(command.ToBytes()) +
+			". Details: " + err.Error())
+		writeHTTPResponse(w, ENGINE_UNEXPECTED_ERROR, common.MaxFlowResponse{})
+		return
+	}
+
+	if contractorsCount == 0 {
+		writeHTTPResponse(w, OK, common.MaxFlowResponse{Count: 0})
+		return
+	}
+
+	response := common.MaxFlowResponse{Count: contractorsCount}
+	for i := 0; i < contractorsCount; i++ {
+		response.Records = append(response.Records, common.MaxFlowRecord{
+			ContractorAddressType: result.Tokens[i*3+1],
+			ContractorAddress:     result.Tokens[i*3+2],
+			MaxAmount:             result.Tokens[i*3+3],
+		})
+	}
+	writeHTTPResponse(w, OK, response)
+}
+
 func (router *RoutesHandler) CreateTransaction(w http.ResponseWriter, r *http.Request) {
 	url, err := preprocessRequest(r)
 	if err != nil {

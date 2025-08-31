@@ -29,8 +29,10 @@ var (
 )
 
 var (
-	CommandType               = ""
-	Addresses                 []string
+	CommandType = ""
+	Addresses   []string
+	// For exchange max-flow: list of payer equivalents
+	ExchangeEquivalents       []string
 	ContractorID              = ""
 	ChannelIDOnContractorSide = ""
 	Amount                    = ""
@@ -48,13 +50,13 @@ var (
 	MaxPositiveBalance        = ""
 	Balance                   = ""
 	// Rates-specific variables
-	EquivalentFrom      = ""
-	EquivalentTo        = ""
-	RealRate            = ""
-	Value               = ""
-	Shift               = ""
-	MinExchangeAmount   = ""
-	MaxExchangeAmount   = ""
+	EquivalentFrom    = ""
+	EquivalentTo      = ""
+	RealRate          = ""
+	Value             = ""
+	Shift             = ""
+	MinExchangeAmount = ""
+	MaxExchangeAmount = ""
 )
 
 type NodeHandler struct {

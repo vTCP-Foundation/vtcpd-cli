@@ -32,13 +32,15 @@ var (
 	maxPositiveBalance        = kingpin.Flag("max-positive-balance", "Max positive balance.").Default("").String()
 	balance                   = kingpin.Flag("balance", "Settlement line balance.").Default("").String()
 	// Rates flags
-	equivalentFrom            = kingpin.Flag("from", "Equivalent from").Default("").String()
-	equivalentTo              = kingpin.Flag("to", "Equivalent to").Default("").String()
-	realRate                  = kingpin.Flag("real", "Real rate").Default("").String()
-	value                     = kingpin.Flag("value", "Value").Default("").String()
-	shift                     = kingpin.Flag("shift", "Shift").Default("").String()
-	minExchangeAmount         = kingpin.Flag("min", "Minimum exchange amount").Default("").String()
-	maxExchangeAmount         = kingpin.Flag("max", "Maximum exchange amount").Default("").String()
+	equivalentFrom    = kingpin.Flag("from", "Equivalent from").Default("").String()
+	equivalentTo      = kingpin.Flag("to", "Equivalent to").Default("").String()
+	realRate          = kingpin.Flag("real", "Real rate").Default("").String()
+	value             = kingpin.Flag("value", "Value").Default("").String()
+	shift             = kingpin.Flag("shift", "Shift").Default("").String()
+	minExchangeAmount = kingpin.Flag("min", "Minimum exchange amount").Default("").String()
+	maxExchangeAmount = kingpin.Flag("max", "Maximum exchange amount").Default("").String()
+	// Exchange max-flow flags (short only)
+	exchangeEquivalentsShort = kingpin.Flag("xeq", "Payer equivalent for exchange (repeatable)").Default("").Strings()
 )
 
 func main() {
@@ -83,6 +85,16 @@ func main() {
 	handler.Shift = *shift
 	handler.MinExchangeAmount = *minExchangeAmount
 	handler.MaxExchangeAmount = *maxExchangeAmount
+	// Exchange assignments: assign short flag values, drop empty values
+	{
+		var merged []string
+		for _, v := range *exchangeEquivalentsShort {
+			if v != "" {
+				merged = append(merged, v)
+			}
+		}
+		handler.ExchangeEquivalents = merged
+	}
 
 	cmdHandler, err := cmd_handler.NewCommandHandler()
 	if err != nil {

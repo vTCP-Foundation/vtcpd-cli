@@ -10,11 +10,14 @@ import (
 
 func (handler *NodeHandler) MaxFlow() {
 
-	if CommandType == "" {
+	if CommandType == "fully" {
 		handler.maxFlowFully()
 
 	} else if CommandType == "partly" {
 		handler.maxFlowPartly()
+
+	} else if CommandType == "exchange" {
+		handler.maxFlowExchange()
 
 	} else {
 		logger.Error("Invalid max-flow command " + CommandType)
@@ -50,6 +53,47 @@ func (handler *NodeHandler) maxFlowFully() {
 	addresses = append([]string{strconv.Itoa(len(Addresses))}, addresses...)
 	addresses = append([]string{"GET:contractors/transactions/max/fully"}, addresses...)
 	addresses = append(addresses, []string{Equivalent}...)
+	command := NewCommand(addresses...)
+
+	go handler.maxFlowGetResult(command)
+}
+
+func (handler *NodeHandler) maxFlowExchange() {
+	if len(Addresses) == 0 {
+		logger.Error("Bad request: there are no contractor addresses parameters in max-flow exchange request")
+		fmt.Println("Bad request: there are no contractor addresses parameters")
+		return
+	}
+
+	if !common.ValidateInt(Equivalent) {
+		logger.Error("Bad request: invalid equivalent parameter in max-flow exchange request")
+		fmt.Println("Bad request: invalid equivalent parameter")
+		return
+	}
+
+	if len(ExchangeEquivalents) == 0 {
+		logger.Error("Bad request: there are no exchange_equivalents parameters in max-flow exchange request")
+		fmt.Println("Bad request: there are no exchange_equivalents parameters")
+		return
+	}
+
+	var addresses []string
+	for idx := range len(Addresses) {
+		addressType, address := common.ValidateAddress(Addresses[idx])
+		if addressType == "" {
+			logger.Error("Bad request: invalid address parameter in max-flow exchange request")
+			fmt.Println("Bad request: invalid address parameter")
+			return
+		}
+		addresses = append(addresses, addressType, address)
+	}
+
+	// Command generation: prepend count, prepend command, then append target equivalent and exchange equivalents
+	addresses = append([]string{strconv.Itoa(len(Addresses))}, addresses...)
+	addresses = append([]string{"GET:contractors/transactions/max/exchange"}, addresses...)
+	addresses = append(addresses, []string{Equivalent}...)
+	addresses = append(addresses, ExchangeEquivalents...)
+
 	command := NewCommand(addresses...)
 
 	go handler.maxFlowGetResult(command)
