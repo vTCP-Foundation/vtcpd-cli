@@ -175,7 +175,29 @@ For these commands, many flags are global and are set for use by internal handle
         *   `--payload <data>`: (Optional) Additional data for the transaction.
     *   **Example:** `vtcpd-cli payment --address "ipv4:1.2.3.4:5678" --eq 0 --amount 100 --payload "Order 123"`
 
-9.  **`history`**
+9.  **`payment estimate`**
+    *   **Description:** Estimates either the payment amount the sender must provide or the receive amount the contractor will obtain using cached optimal paths between equivalents.
+    *   **Usage:** Provide the positional sub-command `estimate` (`vtcpd-cli payment estimate`) plus exactly one of `--receive-amount` or `--payment-amount`.
+    *   **Shared Flags:**
+        *   `--address <address>`: Contractor address. Use the same format as other payment commands (e.g., `ipv4:127.0.0.1:2003`).
+        *   `--sender-eq <equivalent_ID>`: Equivalent in which the sender pays.
+        *   `--receiver-eq <equivalent_ID>`: Equivalent in which the contractor receives funds.
+    *   **Direction-Specific Flags:**
+        *   Payment estimation (`--receive-amount <sum>`): Calculates the sender amount needed to satisfy a desired receive amount.
+        *   Receive estimation (`--payment-amount <sum>`): Calculates the expected receive amount for a fixed payment amount.
+    *   **Examples:**
+        *   Estimate payment: `vtcpd-cli payment estimate --address "ipv4:127.0.0.1:2003" --receive-amount 1000 --sender-eq 1 --receiver-eq 2`
+        *   Estimate receive: `vtcpd-cli payment estimate --address "ipv4:127.0.0.1:2003" --payment-amount 1050 --sender-eq 1 --receiver-eq 2`
+    *   **Response Format (success):** CLI responses include a `status` field (vtcpd code) and a `data` object.
+        *   Payment estimation: `{"status":200,"data":{"estimated_payment_amount":"1050"}}`
+        *   Receive estimation: `{"status":200,"data":{"estimated_receive_amount":"1000"}}`
+    *   **Error Codes:**
+        *   `401` – Unexpected engine error while processing the estimation request.
+        *   `412` – Insufficient cached paths to deliver the requested receive amount (payment estimation).
+        *   `462` – No cached optimal paths exist for the provided contractor and equivalents.
+    *   **HTTP Mapping:** When calling the REST API, these vtcpd codes map to HTTP statuses `412 → 400`, `462 → 404`, and `401 → 500`.
+
+10. **`history`**
     *   **Description:** Views transaction history.
     *   **Main types (positional):** (The positional `<type>` argument is required to define the action for `history` command)
         *   `payments`: Payment history for a specific equivalent.
@@ -227,12 +249,12 @@ For these commands, many flags are global and are set for use by internal handle
         *   Payment history: `vtcpd-cli history payments --eq 0 --offset 0 --count 20 --history-from "2023-10-01T00:00:00Z"`
         *   History by contractor: `vtcpd-cli history with-contractor --contractorID 333 --eq 0`
 
-10. **`remove-outdated-crypto`**
+11. **`remove-outdated-crypto`**
     *   **Description:** Removes outdated cryptographic data from the node.
     *   **Flags:** None.
     *   **Example:** `vtcpd-cli remove-outdated-crypto`
 
-11. **`rates`**
+12. **`rates`**
     *   **Description:** Manages exchange rates between equivalents. For detailed explanation of storage format and conversion between real decimal and native (value + shift) formats, see [Exchange Rates: Storage Format and Conversion](#exchange-rates-storage-format-and-conversion).
     *   **Main types (positional):** (The positional `<type>` argument is required to define the action for `rates` command)
         *   `set`: Set an exchange rate using real decimal value.
@@ -829,6 +851,57 @@ Addresses in the API use the following format: `<type_code>-<address>`
                 }
             }
             ```
+    *   **Payment Estimation**
+        *   `GET /api/v1/node/contractors/transactions/estimate/payment/{sender_equivalent}/{receiver_equivalent}/`
+            *   **Description:** Estimates the payment amount (sender equivalent) required to deliver a desired receive amount (receiver equivalent) using cached optimal paths.
+            *   **Path Parameters:**
+                *   `sender_equivalent`: Equivalent ID the payer spends.
+                *   `receiver_equivalent`: Equivalent ID the contractor receives.
+            *   **Query Parameters:**
+                *   `contractor_address` (required): Contractor address in API format, e.g., `12-127.0.0.1:2003`.
+                *   `receive_amount` (required): Desired amount to be received.
+            *   **Example:**
+                ```bash
+                curl "http://localhost:PORT/api/v1/node/contractors/transactions/estimate/payment/1/2/?contractor_address=12-127.0.0.1:2003&receive_amount=1000"
+                ```
+            *   **Response (HTTP 200):**
+                ```json
+                {
+                    "data": {
+                        "estimated_payment_amount": "1050"
+                    }
+                }
+                ```
+            *   **Error Responses:**
+                *   HTTP 400 — Missing/invalid parameters or insufficient paths to satisfy the receive amount (vtcpd code 412).
+                *   HTTP 404 — No cached optimal paths for the contractor/equivalents combination (vtcpd code 462).
+                *   HTTP 500 — Unexpected engine error reported by vtcpd (vtcpd code 401 or other internal errors).
+                *   HTTP 503 — Node inaccessible while processing the request.
+        *   `GET /api/v1/node/contractors/transactions/estimate/receive/{sender_equivalent}/{receiver_equivalent}/`
+            *   **Description:** Estimates the receive amount (receiver equivalent) for a fixed payment amount (sender equivalent) using cached optimal paths.
+            *   **Path Parameters:**
+                *   `sender_equivalent`: Equivalent ID the payer spends.
+                *   `receiver_equivalent`: Equivalent ID the contractor receives.
+            *   **Query Parameters:**
+                *   `contractor_address` (required): Contractor address in API format, e.g., `12-127.0.0.1:2003`.
+                *   `payment_amount` (required): Amount the payer is willing to spend.
+            *   **Example:**
+                ```bash
+                curl "http://localhost:PORT/api/v1/node/contractors/transactions/estimate/receive/1/2/?contractor_address=12-127.0.0.1:2003&payment_amount=1050"
+                ```
+            *   **Response (HTTP 200):**
+                ```json
+                {
+                    "data": {
+                        "estimated_receive_amount": "1000"
+                    }
+                }
+                ```
+            *   **Error Responses:**
+                *   HTTP 400 — Missing/invalid parameters.
+                *   HTTP 404 — No cached optimal paths for the contractor/equivalents combination (vtcpd code 462).
+                *   HTTP 500 — Unexpected engine error reported by vtcpd (vtcpd code 401 or other internal errors).
+                *   HTTP 503 — Node inaccessible while processing the request.
 
 *   **Stats**
     *   `GET /api/v1/node/stats/total-balance/{equivalent}/`
