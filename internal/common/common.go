@@ -161,6 +161,14 @@ type PaymentResponse struct {
 	TransactionUUID string `json:"transaction_uuid"`
 }
 
+type EstimatePaymentResponse struct {
+	EstimatedPaymentAmount string `json:"estimated_payment_amount"`
+}
+
+type EstimateReceiveResponse struct {
+	EstimatedReceiveAmount string `json:"estimated_receive_amount"`
+}
+
 type GetTransactionByCommandUUIDResponse struct {
 	Count           int    `json:"count"`
 	TransactionUUID string `json:"transaction_uuid"`

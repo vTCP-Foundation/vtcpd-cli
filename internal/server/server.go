@@ -46,6 +46,8 @@ func InitNodeHandlerServer(r *routes.RoutesHandler) *mux.Router {
 	router.HandleFunc("/api/v1/node/contractors/transactions/{equivalent}/", r.CreateTransaction).Methods("POST")
 	router.HandleFunc("/api/v1/node/contractors/transactions/max/{equivalent}/", r.BatchMaxFullyTransaction).Methods("GET")
 	router.HandleFunc("/api/v1/node/contractors/transactions/exchange/max/{equivalent}/", r.BatchMaxExchangeTransaction).Methods("GET")
+	router.HandleFunc("/api/v1/node/contractors/transactions/estimate/payment/{sender_equivalent}/{receiver_equivalent}/", r.EstimatePayment).Methods("GET")
+	router.HandleFunc("/api/v1/node/contractors/transactions/estimate/receive/{sender_equivalent}/{receiver_equivalent}/", r.EstimateReceive).Methods("GET")
 	router.HandleFunc("/api/v1/node/transactions/{command_uuid}/", r.GetTransactionByCommandUUID).Methods("GET")
 
 	// Stats

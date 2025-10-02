@@ -229,6 +229,222 @@ func (router *RoutesHandler) BatchMaxExchangeTransaction(w http.ResponseWriter, 
 	writeHTTPResponse(w, OK, response)
 }
 
+func (router *RoutesHandler) EstimatePayment(w http.ResponseWriter, r *http.Request) {
+	url, err := preprocessRequest(r)
+	if err != nil {
+		logger.Error("Bad request: invalid security parameters: " + err.Error())
+		w.WriteHeader(BAD_REQUEST)
+		return
+	}
+
+	vars := mux.Vars(r)
+	senderEquivalent, isPresent := vars["sender_equivalent"]
+	if !isPresent {
+		logger.Error("Bad request: missing sender_equivalent parameter: " + url)
+		w.WriteHeader(BAD_REQUEST)
+		return
+	}
+	if !common.ValidateInt(senderEquivalent) {
+		logger.Error("Bad request: invalid sender_equivalent parameter: " + url)
+		w.WriteHeader(BAD_REQUEST)
+		return
+	}
+
+	receiverEquivalent, isPresent := vars["receiver_equivalent"]
+	if !isPresent {
+		logger.Error("Bad request: missing receiver_equivalent parameter: " + url)
+		w.WriteHeader(BAD_REQUEST)
+		return
+	}
+	if !common.ValidateInt(receiverEquivalent) {
+		logger.Error("Bad request: invalid receiver_equivalent parameter: " + url)
+		w.WriteHeader(BAD_REQUEST)
+		return
+	}
+
+	contractorAddress := r.URL.Query().Get("contractor_address")
+	if contractorAddress == "" {
+		logger.Error("Bad request: missing contractor_address parameter: " + url)
+		w.WriteHeader(BAD_REQUEST)
+		return
+	}
+
+	typeAndAddress := strings.SplitN(contractorAddress, "-", 2)
+	if len(typeAndAddress) != 2 || typeAndAddress[0] == "" || typeAndAddress[1] == "" {
+		logger.Error("Bad request: invalid contractor_address parameter: " + url)
+		w.WriteHeader(BAD_REQUEST)
+		return
+	}
+	if !common.ValidateInt(typeAndAddress[0]) {
+		logger.Error("Bad request: invalid contractor_address type parameter: " + url)
+		w.WriteHeader(BAD_REQUEST)
+		return
+	}
+
+	receiveAmount := r.URL.Query().Get("receive_amount")
+	if !common.ValidateSettlementLineAmount(receiveAmount) {
+		logger.Error("Bad request: invalid receive_amount parameter: " + url)
+		w.WriteHeader(BAD_REQUEST)
+		return
+	}
+
+	command := handler.NewCommand(
+		"GET:contractors/transactions/estimate/payment",
+		typeAndAddress[0],
+		typeAndAddress[1],
+		receiveAmount,
+		receiverEquivalent,
+		senderEquivalent,
+	)
+
+	if err = router.nodeHandler.Node.SendCommand(command); err != nil {
+		logger.Error("Can't send command: " + string(command.ToBytes()) + " to node. Details: " + err.Error())
+		writeHTTPResponse(w, COMMAND_TRANSFERRING_ERROR, common.EstimatePaymentResponse{})
+		return
+	}
+
+	result, err := router.nodeHandler.Node.GetResult(command, common.PAYMENT_OPERATION_TIMEOUT)
+	if err != nil {
+		logger.Error("Node is inaccessible during processing command: " + string(command.ToBytes()) + ". Details: " + err.Error())
+		writeHTTPResponse(w, NODE_IS_INACCESSIBLE, common.EstimatePaymentResponse{})
+		return
+	}
+
+	commandStr := string(command.ToBytes())
+	switch result.Code {
+	case OK:
+		if len(result.Tokens) == 0 {
+			logger.Error("Node returned invalid result tokens size on command: " + commandStr)
+			writeHTTPResponse(w, ENGINE_UNEXPECTED_ERROR, common.EstimatePaymentResponse{})
+			return
+		}
+		writeHTTPResponse(w, OK, common.EstimatePaymentResponse{EstimatedPaymentAmount: result.Tokens[0]})
+		return
+	case 401:
+		logger.Error("Node returned unexpected error code 401 on command: " + commandStr)
+		writeHTTPResponse(w, SERVER_ERROR, common.EstimatePaymentResponse{})
+		return
+	case 412:
+		logger.Info("Node returned insufficient paths (412) on command: " + commandStr)
+		writeHTTPResponse(w, BAD_REQUEST, common.EstimatePaymentResponse{})
+		return
+	case 462:
+		logger.Info("Node returned no cached paths (462) on command: " + commandStr)
+		writeHTTPResponse(w, http.StatusNotFound, common.EstimatePaymentResponse{})
+		return
+	default:
+		logger.Error("Node returned wrong command result: " + strconv.Itoa(result.Code) + " on command: " + commandStr)
+		writeHTTPResponse(w, SERVER_ERROR, common.EstimatePaymentResponse{})
+		return
+	}
+}
+
+func (router *RoutesHandler) EstimateReceive(w http.ResponseWriter, r *http.Request) {
+	url, err := preprocessRequest(r)
+	if err != nil {
+		logger.Error("Bad request: invalid security parameters: " + err.Error())
+		w.WriteHeader(BAD_REQUEST)
+		return
+	}
+
+	vars := mux.Vars(r)
+	senderEquivalent, isPresent := vars["sender_equivalent"]
+	if !isPresent {
+		logger.Error("Bad request: missing sender_equivalent parameter: " + url)
+		w.WriteHeader(BAD_REQUEST)
+		return
+	}
+	if !common.ValidateInt(senderEquivalent) {
+		logger.Error("Bad request: invalid sender_equivalent parameter: " + url)
+		w.WriteHeader(BAD_REQUEST)
+		return
+	}
+
+	receiverEquivalent, isPresent := vars["receiver_equivalent"]
+	if !isPresent {
+		logger.Error("Bad request: missing receiver_equivalent parameter: " + url)
+		w.WriteHeader(BAD_REQUEST)
+		return
+	}
+	if !common.ValidateInt(receiverEquivalent) {
+		logger.Error("Bad request: invalid receiver_equivalent parameter: " + url)
+		w.WriteHeader(BAD_REQUEST)
+		return
+	}
+
+	contractorAddress := r.URL.Query().Get("contractor_address")
+	if contractorAddress == "" {
+		logger.Error("Bad request: missing contractor_address parameter: " + url)
+		w.WriteHeader(BAD_REQUEST)
+		return
+	}
+
+	typeAndAddress := strings.SplitN(contractorAddress, "-", 2)
+	if len(typeAndAddress) != 2 || typeAndAddress[0] == "" || typeAndAddress[1] == "" {
+		logger.Error("Bad request: invalid contractor_address parameter: " + url)
+		w.WriteHeader(BAD_REQUEST)
+		return
+	}
+	if !common.ValidateInt(typeAndAddress[0]) {
+		logger.Error("Bad request: invalid contractor_address type parameter: " + url)
+		w.WriteHeader(BAD_REQUEST)
+		return
+	}
+
+	paymentAmount := r.URL.Query().Get("payment_amount")
+	if !common.ValidateSettlementLineAmount(paymentAmount) {
+		logger.Error("Bad request: invalid payment_amount parameter: " + url)
+		w.WriteHeader(BAD_REQUEST)
+		return
+	}
+
+	command := handler.NewCommand(
+		"GET:contractors/transactions/estimate/receive",
+		typeAndAddress[0],
+		typeAndAddress[1],
+		paymentAmount,
+		senderEquivalent,
+		receiverEquivalent,
+	)
+
+	if err = router.nodeHandler.Node.SendCommand(command); err != nil {
+		logger.Error("Can't send command: " + string(command.ToBytes()) + " to node. Details: " + err.Error())
+		writeHTTPResponse(w, COMMAND_TRANSFERRING_ERROR, common.EstimateReceiveResponse{})
+		return
+	}
+
+	result, err := router.nodeHandler.Node.GetResult(command, common.PAYMENT_OPERATION_TIMEOUT)
+	if err != nil {
+		logger.Error("Node is inaccessible during processing command: " + string(command.ToBytes()) + ". Details: " + err.Error())
+		writeHTTPResponse(w, NODE_IS_INACCESSIBLE, common.EstimateReceiveResponse{})
+		return
+	}
+
+	commandStr := string(command.ToBytes())
+	switch result.Code {
+	case OK:
+		if len(result.Tokens) == 0 {
+			logger.Error("Node returned invalid result tokens size on command: " + commandStr)
+			writeHTTPResponse(w, ENGINE_UNEXPECTED_ERROR, common.EstimateReceiveResponse{})
+			return
+		}
+		writeHTTPResponse(w, OK, common.EstimateReceiveResponse{EstimatedReceiveAmount: result.Tokens[0]})
+		return
+	case 401:
+		logger.Error("Node returned unexpected error code 401 on command: " + commandStr)
+		writeHTTPResponse(w, SERVER_ERROR, common.EstimateReceiveResponse{})
+		return
+	case 462:
+		logger.Info("Node returned no cached paths (462) on command: " + commandStr)
+		writeHTTPResponse(w, http.StatusNotFound, common.EstimateReceiveResponse{})
+		return
+	default:
+		logger.Error("Node returned wrong command result: " + strconv.Itoa(result.Code) + " on command: " + commandStr)
+		writeHTTPResponse(w, SERVER_ERROR, common.EstimateReceiveResponse{})
+		return
+	}
+}
+
 func (router *RoutesHandler) CreateTransaction(w http.ResponseWriter, r *http.Request) {
 	url, err := preprocessRequest(r)
 	if err != nil {
