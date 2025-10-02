@@ -73,7 +73,16 @@ func (nh *NodeHandler) HandlePayment() error {
 		logger.Error("Node is not running. Details: " + err.Error())
 		return errors.New("Node is not running. Details: " + err.Error())
 	}
-	nh.Payment()
+	if CommandType == "" {
+		nh.Payment()
+		return nil
+	}
+	if CommandType == "estimate" {
+		nh.PaymentEstimate()
+		return nil
+	}
+	logger.Error("Invalid payment command " + CommandType)
+	fmt.Println("Invalid payment command")
 	return nil
 }
 

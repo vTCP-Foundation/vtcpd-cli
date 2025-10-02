@@ -18,9 +18,13 @@ var (
 	contractorID              = kingpin.Flag("contractorID", "Contractor ID").Default("").String()
 	channelIDOnContractorSide = kingpin.Flag("channel-id-on-contractor-side", "Channel ID on contractor side").Default("").String()
 	amount                    = kingpin.Flag("amount", "Amount").Default("").String()
+	paymentAmount             = kingpin.Flag("payment-amount", "Payment amount").Default("").String()
+	receiveAmount             = kingpin.Flag("receive-amount", "Receive amount").Default("").String()
 	offset                    = kingpin.Flag("offset", "Offset of list of requested data.").Default("").String()
 	count                     = kingpin.Flag("count", "Count requested data.").Default("").String()
 	equivalent                = kingpin.Flag("eq", "Equivalent.").Default("").String()
+	senderEquivalent          = kingpin.Flag("sender-eq", "Sender equivalent").Default("").String()
+	receiverEquivalent        = kingpin.Flag("receiver-eq", "Receiver equivalent").Default("").String()
 	historyFrom               = kingpin.Flag("history-from", "Lower value of history date.").Default("").String()
 	historyTo                 = kingpin.Flag("history-to", "Higher value of history date.").Default("").String()
 	amountFrom                = kingpin.Flag("amount-from", "Lower value of history amount.").Default("").String()
@@ -64,9 +68,13 @@ func main() {
 	handler.ContractorID = *contractorID
 	handler.ChannelIDOnContractorSide = *channelIDOnContractorSide
 	handler.Amount = *amount
+	handler.PaymentAmount = *paymentAmount
+	handler.ReceiveAmount = *receiveAmount
 	handler.Offset = *offset
 	handler.Count = *count
 	handler.Equivalent = *equivalent
+	handler.SenderEquivalent = *senderEquivalent
+	handler.ReceiverEquivalent = *receiverEquivalent
 	handler.HistoryFrom = *historyFrom
 	handler.HistoryTo = *historyTo
 	handler.AmountFrom = *amountFrom

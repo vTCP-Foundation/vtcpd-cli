@@ -350,6 +350,204 @@ func (handler *NodeHandler) maxFlowPartlyStepTwoGetResult(command *Command) {
 	}
 }
 
+func (handler *NodeHandler) PaymentEstimate() {
+	hasReceiveAmount := ReceiveAmount != ""
+	hasPaymentAmount := PaymentAmount != ""
+
+	if hasReceiveAmount && hasPaymentAmount {
+		logger.Error("Bad request: receive-amount and payment-amount parameters can't be used together in payment estimate request")
+		fmt.Println("Bad request: specify only receive-amount or payment-amount")
+		return
+	}
+
+	if !hasReceiveAmount && !hasPaymentAmount {
+		logger.Error("Bad request: missing receive-amount or payment-amount parameter in payment estimate request")
+		fmt.Println("Bad request: missing receive-amount or payment-amount parameter")
+		return
+	}
+
+	if hasReceiveAmount {
+		handler.estimatePayment()
+		return
+	}
+
+	handler.estimateReceive()
+}
+
+func (handler *NodeHandler) estimatePayment() {
+	if len(Addresses) == 0 {
+		logger.Error("Bad request: missing address parameter in payment estimate request")
+		fmt.Println("Bad request: missing address parameter")
+		return
+	}
+
+	addressType, address := common.ValidateAddress(Addresses[0])
+	if addressType == "" || address == "" {
+		logger.Error("Bad request: invalid address parameter in payment estimate request")
+		fmt.Println("Bad request: invalid address parameter")
+		return
+	}
+
+	if !common.ValidateSettlementLineAmount(ReceiveAmount) {
+		logger.Error("Bad request: invalid receive-amount parameter in payment estimate request")
+		fmt.Println("Bad request: invalid receive-amount parameter")
+		return
+	}
+
+	if SenderEquivalent == "" || ReceiverEquivalent == "" {
+		logger.Error("Bad request: missing sender-eq or receiver-eq parameter in payment estimate request")
+		fmt.Println("Bad request: missing sender-eq or receiver-eq parameter")
+		return
+	}
+
+	if !common.ValidateInt(SenderEquivalent) || !common.ValidateInt(ReceiverEquivalent) {
+		logger.Error("Bad request: invalid sender-eq or receiver-eq parameter in payment estimate request")
+		fmt.Println("Bad request: invalid sender-eq or receiver-eq parameter")
+		return
+	}
+
+	command := NewCommand(
+		"GET:contractors/transactions/estimate/payment",
+		addressType,
+		address,
+		ReceiveAmount,
+		ReceiverEquivalent,
+		SenderEquivalent,
+	)
+
+	go handler.estimatePaymentGetResult(command)
+}
+
+func (handler *NodeHandler) estimatePaymentGetResult(command *Command) {
+	err := handler.Node.SendCommand(command)
+	if err != nil {
+		logger.Error("Can't send command: " + string(command.ToBytes()) + " to node. Details: " + err.Error())
+		resultJSON := buildJSONResponse(COMMAND_TRANSFERRING_ERROR, common.EstimatePaymentResponse{})
+		fmt.Println(string(resultJSON))
+		return
+	}
+
+	result, err := handler.Node.GetResult(command, common.PAYMENT_OPERATION_TIMEOUT)
+	if err != nil {
+		logger.Error("Node is inaccessible during processing command: " +
+			string(command.ToBytes()) + ". Details: " + err.Error())
+		resultJSON := buildJSONResponse(NODE_IS_INACCESSIBLE, common.EstimatePaymentResponse{})
+		fmt.Println(string(resultJSON))
+		return
+	}
+
+	commandStr := string(command.ToBytes())
+	switch result.Code {
+	case OK:
+		if len(result.Tokens) == 0 {
+			logger.Error("Node return invalid result tokens size on command: " + commandStr)
+			resultJSON := buildJSONResponse(ENGINE_UNEXPECTED_ERROR, common.EstimatePaymentResponse{})
+			fmt.Println(string(resultJSON))
+			return
+		}
+		resultJSON := buildJSONResponse(OK, common.EstimatePaymentResponse{EstimatedPaymentAmount: result.Tokens[0]})
+		fmt.Println(string(resultJSON))
+		return
+	case 401:
+		logger.Error("Node return unexpected error code 401 on command: " + commandStr)
+	case 412:
+		logger.Info("Node return insufficient paths (412) on command: " + commandStr)
+	case 462:
+		logger.Info("Node return no cached paths (462) on command: " + commandStr)
+	default:
+		logger.Error("Node return wrong command result: " + strconv.Itoa(result.Code) +
+			" on command: " + commandStr)
+	}
+	resultJSON := buildJSONResponse(result.Code, common.EstimatePaymentResponse{})
+	fmt.Println(string(resultJSON))
+}
+
+func (handler *NodeHandler) estimateReceive() {
+	if len(Addresses) == 0 {
+		logger.Error("Bad request: missing address parameter in receive estimate request")
+		fmt.Println("Bad request: missing address parameter")
+		return
+	}
+
+	addressType, address := common.ValidateAddress(Addresses[0])
+	if addressType == "" || address == "" {
+		logger.Error("Bad request: invalid address parameter in receive estimate request")
+		fmt.Println("Bad request: invalid address parameter")
+		return
+	}
+
+	if !common.ValidateSettlementLineAmount(PaymentAmount) {
+		logger.Error("Bad request: invalid payment-amount parameter in receive estimate request")
+		fmt.Println("Bad request: invalid payment-amount parameter")
+		return
+	}
+
+	if SenderEquivalent == "" || ReceiverEquivalent == "" {
+		logger.Error("Bad request: missing sender-eq or receiver-eq parameter in receive estimate request")
+		fmt.Println("Bad request: missing sender-eq or receiver-eq parameter")
+		return
+	}
+
+	if !common.ValidateInt(SenderEquivalent) || !common.ValidateInt(ReceiverEquivalent) {
+		logger.Error("Bad request: invalid sender-eq or receiver-eq parameter in receive estimate request")
+		fmt.Println("Bad request: invalid sender-eq or receiver-eq parameter")
+		return
+	}
+
+	command := NewCommand(
+		"GET:contractors/transactions/estimate/receive",
+		addressType,
+		address,
+		PaymentAmount,
+		SenderEquivalent,
+		ReceiverEquivalent,
+	)
+
+	go handler.estimateReceiveGetResult(command)
+}
+
+func (handler *NodeHandler) estimateReceiveGetResult(command *Command) {
+	err := handler.Node.SendCommand(command)
+	if err != nil {
+		logger.Error("Can't send command: " + string(command.ToBytes()) + " to node. Details: " + err.Error())
+		resultJSON := buildJSONResponse(COMMAND_TRANSFERRING_ERROR, common.EstimateReceiveResponse{})
+		fmt.Println(string(resultJSON))
+		return
+	}
+
+	result, err := handler.Node.GetResult(command, common.PAYMENT_OPERATION_TIMEOUT)
+	if err != nil {
+		logger.Error("Node is inaccessible during processing command: " +
+			string(command.ToBytes()) + ". Details: " + err.Error())
+		resultJSON := buildJSONResponse(NODE_IS_INACCESSIBLE, common.EstimateReceiveResponse{})
+		fmt.Println(string(resultJSON))
+		return
+	}
+
+	commandStr := string(command.ToBytes())
+	switch result.Code {
+	case OK:
+		if len(result.Tokens) == 0 {
+			logger.Error("Node return invalid result tokens size on command: " + commandStr)
+			resultJSON := buildJSONResponse(ENGINE_UNEXPECTED_ERROR, common.EstimateReceiveResponse{})
+			fmt.Println(string(resultJSON))
+			return
+		}
+		resultJSON := buildJSONResponse(OK, common.EstimateReceiveResponse{EstimatedReceiveAmount: result.Tokens[0]})
+		fmt.Println(string(resultJSON))
+		return
+	case 401:
+		logger.Error("Node return unexpected error code 401 on command: " + commandStr)
+	case 462:
+		logger.Info("Node return no cached paths (462) on command: " + commandStr)
+	default:
+		logger.Error("Node return wrong command result: " + strconv.Itoa(result.Code) +
+			" on command: " + commandStr)
+	}
+	resultJSON := buildJSONResponse(result.Code, common.EstimateReceiveResponse{})
+	fmt.Println(string(resultJSON))
+}
+
 func (handler *NodeHandler) Payment() {
 	if len(Addresses) == 0 {
 		logger.Error("Bad request: there are no contractor addresses parameters in payment request")
