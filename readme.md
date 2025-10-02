@@ -27,7 +27,10 @@ This project uses a `Makefile` for common development tasks. Ensure you have `ma
 
 ## Command Line Interface (CLI)
 
-General command format: `vtcpd-cli <command> [--type <sub-command>] [flags]`
+General command format: `vtcpd-cli <command> [<sub-command>] [flags]`
+
+> Terminology note
+> - `contractorID` is a numeric Contractor/Channel ID. It is the same identifier used for a channel. One channel is established per contractor, and multiple settlement lines can exist within that channel. `contractorID` is not a UUID and is not a settlement line ID.
 
 ### **Node Management Commands**
 
@@ -53,98 +56,98 @@ General command format: `vtcpd-cli <command> [--type <sub-command>] [flags]`
 
 ### **Node Interaction Commands**
 
-For these commands, many flags are global and are set for use by internal handlers. The primary logic for differentiating actions is performed via the `--type` flag.
+For these commands, many flags are global and are set for use by internal handlers. The action is selected by a positional sub-command (second argument), not a flag.
 
 5.  **`channels`**
     *   **Description:** Manages payment channels.
-    *   **Main Types (`--type`):** (The `--type <type>` flag is required to define the action for `channels` command)
+    *   **Main types (positional):** (The positional `<type>` argument is required to define the action for `channels` command)
         *   `init`: Initialize a new channel.
             *   **Flags:**
                 *   `--address <address>`: Contractor address. Multiple can be specified.
-        *   `list`: List all channels.
+        *   `get`: List all channels.
             *   **Flags:**
                 *   `--offset <number>`: Offset for paginated output.
                 *   `--count <number>`: Number of items to output.
-        *   `info`: Information about a specific channel.
+        *   `one`: Information about a specific channel.
             *   **Flags:**
-                *   `--contractorID <ID>`: Contractor ID or channel ID.
+                *   `--contractorID <ID>`: Contractor/Channel ID (numeric).
         *   `set-addresses`: Set/update addresses for a channel.
             *   **Flags:**
-                *   `--contractorID <ID>`: Contractor ID or channel ID.
+                *   `--contractorID <ID>`: Contractor/Channel ID (numeric).
                 *   `--address <address>`: Contractor address. Multiple can be specified.
         *   `set-crypto-key`: Set the cryptographic key for a channel.
             *   **Flags:**
-                *   `--contractorID <ID>`: Contractor ID or channel ID.
+                *   `--contractorID <ID>`: Contractor/Channel ID (numeric).
                 *   `--crypto-key <key>`: Cryptographic key.
         *   `regenerate-crypto-key`: Regenerate the cryptographic key for your side of the channel.
             *   **Flags:**
-                *   `--contractorID <ID>`: Contractor ID or channel ID.
+                *   `--contractorID <ID>`: Contractor/Channel ID (numeric).
         *   `remove`: Delete/close a channel.
             *   **Flags:**
-                *   `--contractorID <ID>`: Contractor ID or channel ID.
+                *   `--contractorID <ID>`: Contractor/Channel ID (numeric).
     *   **Examples:**
-        *   Initialize a channel: `vtcpd-cli channels --type init --address ipv4:127.0.0.1:5001`
-        *   List channels: `vtcpd-cli channels --type list --offset 0 --count 10`
-        *   Channel information: `vtcpd-cli channels --type info --contractorID "channel-uuid"`
-        *   Set key: `vtcpd-cli channels --type set-crypto-key --contractorID "channel-uuid" --crypto-key "new_key"`
+        *   Initialize a channel: `vtcpd-cli channels init --address ipv4:127.0.0.1:5001`
+        *   List channels: `vtcpd-cli channels get --offset 0 --count 10`
+        *   Channel information: `vtcpd-cli channels one --contractorID 333`
+        *   Set key: `vtcpd-cli channels set-crypto-key --contractorID 333 --crypto-key "new_key"`
 
 6.  **`settlement-lines`**
     *   **Description:** Manages settlement lines.
-    *   **Main Types (`--type`):** (The `--type <type>` flag is required to define the action for `settlement-lines` command)
+    *   **Main types (positional):** (The positional `<type>` argument is required to define the action for `settlement-lines` command)
         *   `init`: Initialize a new settlement line.
             *   **Flags:**
-                *   `--contractorID <ID>`: Contractor ID for the new settlement line.
+                *   `--contractorID <ID>`: Contractor/Channel ID (numeric) for the new settlement line.
                 *   `--eq <equivalent_ID>`: Equivalent ID (currency/token) for the new line.
         *   `set`: Set the maximum positive balance (contractor's debt to you).
             *   **Flags:**
-                *   `--contractorID <ID>`: Contractor ID of the settlement line to modify.
+                *   `--contractorID <ID>`: Contractor/Channel ID (numeric).
                 *   `--eq <equivalent_ID>`: Equivalent ID (currency/token) of the line.
                 *   `--amount <sum>`: Amount for setting the maximum positive balance.
         *   `close-incoming`: Close the incoming part of the line (zero out your debt to the contractor).
             *   **Flags:**
-                *   `--contractorID <ID>`: Contractor ID of the settlement line.
+                *   `--contractorID <ID>`: Contractor/Channel ID (numeric).
                 *   `--eq <equivalent_ID>`: Equivalent ID (currency/token) of the line.
         *   `share-keys`: Exchange public keys.
             *   **Flags:**
-                *   `--contractorID <ID>`: Contractor ID of the settlement line.
+                *   `--contractorID <ID>`: Contractor/Channel ID (numeric).
                 *   `--eq <equivalent_ID>`: Equivalent ID (currency/token) of the line.
         *   `delete`: Delete the settlement line.
             *   **Flags:**
-                *   `--contractorID <ID>`: Contractor ID of the settlement line.
+                *   `--contractorID <ID>`: Contractor/Channel ID (numeric).
                 *   `--eq <equivalent_ID>`: Equivalent ID (currency/token) of the line.
         *   `reset`: Reset the state of the settlement line (audit, balances).
             *   **Flags:**
-                *   `--contractorID <ID>`: Contractor ID of the settlement line.
+                *   `--contractorID <ID>`: Contractor/Channel ID (numeric).
                 *   `--eq <equivalent_ID>`: Equivalent ID (currency/token) of the line.
                 *   `--audit-number <number>`: Audit number for the reset.
                 *   `--balance <sum>`: Balance for the reset (this is the `balance` field. Note: `reset` also requires `incoming_amount` and `outgoing_amount`, which are not currently set by separate flags, this might need adjustment or they are passed differently).
-        *   `list-all`: List all settlement lines across all equivalents.
+        *   `equivalents`: List all settlement lines across all equivalents.
             *   **Flags:** (No specific flags for this type beyond `--type list-all`)
-        *   `list-portions`: List settlement lines with pagination for a specific equivalent.
+        *   `get`: List settlement lines with pagination for a specific equivalent.
             *   **Flags:**
                 *   `--eq <equivalent_ID>`: Equivalent ID (currency/token).
                 *   `--offset <number>`: Offset for pagination.
                 *   `--count <number>`: Number of items to output.
-        *   `list`: List settlement lines for a specific equivalent (usually the first page).
+        *   `get`: List settlement lines for a specific equivalent (offset/count default if not provided).
             *   **Flags:**
                 *   `--eq <equivalent_ID>`: Equivalent ID (currency/token).
-        *   `by-id`: Get a settlement line by its ID.
+        *   `get-by-id`: Get a settlement line for a contractor/channel.
             *   **Flags:**
-                *   `--contractorID <ID>`: Settlement line ID.
+                *   `--contractorID <ID>`: Contractor/Channel ID (numeric).
                 *   `--eq <equivalent_ID>`: Equivalent ID (currency/token).
-        *   `by-address`: Get a settlement line by the contractor's address.
+        *   `get-by-addresses`: Get a settlement line by the contractor's address.
             *   **Flags:**
                 *   `--eq <equivalent_ID>`: Equivalent ID (currency/token).
                 *   `--address <address>`: Contractor address.
     *   **Examples:**
-        *   Initialize line: `vtcpd-cli settlement-lines --type init --contractorID "contractor-uuid" --eq 0`
-        *   Set max positive balance: `vtcpd-cli settlement-lines --type set --contractorID "contractor-uuid" --eq 0 --amount 1000`
-        *   List lines: `vtcpd-cli settlement-lines --type list --eq 0`
-        *   Reset line: `vtcpd-cli settlement-lines --type reset --contractorID "contractor-uuid" --eq 0 --audit-number 1 --balance 0` (Note: passing `incoming_amount` and `outgoing_amount` for `reset` needs clarification).
+        *   Initialize line: `vtcpd-cli settlement-lines init --contractorID 333 --eq 0`
+        *   Set max positive balance: `vtcpd-cli settlement-lines set --contractorID 333 --eq 0 --amount 1000`
+        *   List lines: `vtcpd-cli settlement-lines get --eq 0`
+        *   Reset line: `vtcpd-cli settlement-lines reset --contractorID 333 --eq 0 --audit-number 1 --balance 0` (Note: passing `incoming_amount` and `outgoing_amount` for `reset` needs clarification).
 
 7.  **`max-flow`**
     *   **Description:** Calculates the maximum flow.
-    *   **Main Types (`--type`):** (The `--type <type>` flag is required to define the action for `max-flow` command)
+    *   **Main types (positional):** (The positional `<type>` argument is required to define the action for `max-flow` command)
         *   `fully`: Full calculation of maximum flow.
             *   **Flags:**
                 *   `--address <address>`: Contractor address. Multiple can be specified.
@@ -159,9 +162,9 @@ For these commands, many flags are global and are set for use by internal handle
                 *   `--eq <equivalent_ID>`: Target equivalent ID.
                 *   `--xeq <equivalent_ID>`: Payer equivalent for exchange. Repeatable.
     *   **Examples:**
-        *   Calculate fully: `vtcpd-cli max-flow --type calculate-fully --address "ipv4:1.2.3.4:5678" --eq 0`
-        *   Calculate partly: `vtcpd-cli max-flow --type calculate-partly --address "ipv4:1.2.3.4:5678" --eq 0`
-        *   Calculate with exchange: `vtcpd-cli max-flow --type exchange --address "ipv4:1.2.3.4:5678" --eq 0 --xeq 101 --xeq 1001`
+        *   Calculate fully: `vtcpd-cli max-flow fully --address "ipv4:1.2.3.4:5678" --eq 0`
+        *   Calculate partly: `vtcpd-cli max-flow partly --address "ipv4:1.2.3.4:5678" --eq 0`
+        *   Calculate with exchange: `vtcpd-cli max-flow exchange --address "ipv4:1.2.3.4:5678" --eq 0 --xeq 101 --xeq 1001`
 
 8.  **`payment`**
     *   **Description:** Creates and sends a payment.
@@ -174,7 +177,7 @@ For these commands, many flags are global and are set for use by internal handle
 
 9.  **`history`**
     *   **Description:** Views transaction history.
-    *   **Main Types (`--type`):** (The `--type <type>` flag is required to define the action for `history` command)
+    *   **Main types (positional):** (The positional `<type>` argument is required to define the action for `history` command)
         *   `payments`: Payment history for a specific equivalent.
             *   **Flags:**
                 *   `--offset <number>`: Offset for pagination.
@@ -192,7 +195,7 @@ For these commands, many flags are global and are set for use by internal handle
                 *   `--history-to <date>`: End date of history (RFC3339 format).
                 *   `--amount-from <sum>`: Minimum amount for filtering.
                 *   `--amount-to <sum>`: Maximum amount for filtering.
-        *   `payments-additional`: Additional payment history.
+        *   `additional`: Additional payment history.
             *   **Flags:**
                 *   `--offset <number>`: Offset for pagination.
                 *   `--count <number>`: Number of records.
@@ -210,7 +213,7 @@ For these commands, many flags are global and are set for use by internal handle
                 *   `--history-to <date>`: End date of history (RFC3339 format).
                 *   `--amount-from <sum>`: Minimum amount for filtering.
                 *   `--amount-to <sum>`: Maximum amount for filtering.
-        *   `contractor`: History of operations with a specific contractor.
+        *   `with-contractor`: History of operations with a specific contractor.
             *   **Flags:**
                 *   `--offset <number>`: Offset for pagination.
                 *   `--count <number>`: Number of records.
@@ -221,8 +224,8 @@ For these commands, many flags are global and are set for use by internal handle
                 *   `--amount-to <sum>`: Maximum amount for filtering.
                 *   `--contractorID <ID>`: Contractor ID.
     *   **Examples:**
-        *   Payment history: `vtcpd-cli history --type payments --eq 0 --offset 0 --count 20 --history-from "2023-10-01T00:00:00Z"`
-        *   History by contractor: `vtcpd-cli history --type contractor --contractorID "contractor-uuid" --eq 0`
+        *   Payment history: `vtcpd-cli history payments --eq 0 --offset 0 --count 20 --history-from "2023-10-01T00:00:00Z"`
+        *   History by contractor: `vtcpd-cli history with-contractor --contractorID 333 --eq 0`
 
 10. **`remove-outdated-crypto`**
     *   **Description:** Removes outdated cryptographic data from the node.
@@ -231,7 +234,7 @@ For these commands, many flags are global and are set for use by internal handle
 
 11. **`rates`**
     *   **Description:** Manages exchange rates between equivalents. For detailed explanation of storage format and conversion between real decimal and native (value + shift) formats, see [Exchange Rates: Storage Format and Conversion](#exchange-rates-storage-format-and-conversion).
-    *   **Main Types (`--type`):** (The `--type <type>` flag is required to define the action for `rates` command)
+    *   **Main types (positional):** (The positional `<type>` argument is required to define the action for `rates` command)
         *   `set`: Set an exchange rate using real decimal value.
             *   **Flags:**
                 *   `--from <equivalent_from>`: Source equivalent ID.
@@ -244,7 +247,7 @@ For these commands, many flags are global and are set for use by internal handle
                 *   `--from <equivalent_from>`: Source equivalent ID.
                 *   `--to <equivalent_to>`: Target equivalent ID.
                 *   `--value <int>`: Integer value for native format.
-                *   `--shift <int16>`: Base-10 shift for native format.
+                *   `--shift <int16>`: Base-10 shift for native format. For negative values, use equals form (e.g., `--shift=-1`).
                 *   `--min <min_exchange_amount>`: (Optional) Minimum exchange amount.
                 *   `--max <max_exchange_amount>`: (Optional) Maximum exchange amount.
         *   `get`: Get a specific exchange rate.
@@ -263,12 +266,12 @@ For these commands, many flags are global and are set for use by internal handle
         *   For `set`, `set-native`, `del`, `clear`: Empty data structure (success confirmation only).
         *   For `get`, `list`: Full rate object(s) including both native (`value`, `shift`) and computed `real_rate` plus optional amounts and expiration.
     *   **Examples:**
-        *   Set rate with decimal: `vtcpd-cli rates --type set --from 101 --to 1001 --real 0.00123 --min 100`
-        *   Set rate with native format: `vtcpd-cli rates --type set-native --from 101 --to 1001 --value 123 --shift -5 --max 10000`
-        *   Get specific rate: `vtcpd-cli rates --type get --from 101 --to 1001`
-        *   List all rates: `vtcpd-cli rates --type list`
-        *   Delete specific rate: `vtcpd-cli rates --type del --from 101 --to 1001`
-        *   Clear all rates: `vtcpd-cli rates --type clear`
+        *   Set rate with decimal: `vtcpd-cli rates set --from 101 --to 1001 --real 0.00123 --min 100`
+        *   Set rate with native format: `vtcpd-cli rates set-native --from 101 --to 1001 --value 123 --shift=-5 --max 10000`
+        *   Get specific rate: `vtcpd-cli rates get --from 101 --to 1001`
+        *   List all rates: `vtcpd-cli rates list`
+        *   Delete specific rate: `vtcpd-cli rates del --from 101 --to 1001`
+        *   Clear all rates: `vtcpd-cli rates clear`
 
 ## REST API Endpoints
 
@@ -312,13 +315,13 @@ Addresses in the API use the following format: `<type_code>-<address>`
             ```
         *   **Example (Step 2 - Participant):**
             ```bash
-            curl -X POST "http://localhost:PORT/api/v1/node/contractors/init-channel/?contractor_address=12-1.2.3.4:5000&crypto_key=initiator_public_key&contractor_id=channel-uuid-from-initiator"
+            curl -X POST "http://localhost:PORT/api/v1/node/contractors/init-channel/?contractor_address=12-1.2.3.4:5000&crypto_key=initiator_public_key&contractor_id=333"
             ```
         *   **Response (Step 1):**
             ```json
             {
               "data": {
-                "channel_id": "channel-uuid-123",
+                "channel_id": "333",
                 "crypto_key": "initiator_public_key"
               }
             }
@@ -327,7 +330,7 @@ Addresses in the API use the following format: `<type_code>-<address>`
             ```json
             {
               "data": {
-                "channel_id": "channel-uuid-456",
+                "channel_id": "333",
                 "crypto_key": "participant_public_key"
               }
             }
@@ -344,7 +347,7 @@ Addresses in the API use the following format: `<type_code>-<address>`
                     "count": 1,
                     "channels": [
                         {
-                            "channel_id": "channel-uuid-123",
+                            "channel_id": "333",
                             "channel_addresses": "12-1.2.3.4:5000,12-5.6.7.8:5001"
                         }
                     ]
@@ -360,7 +363,7 @@ Addresses in the API use the following format: `<type_code>-<address>`
             ```json
             {
                 "data": {
-                    "channel_id": "channel-uuid-123",
+                    "channel_id": "333",
                     "channel_addresses": ["12-1.2.3.4:5000"],
                     "channel_confirmed": "true",
                     "channel_crypto_key": "self_crypto_key",
@@ -377,7 +380,7 @@ Addresses in the API use the following format: `<type_code>-<address>`
             ```json
             {
                 "data": {
-                    "channel_id": "channel-uuid-123",
+                    "channel_id": "333",
                     "channel_confirmed": "true"
                 }
             }
@@ -394,7 +397,7 @@ Addresses in the API use the following format: `<type_code>-<address>`
             ```json
             {
                 "data": {
-                    "channel_id": "channel-uuid-123",
+                    "channel_id": "333",
                     "channel_addresses": ["12-1.2.3.5:5001"],
                     "channel_confirmed": "true",
                     "channel_crypto_key": "self_crypto_key",
@@ -415,7 +418,7 @@ Addresses in the API use the following format: `<type_code>-<address>`
             ```json
             {
                 "data": {
-                    "channel_id": "channel-uuid-123",
+                    "channel_id": "333",
                     "channel_addresses": ["12-1.2.3.4:5000"],
                     "channel_confirmed": "true",
                     "channel_crypto_key": "new_key",
@@ -468,7 +471,7 @@ Addresses in the API use the following format: `<type_code>-<address>`
                     "count": 1,
                     "contractors": [
                         {
-                            "contractor_id": "contractor-uuid-abc",
+                            "contractor_id": "333",
                             "contractor_addresses": "12-1.2.3.4:5000"
                         }
                     ]
@@ -489,7 +492,7 @@ Addresses in the API use the following format: `<type_code>-<address>`
                     "count": 1,
                     "settlement_lines": [
                         {
-                            "contractor_id": "contractor-uuid-abc",
+                            "contractor_id": "333",
                             "contractor": "Contractor Name/ID",
                             "state": "Active",
                             "own_keys_present": "true",
@@ -514,7 +517,7 @@ Addresses in the API use the following format: `<type_code>-<address>`
                     "count": 1,
                     "settlement_lines": [
                         {
-                            "contractor_id": "contractor-uuid-abc",
+                            "contractor_id": "333",
                             "contractor": "Contractor Name/ID",
                             "state": "Active",
                             "own_keys_present": "true",
@@ -542,7 +545,7 @@ Addresses in the API use the following format: `<type_code>-<address>`
                             "count": 1,
                             "settlement_lines": [
                                 {
-                                    "contractor_id": "contractor-uuid-abc",
+                                    "contractor_id": "333",
                                     "contractor": "Contractor Name/ID",
                                     "state": "Active",
                                     "own_keys_present": "true",
@@ -558,10 +561,10 @@ Addresses in the API use the following format: `<type_code>-<address>`
             }
             ```
     *   `GET /api/v1/node/contractors/settlement-line-by-id/{equivalent}/`
-        *   **Description:** Gets a settlement line by its ID.
+        *   **Description:** Gets a settlement line for a contractor/channel and equivalent.
         *   **Path Parameters:** `equivalent`. Parsed via `mux.Vars(r)["equivalent"]`.
-        *   **Query Parameters:** `id` (Settlement line ID). Handled via `r.FormValue("id")` in the handler.
-        *   **Example:** `curl "http://localhost:PORT/api/v1/node/contractors/settlement-line-by-id/0/?id=333"`
+        *   **Query Parameters:** `contractor_id` (Contractor/Channel ID). Handled via `r.FormValue("contractor_id")` in the handler.
+        *   **Example:** `curl "http://localhost:PORT/api/v1/node/contractors/settlement-line-by-id/0/?contractor_id=333"`
         *   **Response:** JSON object containing settlement line details.
         *   **Response Body (JSON Example):**
             ```json
@@ -861,7 +864,7 @@ Addresses in the API use the following format: `<type_code>-<address>`
                         {
                             "transaction_uuid": "tx-uuid-1",
                             "unix_timestamp_microseconds": "1678886400000000",
-                            "contractor": "contractor-uuid-abc",
+                            "contractor": "333",
                             "operation_direction": "outgoing",
                             "amount": "100",
                             "balance_after_operation": "400",
@@ -887,7 +890,7 @@ Addresses in the API use the following format: `<type_code>-<address>`
                             "equivalent": "0",
                             "transaction_uuid": "tx-uuid-2",
                             "unix_timestamp_microseconds": "1678886500000000",
-                            "contractor": "contractor-uuid-xyz",
+                            "contractor": "333",
                             "operation_direction": "incoming",
                             "amount": "50",
                             "balance_after_operation": "450",
