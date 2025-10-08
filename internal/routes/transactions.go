@@ -310,33 +310,21 @@ func (router *RoutesHandler) EstimatePayment(w http.ResponseWriter, r *http.Requ
 		return
 	}
 
-	commandStr := string(command.ToBytes())
-	switch result.Code {
-	case OK:
-		if len(result.Tokens) == 0 {
-			logger.Error("Node returned invalid result tokens size on command: " + commandStr)
-			writeHTTPResponse(w, ENGINE_UNEXPECTED_ERROR, common.EstimatePaymentResponse{})
-			return
-		}
-		writeHTTPResponse(w, OK, common.EstimatePaymentResponse{EstimatedPaymentAmount: result.Tokens[0]})
-		return
-	case 401:
-		logger.Error("Node returned unexpected error code 401 on command: " + commandStr)
-		writeHTTPResponse(w, SERVER_ERROR, common.EstimatePaymentResponse{})
-		return
-	case 412:
-		logger.Info("Node returned insufficient paths (412) on command: " + commandStr)
-		writeHTTPResponse(w, BAD_REQUEST, common.EstimatePaymentResponse{})
-		return
-	case 462:
-		logger.Info("Node returned no cached paths (462) on command: " + commandStr)
-		writeHTTPResponse(w, http.StatusNotFound, common.EstimatePaymentResponse{})
-		return
-	default:
-		logger.Error("Node returned wrong command result: " + strconv.Itoa(result.Code) + " on command: " + commandStr)
-		writeHTTPResponse(w, SERVER_ERROR, common.EstimatePaymentResponse{})
+	if result.Code != OK {
+		logger.Error("Node return wrong command result: " + strconv.Itoa(result.Code) +
+			" on command: " + string(command.ToBytes()))
+		writeHTTPResponse(w, result.Code, common.EstimateReceiveResponse{})
 		return
 	}
+
+	commandStr := string(command.ToBytes())
+
+	if len(result.Tokens) == 0 {
+		logger.Error("Node returned invalid result tokens size on command: " + commandStr)
+		writeHTTPResponse(w, ENGINE_UNEXPECTED_ERROR, common.EstimatePaymentResponse{})
+		return
+	}
+	writeHTTPResponse(w, OK, common.EstimatePaymentResponse{EstimatedPaymentAmount: result.Tokens[0]})
 }
 
 func (router *RoutesHandler) EstimateReceive(w http.ResponseWriter, r *http.Request) {
@@ -420,29 +408,22 @@ func (router *RoutesHandler) EstimateReceive(w http.ResponseWriter, r *http.Requ
 		return
 	}
 
-	commandStr := string(command.ToBytes())
-	switch result.Code {
-	case OK:
-		if len(result.Tokens) == 0 {
-			logger.Error("Node returned invalid result tokens size on command: " + commandStr)
-			writeHTTPResponse(w, ENGINE_UNEXPECTED_ERROR, common.EstimateReceiveResponse{})
-			return
-		}
-		writeHTTPResponse(w, OK, common.EstimateReceiveResponse{EstimatedReceiveAmount: result.Tokens[0]})
-		return
-	case 401:
-		logger.Error("Node returned unexpected error code 401 on command: " + commandStr)
-		writeHTTPResponse(w, SERVER_ERROR, common.EstimateReceiveResponse{})
-		return
-	case 462:
-		logger.Info("Node returned no cached paths (462) on command: " + commandStr)
-		writeHTTPResponse(w, http.StatusNotFound, common.EstimateReceiveResponse{})
-		return
-	default:
-		logger.Error("Node returned wrong command result: " + strconv.Itoa(result.Code) + " on command: " + commandStr)
-		writeHTTPResponse(w, SERVER_ERROR, common.EstimateReceiveResponse{})
+	if result.Code != OK {
+		logger.Error("Node return wrong command result: " + strconv.Itoa(result.Code) +
+			" on command: " + string(command.ToBytes()))
+		writeHTTPResponse(w, result.Code, common.EstimateReceiveResponse{})
 		return
 	}
+
+	commandStr := string(command.ToBytes())
+
+	if len(result.Tokens) == 0 {
+		logger.Error("Node returned invalid result tokens size on command: " + commandStr)
+		writeHTTPResponse(w, ENGINE_UNEXPECTED_ERROR, common.EstimateReceiveResponse{})
+		return
+	}
+	writeHTTPResponse(w, OK, common.EstimateReceiveResponse{EstimatedReceiveAmount: result.Tokens[0]})
+
 }
 
 func (router *RoutesHandler) CreateTransaction(w http.ResponseWriter, r *http.Request) {
