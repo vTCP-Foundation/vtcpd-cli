@@ -45,6 +45,7 @@ var (
 	maxExchangeAmount = kingpin.Flag("max", "Maximum exchange amount").Default("").String()
 	// Exchange max-flow flags (short only)
 	exchangeEquivalentsShort = kingpin.Flag("xeq", "Payer equivalent for exchange (repeatable)").Default("").Strings()
+	transactionUUID          = kingpin.Flag("transaction-uuid", "Transaction UUID for idempotent requests").Default("").String()
 )
 
 func main() {
@@ -85,6 +86,7 @@ func main() {
 	handler.MaxNegativeBalance = *maxNegativeBalance
 	handler.MaxPositiveBalance = *maxPositiveBalance
 	handler.Balance = *balance
+	handler.TransactionUUID = *transactionUUID
 	// Rates assignments
 	handler.EquivalentFrom = *equivalentFrom
 	handler.EquivalentTo = *equivalentTo

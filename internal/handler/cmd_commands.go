@@ -81,6 +81,10 @@ func (nh *NodeHandler) HandlePayment() error {
 		nh.PaymentEstimate()
 		return nil
 	}
+	if CommandType == "exchange" {
+		nh.PaymentExchange()
+		return nil
+	}
 	logger.Error("Invalid payment command " + CommandType)
 	fmt.Println("Invalid payment command")
 	return nil

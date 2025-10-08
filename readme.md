@@ -175,6 +175,44 @@ For these commands, many flags are global and are set for use by internal handle
         *   `--payload <data>`: (Optional) Additional data for the transaction.
     *   **Example:** `vtcpd-cli payment --address "ipv4:1.2.3.4:5678" --eq 0 --amount 100 --payload "Order 123"`
 
+    *   **Subcommand: `exchange`**
+        *   **Description:** Initiates a multi-equivalent payment using cached exchange paths between payer equivalents.
+        *   **Usage:** `vtcpd-cli payment exchange` with the flags below.
+        *   **Flags:**
+            *   `--address <address>`: Contractor address (repeatable). Use CLI format such as `ipv4:127.0.0.1:2003`.
+            *   `--amount <sum>`: Amount to transfer in sender equivalent units.
+            *   `--receiver-eq <equivalent_ID>`: Receiver equivalent ID that determines the target currency.
+            *   `--xeq <equivalent_ID>`: Payer exchange equivalent ID. Repeatable, must specify 1-5 values.
+            *   `--payload <data>`: Optional payload forwarded to the transaction.
+            *   `--transaction-uuid <uuid>`: Optional idempotency token.
+        *   **Examples:**
+            *   Single payer equivalent:
+                ```bash
+                vtcpd-cli payment exchange \
+                  --address "ipv4:127.0.0.1:2003" \
+                  --amount 50000 \
+                  --receiver-eq 2 \
+                  --xeq 1
+                ```
+            *   Multiple payer equivalents with payload and idempotency:
+                ```bash
+                vtcpd-cli payment exchange \
+                  --address "ipv4:127.0.0.1:2003" \
+                  --amount 75000 \
+                  --receiver-eq 5 \
+                  --xeq 1 --xeq 3 --xeq 7 \
+                  --payload "Invoice-12345" \
+                  --transaction-uuid "72e0f77c-9d29-4a30-9e0a-4f78fb4c4d42"
+                ```
+        *   **Response Format (success):**
+            ```json
+            {"status":200,"data":{"transaction_uuid":"15c4614a-3d8f-4d34-97fb-6c8dcbdd2e30"}}
+            ```
+        *   **Error Codes:** Matches `payment` command (vtcpd codes printed in `status`).
+            *   `412` – Insufficient exchange capacity.
+            *   `462` – No cached paths found for combined equivalents.
+            *   `401` – Unexpected engine error.
+
 9.  **`payment estimate`**
     *   **Description:** Estimates either the payment amount the sender must provide or the receive amount the contractor will obtain using cached optimal paths between equivalents.
     *   **Usage:** Provide the positional sub-command `estimate` (`vtcpd-cli payment estimate`) plus exactly one of `--receive-amount` or `--payment-amount`.
@@ -196,6 +234,7 @@ For these commands, many flags are global and are set for use by internal handle
         *   `412` – Insufficient cached paths to deliver the requested receive amount (payment estimation).
         *   `462` – No cached optimal paths exist for the provided contractor and equivalents.
     *   **HTTP Mapping:** When calling the REST API, these vtcpd codes map to HTTP statuses `412 → 400`, `462 → 404`, and `401 → 500`.
+
 
 10. **`history`**
     *   **Description:** Views transaction history.
@@ -785,6 +824,39 @@ Addresses in the API use the following format: `<type_code>-<address>`
                 }
             }
             ```
+    *   `POST /api/v1/node/contractors/transactions/exchange/{equivalent}/`
+        *   **Description:** Creates a payment that delivers funds in the receiver equivalent while debiting one or more payer exchange equivalents.
+        *   **Path Parameters:** `equivalent` (Receiver equivalent/currency ID).
+        *   **Request Parameters (query):**
+            *   `contractor_address` (required, repeatable) — Recipient contractor address in API format, e.g., `12-127.0.0.1:2003`.
+            *   `amount` (required) — Amount to transfer.
+            *   `exchange_equivalent` (required, repeatable) — Payer exchange equivalents. Provide 1–5 values.
+            *   `payload` (optional) — Additional transaction metadata.
+            *   `transaction_uuid` (optional) — Idempotency UUID.
+        *   **Example:**
+            ```bash
+            curl -X POST "http://localhost:PORT/api/v1/node/contractors/transactions/exchange/2/\
+              ?contractor_address=12-127.0.0.1:2003\
+              &contractor_address=12-10.0.0.10:2003\
+              &amount=75000\
+              &exchange_equivalent=1\
+              &exchange_equivalent=5\
+              &payload=Invoice-12345\
+              &transaction_uuid=72e0f77c-9d29-4a30-9e0a-4f78fb4c4d42"
+            ```
+        *   **Response Body (JSON Example):**
+            ```json
+            {
+                "data": {
+                    "transaction_uuid": "15c4614a-3d8f-4d34-97fb-6c8dcbdd2e30"
+                }
+            }
+            ```
+        *   **Error Mapping (vtcpd → HTTP):**
+            *   `412` → HTTP 400 — Insufficient exchange capacity.
+            *   `462` → HTTP 404 — No cached exchange paths for the provided equivalents.
+            *   `401` → HTTP 500 — Unexpected engine error returned by vtcpd.
+            *   Node inaccessible → HTTP 503 — Node not reachable while processing the command.
     *   `GET /api/v1/node/contractors/transactions/max/{equivalent}/`
         *   **Description:** Calculates the maximum flow for the specified equivalent (likely for *all* contractors or for one specified via query).
         *   **Path Parameters:** `equivalent` (Equivalent/currency ID).

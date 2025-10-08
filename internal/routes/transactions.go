@@ -426,6 +426,138 @@ func (router *RoutesHandler) EstimateReceive(w http.ResponseWriter, r *http.Requ
 
 }
 
+func (router *RoutesHandler) CreateExchangeTransaction(w http.ResponseWriter, r *http.Request) {
+	url, err := preprocessRequest(r)
+	if err != nil {
+		logger.Error("Bad request: invalid security parameters: " + err.Error())
+		w.WriteHeader(BAD_REQUEST)
+		return
+	}
+
+	equivalent, isParamPresent := mux.Vars(r)["equivalent"]
+	if !isParamPresent {
+		logger.Error("Bad request: missing equivalent parameter: " + url)
+		w.WriteHeader(BAD_REQUEST)
+		return
+	}
+	if !common.ValidateInt(equivalent) {
+		logger.Error("Bad request: invalid equivalent parameter: " + url)
+		w.WriteHeader(BAD_REQUEST)
+		return
+	}
+
+	query := r.URL.Query()
+	addressValues, hasAddresses := query["contractor_address"]
+	if !hasAddresses || len(addressValues) == 0 {
+		logger.Error("Bad request: there are no contractor_addresses parameters: " + url)
+		w.WriteHeader(BAD_REQUEST)
+		return
+	}
+
+	contractorAddresses := make([]string, 0, len(addressValues)*2)
+	for _, value := range addressValues {
+		typeAndAddress := strings.SplitN(value, "-", 2)
+		if len(typeAndAddress) != 2 || typeAndAddress[0] == "" || typeAndAddress[1] == "" {
+			logger.Error("Bad request: invalid contractor_address parameter: " + url)
+			w.WriteHeader(BAD_REQUEST)
+			return
+		}
+		if !common.ValidateInt(typeAndAddress[0]) {
+			logger.Error("Bad request: invalid contractor_address type parameter: " + url)
+			w.WriteHeader(BAD_REQUEST)
+			return
+		}
+		contractorAddresses = append(contractorAddresses, typeAndAddress[0], typeAndAddress[1])
+	}
+
+	amount := r.FormValue("amount")
+	if !common.ValidateSettlementLineAmount(amount) {
+		logger.Error("Bad request: invalid amount parameter: " + url)
+		w.WriteHeader(BAD_REQUEST)
+		return
+	}
+
+	exchangeEquivalents, hasExchange := query["exchange_equivalent"]
+	if !hasExchange || len(exchangeEquivalents) == 0 {
+		logger.Error("Bad request: there are no exchange_equivalents parameters: " + url)
+		w.WriteHeader(BAD_REQUEST)
+		return
+	}
+	if len(exchangeEquivalents) > 5 {
+		logger.Error("Bad request: too many exchange_equivalents parameters: " + url)
+		w.WriteHeader(BAD_REQUEST)
+		return
+	}
+	for _, exchangeEquivalent := range exchangeEquivalents {
+		if !common.ValidateInt(exchangeEquivalent) {
+			logger.Error("Bad request: invalid exchange_equivalent parameter: " + url)
+			w.WriteHeader(BAD_REQUEST)
+			return
+		}
+	}
+
+	payload := r.FormValue("payload")
+
+	transactionUUIDStr := r.FormValue("transaction_uuid")
+	var transactionUUID uuid.UUID
+	if transactionUUIDStr != "" {
+		transactionUUID, err = uuid.Parse(transactionUUIDStr)
+		if err != nil {
+			logger.Error("Bad request: invalid transaction_uuid parameter: " + url)
+			w.WriteHeader(BAD_REQUEST)
+			return
+		}
+	}
+
+	commandParts := append([]string{strconv.Itoa(len(contractorAddresses) / 2)}, contractorAddresses...)
+	commandParts = append([]string{"CREATE:contractors/transactions/exchange"}, commandParts...)
+	commandParts = append(commandParts, amount, equivalent)
+	commandParts = append(commandParts, exchangeEquivalents...)
+	if payload != "" {
+		commandParts = append(commandParts, payload)
+	}
+
+	var command *handler.Command
+	if transactionUUIDStr == "" {
+		command = handler.NewCommand(commandParts...)
+	} else {
+		command = handler.NewCommandWithUUID(transactionUUID, commandParts...)
+	}
+
+	if err = router.nodeHandler.Node.SendCommand(command); err != nil {
+		logger.Error("Can't send command: " + string(command.ToBytes()) + " to node. Details: " + err.Error())
+		writeHTTPResponse(w, COMMAND_TRANSFERRING_ERROR, common.PaymentResponse{})
+		return
+	}
+
+	result, err := router.nodeHandler.Node.GetResult(command, common.PAYMENT_OPERATION_TIMEOUT)
+	if err != nil {
+		logger.Error("Node is inaccessible during processing command: " + string(command.ToBytes()) + ". Details: " + err.Error())
+		writeHTTPResponse(w, NODE_IS_INACCESSIBLE, common.PaymentResponse{})
+		return
+	}
+
+	if result.Code != CREATED && result.Code != ENGINE_NO_EQUIVALENT {
+		logger.Error("Node return wrong command result: " + strconv.Itoa(result.Code) +
+			" on command: " + string(command.ToBytes()))
+		writeHTTPResponse(w, result.Code, common.PaymentResponse{})
+		return
+	}
+	if result.Code == ENGINE_NO_EQUIVALENT {
+		logger.Info("Node hasn't equivalent for command: " + string(command.ToBytes()))
+		writeHTTPResponse(w, result.Code, common.PaymentResponse{})
+		return
+	}
+
+	if len(result.Tokens) == 0 {
+		logger.Error("Node return invalid result tokens size on command: " + string(command.ToBytes()))
+		writeHTTPResponse(w, ENGINE_UNEXPECTED_ERROR, common.PaymentResponse{})
+		return
+	}
+
+	writeHTTPResponse(w, OK, common.PaymentResponse{TransactionUUID: result.Tokens[0]})
+}
+
 func (router *RoutesHandler) CreateTransaction(w http.ResponseWriter, r *http.Request) {
 	url, err := preprocessRequest(r)
 	if err != nil {

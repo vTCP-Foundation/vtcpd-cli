@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"strconv"
 
+	"github.com/google/uuid"
 	"github.com/vTCP-Foundation/vtcpd-cli/internal/common"
 	"github.com/vTCP-Foundation/vtcpd-cli/internal/logger"
 )
@@ -546,6 +547,83 @@ func (handler *NodeHandler) estimateReceiveGetResult(command *Command) {
 	}
 	resultJSON := buildJSONResponse(result.Code, common.EstimateReceiveResponse{})
 	fmt.Println(string(resultJSON))
+}
+
+func (handler *NodeHandler) PaymentExchange() {
+	if len(Addresses) == 0 {
+		logger.Error("Bad request: there are no contractor addresses parameters in payment exchange request")
+		fmt.Println("Bad request: there are no contractor addresses parameters")
+		return
+	}
+
+	if !common.ValidateSettlementLineAmount(Amount) {
+		logger.Error("Bad request: invalid amount parameter in payment exchange request")
+		fmt.Println("Bad request: invalid amount parameter")
+		return
+	}
+
+	if ReceiverEquivalent == "" {
+		logger.Error("Bad request: missing receiver-eq parameter in payment exchange request")
+		fmt.Println("Bad request: missing receiver-eq parameter")
+		return
+	}
+	if !common.ValidateInt(ReceiverEquivalent) {
+		logger.Error("Bad request: invalid receiver-eq parameter in payment exchange request")
+		fmt.Println("Bad request: invalid receiver-eq parameter")
+		return
+	}
+
+	if len(ExchangeEquivalents) == 0 {
+		logger.Error("Bad request: there are no exchange equivalents parameters in payment exchange request")
+		fmt.Println("Bad request: there are no exchange equivalents parameters")
+		return
+	}
+	if len(ExchangeEquivalents) > 5 {
+		logger.Error("Bad request: too many exchange equivalents parameters in payment exchange request")
+		fmt.Println("Bad request: too many exchange equivalents parameters")
+		return
+	}
+	for _, exchangeEquivalent := range ExchangeEquivalents {
+		if !common.ValidateInt(exchangeEquivalent) {
+			logger.Error("Bad request: invalid exchange equivalent parameter in payment exchange request")
+			fmt.Println("Bad request: invalid exchange equivalent parameter")
+			return
+		}
+	}
+
+	var addresses []string
+	for idx := range len(Addresses) {
+		addressType, address := common.ValidateAddress(Addresses[idx])
+		if addressType == "" {
+			logger.Error("Bad request: invalid address parameter in payment exchange request")
+			fmt.Println("Bad request: invalid address parameter")
+			return
+		}
+		addresses = append(addresses, addressType, address)
+	}
+
+	commandParts := append([]string{strconv.Itoa(len(Addresses))}, addresses...)
+	commandParts = append([]string{"CREATE:contractors/transactions/exchange"}, commandParts...)
+	commandParts = append(commandParts, Amount, ReceiverEquivalent)
+	commandParts = append(commandParts, ExchangeEquivalents...)
+	if Payload != "" {
+		commandParts = append(commandParts, Payload)
+	}
+
+	var command *Command
+	if TransactionUUID != "" {
+		parsedUUID, err := uuid.Parse(TransactionUUID)
+		if err != nil {
+			logger.Error("Bad request: invalid transaction-uuid parameter in payment exchange request")
+			fmt.Println("Bad request: invalid transaction-uuid parameter")
+			return
+		}
+		command = NewCommandWithUUID(parsedUUID, commandParts...)
+	} else {
+		command = NewCommand(commandParts...)
+	}
+
+	go handler.paymentResult(command)
 }
 
 func (handler *NodeHandler) Payment() {

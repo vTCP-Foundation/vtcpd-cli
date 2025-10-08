@@ -49,6 +49,7 @@ var (
 	AmountTo                  = ""
 	CryptoKey                 = ""
 	Payload                   = ""
+	TransactionUUID           = ""
 	AuditNumber               = ""
 	MaxNegativeBalance        = ""
 	MaxPositiveBalance        = ""
