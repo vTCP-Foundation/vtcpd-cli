@@ -44,8 +44,10 @@ var (
 	minExchangeAmount = kingpin.Flag("min", "Minimum exchange amount").Default("").String()
 	maxExchangeAmount = kingpin.Flag("max", "Maximum exchange amount").Default("").String()
 	// Exchange max-flow flags (short only)
-	exchangeEquivalentsShort = kingpin.Flag("xeq", "Payer equivalent for exchange (repeatable)").Default("").Strings()
-	transactionUUID          = kingpin.Flag("transaction-uuid", "Transaction UUID for idempotent requests").Default("").String()
+	exchangeEquivalentsShort   = kingpin.Flag("xeq", "Payer equivalent for exchange (repeatable)").Default("").Strings()
+	transactionUUID            = kingpin.Flag("transaction-uuid", "Transaction UUID for idempotent requests").Default("").String()
+	maxAllowablePaymentAmount  = kingpin.Flag("max-allowable-payment-amount", "Maximum allowable payment amount").Default("").String()
+	maxAllowablePaymentAmountShort = kingpin.Flag("mapa", "Maximum allowable payment amount (short)").Default("").String()
 )
 
 func main() {
@@ -104,6 +106,12 @@ func main() {
 			}
 		}
 		handler.ExchangeEquivalents = merged
+	}
+	// Max allowable payment amount: prefer long flag, fall back to short
+	if *maxAllowablePaymentAmount != "" {
+		handler.MaxAllowablePaymentAmount = *maxAllowablePaymentAmount
+	} else {
+		handler.MaxAllowablePaymentAmount = *maxAllowablePaymentAmountShort
 	}
 
 	cmdHandler, err := cmd_handler.NewCommandHandler()

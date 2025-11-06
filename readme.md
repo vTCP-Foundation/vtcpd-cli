@@ -183,6 +183,7 @@ For these commands, many flags are global and are set for use by internal handle
             *   `--amount <sum>`: Amount to transfer in sender equivalent units.
             *   `--receiver-eq <equivalent_ID>`: Receiver equivalent ID that determines the target currency.
             *   `--xeq <equivalent_ID>`: Payer exchange equivalent ID. Repeatable, must specify 1-5 values.
+            *   `--max-allowable-payment-amount <sum>` or `--mapa <sum>`: Optional maximum payment amount limit in payer equivalent units. If the total reserved payment amount exceeds this limit, the transaction will be aborted with error code 415.
             *   `--payload <data>`: Optional payload forwarded to the transaction.
             *   `--transaction-uuid <uuid>`: Optional idempotency token.
         *   **Examples:**
@@ -204,12 +205,22 @@ For these commands, many flags are global and are set for use by internal handle
                   --payload "Invoice-12345" \
                   --transaction-uuid "72e0f77c-9d29-4a30-9e0a-4f78fb4c4d42"
                 ```
+            *   With maximum allowable payment amount limit:
+                ```bash
+                vtcpd-cli payment exchange \
+                  --address "ipv4:127.0.0.1:2003" \
+                  --amount 50000 \
+                  --receiver-eq 2 \
+                  --xeq 1 \
+                  --max-allowable-payment-amount 55000
+                ```
         *   **Response Format (success):**
             ```json
             {"status":200,"data":{"transaction_uuid":"15c4614a-3d8f-4d34-97fb-6c8dcbdd2e30"}}
             ```
         *   **Error Codes:** Matches `payment` command (vtcpd codes printed in `status`).
             *   `412` – Insufficient exchange capacity.
+            *   `415` – Allowable payment amount has been exceeded.
             *   `462` – No cached paths found for combined equivalents.
             *   `401` – Unexpected engine error.
 
@@ -831,6 +842,7 @@ Addresses in the API use the following format: `<type_code>-<address>`
             *   `contractor_address` (required, repeatable) — Recipient contractor address in API format, e.g., `12-127.0.0.1:2003`.
             *   `amount` (required) — Amount to transfer.
             *   `exchange_equivalent` (required, repeatable) — Payer exchange equivalents. Provide 1–5 values.
+            *   `max_allowable_payment_amount` (optional) — Maximum payment amount limit in payer equivalent units. If the total reserved payment amount exceeds this limit, the transaction will be aborted with error code 415.
             *   `payload` (optional) — Additional transaction metadata.
             *   `transaction_uuid` (optional) — Idempotency UUID.
         *   **Example:**
@@ -844,6 +856,14 @@ Addresses in the API use the following format: `<type_code>-<address>`
               &payload=Invoice-12345\
               &transaction_uuid=72e0f77c-9d29-4a30-9e0a-4f78fb4c4d42"
             ```
+        *   **Example with maximum allowable payment amount:**
+            ```bash
+            curl -X POST "http://localhost:PORT/api/v1/node/contractors/transactions/exchange/2/\
+              ?contractor_address=12-127.0.0.1:2003\
+              &amount=50000\
+              &exchange_equivalent=1\
+              &max_allowable_payment_amount=55000"
+            ```
         *   **Response Body (JSON Example):**
             ```json
             {
@@ -854,6 +874,7 @@ Addresses in the API use the following format: `<type_code>-<address>`
             ```
         *   **Error Mapping (vtcpd → HTTP):**
             *   `412` → HTTP 400 — Insufficient exchange capacity.
+            *   `415` → HTTP 400 — Allowable payment amount has been exceeded.
             *   `462` → HTTP 404 — No cached exchange paths for the provided equivalents.
             *   `401` → HTTP 500 — Unexpected engine error returned by vtcpd.
             *   Node inaccessible → HTTP 503 — Node not reachable while processing the command.

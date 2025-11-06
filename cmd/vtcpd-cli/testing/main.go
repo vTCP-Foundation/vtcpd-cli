@@ -25,12 +25,14 @@ var (
 	historyTo                 = kingpin.Flag("history-to", "Higher value of history date.").Default("").String()
 	amountFrom                = kingpin.Flag("amount-from", "Lower value of history amount.").Default("").String()
 	amountTo                  = kingpin.Flag("amount-to", "Higher value of history amount.").Default("").String()
-	cryptoKey                 = kingpin.Flag("crypto-key", "Channel crypto key.").Default("").String()
-	payload                   = kingpin.Flag("payload", "Payload for payment transaction.").Default("").String()
-	auditNumber               = kingpin.Flag("audit-number", "Number for audit.").Default("").String()
-	maxNegativeBalance        = kingpin.Flag("max-negative-balance", "Max negative balance.").Default("").String()
-	maxPositiveBalance        = kingpin.Flag("max-positive-balance", "Max positive balance.").Default("").String()
-	balance                   = kingpin.Flag("balance", "Settlement line balance.").Default("").String()
+	cryptoKey                  = kingpin.Flag("crypto-key", "Channel crypto key.").Default("").String()
+	payload                    = kingpin.Flag("payload", "Payload for payment transaction.").Default("").String()
+	auditNumber                = kingpin.Flag("audit-number", "Number for audit.").Default("").String()
+	maxNegativeBalance         = kingpin.Flag("max-negative-balance", "Max negative balance.").Default("").String()
+	maxPositiveBalance         = kingpin.Flag("max-positive-balance", "Max positive balance.").Default("").String()
+	balance                    = kingpin.Flag("balance", "Settlement line balance.").Default("").String()
+	maxAllowablePaymentAmount  = kingpin.Flag("max-allowable-payment-amount", "Maximum allowable payment amount").Default("").String()
+	maxAllowablePaymentAmountShort = kingpin.Flag("mapa", "Maximum allowable payment amount (short)").Default("").String()
 )
 
 func main() {
@@ -67,6 +69,12 @@ func main() {
 	handler.MaxNegativeBalance = *maxNegativeBalance
 	handler.MaxPositiveBalance = *maxPositiveBalance
 	handler.Balance = *balance
+	// Max allowable payment amount: prefer long flag, fall back to short
+	if *maxAllowablePaymentAmount != "" {
+		handler.MaxAllowablePaymentAmount = *maxAllowablePaymentAmount
+	} else {
+		handler.MaxAllowablePaymentAmount = *maxAllowablePaymentAmountShort
+	}
 
 	cmdHandler, err := cmd_handler.NewCommandHandlerTesting()
 	if err != nil {

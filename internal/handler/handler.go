@@ -62,6 +62,8 @@ var (
 	Shift             = ""
 	MinExchangeAmount = ""
 	MaxExchangeAmount = ""
+	// Exchange payment-specific variables
+	MaxAllowablePaymentAmount = ""
 )
 
 type NodeHandler struct {

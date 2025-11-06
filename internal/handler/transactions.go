@@ -591,6 +591,17 @@ func (handler *NodeHandler) PaymentExchange() {
 		}
 	}
 
+	// Validate max allowable payment amount if provided
+	maxAllowableAmount := "0"
+	if MaxAllowablePaymentAmount != "" {
+		if !common.ValidateSettlementLineAmount(MaxAllowablePaymentAmount) {
+			logger.Error("Bad request: invalid max-allowable-payment-amount parameter in payment exchange request")
+			fmt.Println("Bad request: invalid max-allowable-payment-amount parameter")
+			return
+		}
+		maxAllowableAmount = MaxAllowablePaymentAmount
+	}
+
 	var addresses []string
 	for idx := range len(Addresses) {
 		addressType, address := common.ValidateAddress(Addresses[idx])
@@ -606,6 +617,7 @@ func (handler *NodeHandler) PaymentExchange() {
 	commandParts = append([]string{"CREATE:contractors/transactions/exchange"}, commandParts...)
 	commandParts = append(commandParts, Amount, ReceiverEquivalent)
 	commandParts = append(commandParts, ExchangeEquivalents...)
+	commandParts = append(commandParts, maxAllowableAmount)
 	if Payload != "" {
 		commandParts = append(commandParts, Payload)
 	}

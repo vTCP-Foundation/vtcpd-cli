@@ -496,6 +496,18 @@ func (router *RoutesHandler) CreateExchangeTransaction(w http.ResponseWriter, r 
 		}
 	}
 
+	// Get and validate max_allowable_payment_amount (optional)
+	maxAllowableAmount := "0"
+	maxAllowablePaymentAmountStr := r.FormValue("max_allowable_payment_amount")
+	if maxAllowablePaymentAmountStr != "" {
+		if !common.ValidateSettlementLineAmount(maxAllowablePaymentAmountStr) {
+			logger.Error("Bad request: invalid max_allowable_payment_amount parameter: " + url)
+			w.WriteHeader(BAD_REQUEST)
+			return
+		}
+		maxAllowableAmount = maxAllowablePaymentAmountStr
+	}
+
 	payload := r.FormValue("payload")
 
 	transactionUUIDStr := r.FormValue("transaction_uuid")
@@ -513,6 +525,7 @@ func (router *RoutesHandler) CreateExchangeTransaction(w http.ResponseWriter, r 
 	commandParts = append([]string{"CREATE:contractors/transactions/exchange"}, commandParts...)
 	commandParts = append(commandParts, amount, equivalent)
 	commandParts = append(commandParts, exchangeEquivalents...)
+	commandParts = append(commandParts, maxAllowableAmount)
 	if payload != "" {
 		commandParts = append(commandParts, payload)
 	}
